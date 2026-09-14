@@ -7,7 +7,7 @@ namespace Workes.ContentSystem.Core;
 /// Stores content records keyed by caller-provided IDs validated by an ID strategy.
 /// </summary>
 /// <typeparam name="TId">The caller-facing ID type.</typeparam>
-public sealed class KeyedContentStructure<TId> : IContentStructure
+public sealed class KeyedContentStructure<TId> : IKeyedContentStructure<TId>
 {
     private readonly Dictionary<ContentEntryId, ContentEntryRecord> _recordsById = new Dictionary<ContentEntryId, ContentEntryRecord>();
     private readonly List<ContentEntryRecord> _records = new List<ContentEntryRecord>();

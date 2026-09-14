@@ -46,6 +46,19 @@ public sealed class BoundedFifoContentStructureTests
     }
 
     [Test]
+    public void TryAdd_ReturnsRecordWithSequentialStructureAssignedId()
+    {
+        var structure = new BoundedFifoContentStructure(3);
+
+        bool accepted = structure.TryAdd(Entry("First"), out ContentEntryRecord? record, out ContentFailure? failure);
+
+        Assert.That(accepted, Is.True);
+        Assert.That(record, Is.Not.Null);
+        Assert.That(record!.Id, Is.EqualTo(new ContentEntryId("1")));
+        Assert.That(failure, Is.Null);
+    }
+
+    [Test]
     public void Records_AreReadOldestToNewest()
     {
         var structure = new BoundedFifoContentStructure(3);
@@ -154,6 +167,14 @@ public sealed class BoundedFifoContentStructureTests
         var structure = new BoundedFifoContentStructure(2);
 
         Assert.Throws<ArgumentNullException>(() => structure.Add(null!));
+    }
+
+    [Test]
+    public void TryAdd_NullEntryThrows()
+    {
+        var structure = new BoundedFifoContentStructure(2);
+
+        Assert.Throws<ArgumentNullException>(() => structure.TryAdd(null!, out _, out _));
     }
 
     [Test]

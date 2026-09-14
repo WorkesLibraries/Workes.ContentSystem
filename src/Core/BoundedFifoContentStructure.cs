@@ -7,7 +7,7 @@ namespace Workes.ContentSystem.Core;
 /// <summary>
 /// Stores content records in chronological FIFO order with a fixed retained capacity.
 /// </summary>
-public sealed class BoundedFifoContentStructure : IContentStructure
+public sealed class BoundedFifoContentStructure : IStructureAssignedIdContentStructure
 {
     /// <summary>
     /// The default number of records retained by a bounded FIFO structure.
@@ -60,6 +60,17 @@ public sealed class BoundedFifoContentStructure : IContentStructure
     /// <returns>The retained record.</returns>
     public ContentEntryRecord Add(IContentEntry entry)
     {
+        if (TryAdd(entry, out ContentEntryRecord? record, out ContentFailure? failure))
+        {
+            return record!;
+        }
+
+        throw new ContentOperationException(failure!);
+    }
+
+    /// <inheritdoc />
+    public bool TryAdd(IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
+    {
         if (entry is null)
         {
             throw new ArgumentNullException(nameof(entry));
@@ -73,9 +84,10 @@ public sealed class BoundedFifoContentStructure : IContentStructure
         ContentEntryId id = new ContentEntryId(_nextId.ToString(CultureInfo.InvariantCulture));
         _nextId++;
 
-        var record = new ContentEntryRecord(id, entry);
+        record = new ContentEntryRecord(id, entry);
         _records.Add(record);
-        return record;
+        failure = null;
+        return true;
     }
 
     /// <inheritdoc />

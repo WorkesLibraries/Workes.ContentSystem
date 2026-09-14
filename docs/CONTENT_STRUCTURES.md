@@ -14,9 +14,15 @@ The common abstraction exposes:
 - `TryGet` lookup by `ContentEntryId`;
 - expected-success `Get` lookup by `ContentEntryId`.
 
-Append workflows are structure-specific. This lets generated-ID structures and caller-provided-ID structures expose honest APIs without forcing every structure into one add method.
+Write workflows are structure-specific. This lets structure-assigned-ID structures and caller-provided-ID structures expose honest APIs without forcing every structure into one add method.
 
 Prefer a concrete structure's natural lookup overload when working with that structure directly. Use `ContentEntryId` lookup through `IContentStructure` when writing structure-agnostic code.
+
+Manager workflows follow the same split:
+
+- `ContentManager` works with `IStructureAssignedIdContentStructure`;
+- `KeyedContentManager<TId>` works with `IKeyedContentStructure<TId>`;
+- `ContentManagerBase` provides shared read and lookup behavior for manager-agnostic code.
 
 ## First Structure
 
@@ -31,6 +37,14 @@ Expected behavior:
 - entry IDs are assigned internally as increasing decimal strings.
 
 This covers console history, simple logs, chat scrollback, notification feeds, and other common streams.
+
+`BoundedFifoContentStructure` implements `IStructureAssignedIdContentStructure`, so it can be used directly or through the default manager:
+
+```csharp
+var content = new ContentManager();
+
+content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
+```
 
 FIFO lookup only finds retained records. A record that was dropped by capacity overflow is treated as not found.
 
@@ -76,6 +90,14 @@ ContentEntryRecord record = keyed.Get(8);
 ```
 
 Custom ID types are supported by passing a custom `IContentEntryIdStrategy<TId>` to the constructor.
+
+`KeyedContentStructure<TId>` implements `IKeyedContentStructure<TId>`, so it can also be used through `KeyedContentManager<TId>`:
+
+```csharp
+var content = new KeyedContentManager<string>();
+
+content.Add("thread-main", new PlainContentEntry(DateTimeOffset.UtcNow, "First post."));
+```
 
 Duplicate IDs and IDs rejected by the active strategy fail through `ContentFailure`. Missing lookups still use `EntryNotFound`.
 

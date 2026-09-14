@@ -8,9 +8,13 @@ These guidelines keep the package consistent with the other Workes packages whil
 
 ## Root Workflow
 
-Prefer a manager-owned workflow for normal use.
+Prefer manager-owned workflows for normal use.
 
-The likely root type is `ContentManager`. It should have a simple default constructor and an options-based constructor once options are needed. Passing no options should create the normal useful default.
+The default root type is `ContentManager`. It should have a simple default constructor. Passing no options should create the normal useful FIFO-backed workflow.
+
+Use `KeyedContentManager<TId>` for structures where caller-provided IDs are first-class. Do not make one manager expose write methods that only work for some structures.
+
+`ContentManagerBase` is public shared read/lookup plumbing for code that can work with either manager type. It should stay small and should not become a catch-all capability surface.
 
 Advanced behavior should be opt-in through options, structures, or attachments.
 
@@ -29,7 +33,7 @@ A structure should own:
 - mutability rules;
 - capability support.
 
-Do not force one append method into the base structure abstraction. Generated-ID structures and caller-provided-ID structures can expose their own add workflows.
+Do not force one append method into the base structure abstraction. Structure-assigned-ID structures and caller-provided-ID structures should expose their own write workflows through focused interfaces.
 
 Concrete structures should expose natural lookup overloads for their ID model. For example, FIFO can support `Get(1)` while generic code can continue using `IContentStructure.Get(ContentEntryId)`.
 

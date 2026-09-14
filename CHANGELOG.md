@@ -20,3 +20,4 @@ Added during foundation work:
 - `ContentEntryId`, `ContentEntryRecord`, `IContentEntry`, and `PlainContentEntry` as the first entry foundation.
 - `IContentStructure` and `BoundedFifoContentStructure` for retained-record lookup and bounded FIFO storage.
 - ID strategies and `KeyedContentStructure` for caller-provided entry IDs.
+- `ContentManagerBase`, `ContentManager`, and `KeyedContentManager<TId>` for shared read/lookup behavior and workflow-specific entry adds.

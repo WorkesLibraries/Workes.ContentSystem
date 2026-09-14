@@ -1,6 +1,6 @@
 # Concepts
 
-Workes.ContentSystem is a planned backend for extensible content streams.
+Workes.ContentSystem is a backend for extensible content streams.
 
 The package should not assume that all content is chat, logs, console output, or forum posts. Those are all possible uses of the same deeper model: an application stores entries in a structure, then a host UI or integration decides how to present or export them.
 
@@ -22,11 +22,15 @@ A keyed structure is also available for callers that want to provide typed IDs d
 
 Other structures can behave very differently. A forum-like structure might group entries by thread. A chat structure might group by channel. A searchable structure might maintain indexes. A persistent structure might load and save entries.
 
-## Content Manager
+## Content Managers
 
-The expected root object is `ContentManager`.
+Manager workflows are separated by entry ID ownership.
 
-The manager should provide the simple workflow for normal users while allowing advanced users to swap in different structures or optional attachments. Like the other Workes packages, the default path should be easy, and complexity should be opt-in.
+Use `ContentManager` for structures that assign IDs when entries are added. The default constructor uses `BoundedFifoContentStructure`, so the simple path is create a manager, add entries, and read records.
+
+Use `KeyedContentManager<TId>` for structures where caller-provided IDs are first-class. This keeps keyed add and lookup typed without adding overloads for every possible ID shape.
+
+`ContentManagerBase` provides the shared read and lookup surface for code that can work with either manager type. It is common infrastructure, not the normal construction path.
 
 ## Attachments
 

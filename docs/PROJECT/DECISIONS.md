@@ -272,3 +272,43 @@ This proves configurable identity with a simple structure before introducing ric
 #### Consequences
 
 FIFO remains internally generated and strategy-free. Keyed structures get clean typed ID APIs while preserving `ContentEntryId` as the shared structure-agnostic ID value.
+
+### D-013: Manager Workflows Follow ID Ownership
+
+#### Context
+
+`IContentStructure` is intentionally read and lookup focused because structures do not all add entries the same way. FIFO-style structures assign IDs when entries are added, while keyed structures require caller-provided typed IDs.
+
+#### Decision
+
+ContentSystem exposes separate manager workflows for the two implemented write categories.
+
+`ContentManager` works with `IStructureAssignedIdContentStructure` and uses `BoundedFifoContentStructure` by default. `KeyedContentManager<TId>` works with `IKeyedContentStructure<TId>`.
+
+`ContentManagerBase` is a public abstract base for shared read and lookup behavior across managers.
+
+#### Reasoning
+
+This keeps write APIs honest and avoids a single manager with methods that only work for some structures. It also keeps normal usage small: choose the manager that matches the ID ownership model, then use typed methods from there.
+
+#### Consequences
+
+Users choose between `ContentManager` and `KeyedContentManager<TId>` when constructing the root workflow. Shared code can accept `ContentManagerBase` when it only needs records or lookup by `ContentEntryId`.
+
+### D-014: 0.1.0 Is The First Useful Prerelease
+
+#### Context
+
+The project is being built in stages before a stable 1.0.0 release. The first prerelease should become useful once entries, failures, structures, and manager workflows are implemented.
+
+#### Decision
+
+Version `0.1.0` represents the first useful prerelease, not the completed package. The following release-prep stage should polish metadata, docs, examples, packaging, and verification for that prerelease.
+
+#### Reasoning
+
+This keeps the pre-0.1.0 stages focused on reaching the first usable core. Later pre-1.0.0 work can add polish, optional capabilities, richer examples, hooks, exports, and attachments before the minimum completed 1.0.0 package.
+
+#### Consequences
+
+After Stage 6, Trello should prioritize `Prepare 0.1.0 release` before optional hooks, capability metadata, attachments, and broader examples.
