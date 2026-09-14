@@ -114,7 +114,7 @@ The abstraction should leave room for other useful structures:
 - grid-like structure for forum or board-style UIs;
 - composite structures that mirror entries into more than one view.
 
-These should not make the first FIFO implementation complicated. They should be enabled by the abstraction, not pre-implemented in the first pass.
+These should grow from the existing abstractions rather than making the first FIFO implementation complicated.
 
 ## Capabilities
 

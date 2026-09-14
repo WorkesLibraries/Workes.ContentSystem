@@ -8,7 +8,7 @@ This is a project-control document for maintaining architectural consistency. It
 
 ## Current Architecture
 
-Workes.ContentSystem is a package foundation. The first public entry, failure, structure, and manager pieces are now implemented; this document records the intended architecture to guide implementation stages.
+Workes.ContentSystem now has its first useful core: public entry, failure, structure, and manager pieces are implemented. This document records the intended architecture to guide implementation stages.
 
 The package should be engine-neutral and centered on manager workflows that own one active content structure and expose simple APIs for normal users.
 
@@ -21,7 +21,7 @@ The package should be engine-neutral and centered on manager workflows that own 
 - `ContentManager` is the default manager for structure-assigned-ID workflows.
 - `KeyedContentManager<TId>` is the manager for caller-provided typed-ID workflows.
 - The first structure is a bounded chronological FIFO structure.
-- `KeyedContentStructure<TId>` exercises configurable typed-ID validation after the FIFO foundation.
+- `KeyedContentStructure<TId>` provides configurable typed-ID validation for caller-keyed records.
 - A shared failure model should represent expected content-system rejection.
 - Optional attachments should support export, persistence, bridges, and platform adapters without making those features mandatory.
 

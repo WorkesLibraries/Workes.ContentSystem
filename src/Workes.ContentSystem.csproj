@@ -8,13 +8,13 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Workes.ContentSystem</PackageId>
     <Version>0.1.0</Version>
-    <PackageReleaseNotes>TODO: Initial release notes.</PackageReleaseNotes>
+    <PackageReleaseNotes>Initial 0.1.0 release with extensible content entries, structured failures, bounded FIFO storage, keyed content storage, and manager workflows.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Workes</Authors>
     <Company>Workes</Company>
     <Product>Workes.ContentSystem</Product>
-    <Description>TODO: Short package description.</Description>
-    <PackageTags>TODO</PackageTags>
+    <Description>Engine-neutral content-entry storage for simple streams, keyed records, and extensible application content workflows.</Description>
+    <PackageTags>content entries storage fifo keyed history logs chat feed workes</PackageTags>
     <PackageProjectUrl>https://github.com/WorkesLibraries/Workes.ContentSystem</PackageProjectUrl>
     <RepositoryUrl>https://github.com/WorkesLibraries/Workes.ContentSystem.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
