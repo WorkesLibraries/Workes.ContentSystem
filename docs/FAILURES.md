@@ -1,10 +1,10 @@
 # Failures
 
-Workes.ContentSystem should use the same broad failure philosophy as the other Workes packages.
+Workes.ContentSystem uses the same broad failure philosophy as the other Workes packages.
 
 ## Expected Failures
 
-Expected content-system rejection should be represented as structured failure data.
+Expected content-system rejection is represented as structured failure data.
 
 Examples:
 
@@ -14,7 +14,7 @@ Examples:
 - a persistence operation fails in a recoverable way;
 - a bridge rejects an entry because it cannot map the entry type.
 
-The planned failure model is:
+The shared failure model is:
 
 - `ContentFailure`;
 - `ContentFailureKind`;
@@ -22,11 +22,35 @@ The planned failure model is:
 - `ContentSystemException`;
 - `ContentOperationException`.
 
+`ContentFailure` carries:
+
+- `Kind`, a broad category such as `Entry`, `Structure`, `Export`, or `Extension`;
+- `Code`, a stable machine-readable string prefixed with `workes.content.`;
+- `Message`, a human-readable description;
+- optional `Component`, `Source`, and nested `Cause` values.
+
+Built-in failure kinds are:
+
+- `Unknown`;
+- `Validation`;
+- `Configuration`;
+- `Entry`;
+- `Structure`;
+- `Export`;
+- `Attachment`;
+- `Persistence`;
+- `Bridge`;
+- `Extension`.
+
+Callers should branch on `Kind` or `Code`, not on display messages.
+
 ## Try And Expected-Success APIs
 
 Try-style APIs should return structured failure data when ordinary operation failure is expected.
 
 Expected-success APIs should throw package-owned exceptions that carry the same structured failure.
+
+`ContentSystemException` is the base exception for package-owned expected-success failures. `ContentOperationException` is the standard operation-level exception for expected content operation rejection.
 
 Programmer misuse, such as null arguments or invalid setup values, should use standard .NET exceptions.
 

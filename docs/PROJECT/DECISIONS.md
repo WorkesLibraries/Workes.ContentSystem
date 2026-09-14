@@ -188,3 +188,23 @@ Console-specific behavior such as commands, parsing, autocomplete, permissions, 
 #### Consequences
 
 ContentSystem should be developed first. ConsoleSystem can later copy lessons from the current package, then integrate the new content foundation.
+
+### D-009: Failure Model Uses Package-Owned Structured Failures
+
+#### Context
+
+ContentSystem needs a package-wide way to report expected operation rejection before entries, structures, exports, persistence, or bridges are implemented.
+
+#### Decision
+
+ContentSystem uses `ContentFailure`, `ContentFailureKind`, `ContentFailureCodes`, `ContentSystemException`, and `ContentOperationException` under `Workes.ContentSystem.Core`.
+
+Built-in failure codes use the stable `workes.content.` prefix. Failure kinds include separate categories for entries, structures, export, attachments, persistence, bridges, extensions, validation, configuration, and unknown failures.
+
+#### Reasoning
+
+This mirrors the pattern used in Workes.InventorySystem and Workes.ConsoleSystem while preserving the failure areas already named in the ContentSystem foundation docs.
+
+#### Consequences
+
+Try-style APIs can return structured failure data, while expected-success APIs can throw package-owned exceptions carrying the same failure. Programmer misuse remains represented by standard .NET exceptions.

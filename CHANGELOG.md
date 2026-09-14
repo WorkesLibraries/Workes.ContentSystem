@@ -13,3 +13,7 @@ Planned first release shape:
 - a manager-owned workflow for normal use;
 - a shared failure and exception model;
 - focused docs and examples for normal usage.
+
+Added during foundation work:
+
+- package-wide `ContentFailure` and content exception types for structured expected failures.
