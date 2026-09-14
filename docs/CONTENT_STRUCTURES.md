@@ -44,16 +44,40 @@ The shared `ContentEntryId` lookup remains available for code that works through
 
 ## Keyed Structure
 
-A simple keyed content structure should be part of the MVP after the FIFO foundation.
+`KeyedContentStructure<TId>` stores records using caller-provided IDs.
 
-Expected behavior:
+It uses an `IContentEntryIdStrategy<TId>` to validate and normalize typed IDs before records are stored or fetched. Stage 5 strategies validate caller-provided IDs only; they do not generate IDs.
 
-- callers provide entry IDs when adding entries;
-- the structure validates IDs through a configured ID strategy;
-- retained records can be fetched by ID;
-- duplicate IDs are rejected consistently.
+Built-in strategies include:
 
-This gives the package an early, simple structure that benefits from configurable ID strategy without making the first FIFO structure more complicated.
+- `StringContentEntryIdStrategy`, for non-empty string IDs;
+- `IntegerContentEntryIdStrategy`, for positive integer IDs normalized as invariant decimal strings.
+
+Default strategies are available for `string` and `long`, so normal keyed structures do not need explicit strategy setup.
+
+String-keyed usage:
+
+```csharp
+var keyed = new KeyedContentStructure<string>();
+
+keyed.Add("thread-main", new PlainContentEntry(DateTimeOffset.UtcNow, "First post."));
+
+ContentEntryRecord record = keyed.Get("thread-main");
+```
+
+Integer-keyed usage:
+
+```csharp
+var keyed = new KeyedContentStructure<long>();
+
+keyed.Add(8, new PlainContentEntry(DateTimeOffset.UtcNow, "Eighth entry."));
+
+ContentEntryRecord record = keyed.Get(8);
+```
+
+Custom ID types are supported by passing a custom `IContentEntryIdStrategy<TId>` to the constructor.
+
+Duplicate IDs and IDs rejected by the active strategy fail through `ContentFailure`. Missing lookups still use `EntryNotFound`.
 
 ## Future Structures
 

@@ -18,7 +18,7 @@ The package should be engine-neutral and centered on a root object, likely `Cont
 - `ContentEntryRecord` pairs a stored entry with the active structure's ID.
 - `IContentStructure` is the read/lookup storage abstraction.
 - The first structure is a bounded chronological FIFO structure.
-- A simple keyed structure should exercise configurable ID strategy after the FIFO foundation.
+- `KeyedContentStructure<TId>` exercises configurable typed-ID validation after the FIFO foundation.
 - A shared failure model should represent expected content-system rejection.
 - Optional attachments should support export, persistence, bridges, and platform adapters without making those features mandatory.
 
@@ -48,7 +48,7 @@ The FIFO implementation should stay small and useful:
 - read retained records in chronological order;
 - assign structure-owned IDs.
 
-Append workflows remain structure-specific. FIFO exposes generated-ID append, while later keyed structures can require caller-provided IDs.
+Append workflows remain structure-specific. FIFO exposes generated-ID append, while keyed structures require caller-provided IDs.
 
 Future structures may be grouped, threaded, indexed, persistent, channel-based, or grid-like.
 

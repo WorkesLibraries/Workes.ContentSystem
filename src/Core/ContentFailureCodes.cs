@@ -36,6 +36,16 @@ public static class ContentFailureCodes
     public const string EntryNotFound = PackagePrefix + "entry.not_found";
 
     /// <summary>
+    /// Entry ID is invalid for the active structure or ID strategy.
+    /// </summary>
+    public const string EntryIdInvalid = PackagePrefix + "entry.id.invalid";
+
+    /// <summary>
+    /// Entry ID already exists in the active structure.
+    /// </summary>
+    public const string EntryIdDuplicate = PackagePrefix + "entry.id.duplicate";
+
+    /// <summary>
     /// Structure operation rejection.
     /// </summary>
     public const string StructureRejected = PackagePrefix + "structure.rejected";

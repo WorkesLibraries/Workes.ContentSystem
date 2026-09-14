@@ -18,6 +18,8 @@ A content structure owns storage behavior.
 
 The first implementation is a bounded chronological FIFO structure: new entries are appended, old records are dropped when capacity is reached, and consumers can read retained records in order.
 
+A keyed structure is also available for callers that want to provide typed IDs directly. It uses an ID strategy to validate and normalize those IDs.
+
 Other structures can behave very differently. A forum-like structure might group entries by thread. A chat structure might group by channel. A searchable structure might maintain indexes. A persistent structure might load and save entries.
 
 ## Content Manager

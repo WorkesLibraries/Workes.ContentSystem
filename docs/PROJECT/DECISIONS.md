@@ -250,3 +250,25 @@ This keeps the common structure API honest. It avoids forcing keyed/manual-ID st
 `BoundedFifoContentStructure` exposes its own `Add(IContentEntry)` method and assigns IDs internally. Later structures can expose different add workflows without changing the shared read/lookup contract.
 
 Concrete structures may expose natural lookup overloads for their ID model. The shared `ContentEntryId` lookup remains the structure-agnostic path.
+
+### D-012: ID Strategies Validate Caller-Provided IDs
+
+#### Context
+
+Keyed structures need caller-provided IDs, but different hosts may prefer string IDs, integer-like IDs, or other stable ID shapes.
+
+#### Decision
+
+ContentSystem uses `IContentEntryIdStrategy<TId>` to validate and normalize typed caller-provided IDs. The first built-in strategies are `StringContentEntryIdStrategy` and `IntegerContentEntryIdStrategy`.
+
+`KeyedContentStructure<TId>` is the first strategy-backed structure. It requires callers to provide IDs and rejects invalid or duplicate IDs through structured failures.
+
+Default keyed structure constructors resolve built-in strategies for `string` and `long`. Custom ID types require an explicit custom strategy.
+
+#### Reasoning
+
+This proves configurable identity with a simple structure before introducing richer forum, chat, or persistent structures. Keeping strategy non-generating avoids over-designing until a structure needs configurable generated IDs.
+
+#### Consequences
+
+FIFO remains internally generated and strategy-free. Keyed structures get clean typed ID APIs while preserving `ContentEntryId` as the shared structure-agnostic ID value.

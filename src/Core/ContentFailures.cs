@@ -27,6 +27,16 @@ internal static class ContentFailures
         return Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, message, source: source);
     }
 
+    public static ContentFailure EntryIdInvalid(string? message = null, string? source = null)
+    {
+        return Create(ContentFailureKind.Entry, ContentFailureCodes.EntryIdInvalid, message, source: source);
+    }
+
+    public static ContentFailure EntryIdDuplicate(string? message = null, string? source = null)
+    {
+        return Create(ContentFailureKind.Entry, ContentFailureCodes.EntryIdDuplicate, message, source: source);
+    }
+
     public static ContentFailure Structure(string? message = null)
     {
         return Create(ContentFailureKind.Structure, ContentFailureCodes.StructureRejected, message);

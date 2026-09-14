@@ -33,6 +33,8 @@ Do not force one append method into the base structure abstraction. Generated-ID
 
 Concrete structures should expose natural lookup overloads for their ID model. For example, FIFO can support `Get(1)` while generic code can continue using `IContentStructure.Get(ContentEntryId)`.
 
+ID strategies should validate and normalize typed caller-provided IDs. Do not add generation behavior to that abstraction until a concrete structure needs configurable generated IDs.
+
 ## Entries
 
 Use content entries as the primary extension path.
