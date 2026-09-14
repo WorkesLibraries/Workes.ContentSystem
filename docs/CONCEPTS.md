@@ -16,7 +16,7 @@ When an entry is stored, the retained record has a `ContentEntryId`. The structu
 
 A content structure owns storage behavior.
 
-The first implementation should be a bounded chronological FIFO structure: new entries are appended, old entries are dropped when capacity is reached, and consumers can read the retained entries in order.
+The first implementation is a bounded chronological FIFO structure: new entries are appended, old records are dropped when capacity is reached, and consumers can read retained records in order.
 
 Other structures can behave very differently. A forum-like structure might group entries by thread. A chat structure might group by channel. A searchable structure might maintain indexes. A persistent structure might load and save entries.
 

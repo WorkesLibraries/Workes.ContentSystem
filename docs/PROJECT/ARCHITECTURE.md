@@ -8,7 +8,7 @@ This is a project-control document for maintaining architectural consistency. It
 
 ## Current Architecture
 
-Workes.ContentSystem is a new package foundation. The public implementation is not designed in code yet; this document records the intended architecture to guide the first implementation stages.
+Workes.ContentSystem is a package foundation. The first public entry, failure, and structure pieces are now implemented; this document records the intended architecture to guide implementation stages.
 
 The package should be engine-neutral and centered on a root object, likely `ContentManager`, that owns one active content structure and exposes a simple workflow for normal users.
 
@@ -16,8 +16,8 @@ The package should be engine-neutral and centered on a root object, likely `Cont
 
 - `IContentEntry` is the core content payload abstraction.
 - `ContentEntryRecord` pairs a stored entry with the active structure's ID.
-- `IContentStructure` is the storage and organization abstraction.
-- The first structure should be a bounded chronological FIFO structure.
+- `IContentStructure` is the read/lookup storage abstraction.
+- The first structure is a bounded chronological FIFO structure.
 - A simple keyed structure should exercise configurable ID strategy after the FIFO foundation.
 - A shared failure model should represent expected content-system rejection.
 - Optional attachments should support export, persistence, bridges, and platform adapters without making those features mandatory.
@@ -40,13 +40,15 @@ The manager should be the convenient root. The structure should own ordering, re
 
 The structure abstraction should be close in spirit to the InventorySystem structure model: core behavior belongs behind an abstraction so new storage models can be introduced without changing the manager into a one-purpose container.
 
-The first implementation should stay small and useful:
+The FIFO implementation should stay small and useful:
 
 - bounded capacity;
 - append entries;
 - drop oldest on overflow;
-- read retained entries in chronological order;
+- read retained records in chronological order;
 - assign structure-owned IDs.
+
+Append workflows remain structure-specific. FIFO exposes generated-ID append, while later keyed structures can require caller-provided IDs.
 
 Future structures may be grouped, threaded, indexed, persistent, channel-based, or grid-like.
 

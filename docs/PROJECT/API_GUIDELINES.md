@@ -16,7 +16,7 @@ Advanced behavior should be opt-in through options, structures, or attachments.
 
 ## Structures
 
-Represent storage behavior through an abstraction, likely `IContentStructure`.
+Represent shared read and lookup behavior through `IContentStructure`.
 
 Avoid baking FIFO assumptions into the whole package. FIFO is the first implementation, not the whole model.
 
@@ -28,6 +28,10 @@ A structure should own:
 - ID assignment or validation;
 - mutability rules;
 - capability support.
+
+Do not force one append method into the base structure abstraction. Generated-ID structures and caller-provided-ID structures can expose their own add workflows.
+
+Concrete structures should expose natural lookup overloads for their ID model. For example, FIFO can support `Get(1)` while generic code can continue using `IContentStructure.Get(ContentEntryId)`.
 
 ## Entries
 

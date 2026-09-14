@@ -4,23 +4,43 @@ Content structures define how entries are stored, ordered, found, retained, and 
 
 ## Purpose
 
-`IContentStructure` is the planned abstraction for content storage behavior.
+`IContentStructure` is the shared abstraction for reading retained content records and looking them up by ID.
 
 The structure owns the rules. The manager should provide a convenient root workflow, but the structure decides what operations are supported and what entry IDs mean.
 
+The common abstraction exposes:
+
+- retained `ContentEntryRecord` values in the structure's read order;
+- `TryGet` lookup by `ContentEntryId`;
+- expected-success `Get` lookup by `ContentEntryId`.
+
+Append workflows are structure-specific. This lets generated-ID structures and caller-provided-ID structures expose honest APIs without forcing every structure into one add method.
+
+Prefer a concrete structure's natural lookup overload when working with that structure directly. Use `ContentEntryId` lookup through `IContentStructure` when writing structure-agnostic code.
+
 ## First Structure
 
-The first implementation should be a bounded FIFO content structure.
+The first implementation is `BoundedFifoContentStructure`.
 
 Expected behavior:
 
-- entries are appended chronologically;
-- retained entries are read oldest to newest;
-- capacity is configurable;
-- when capacity is exceeded, the oldest retained entries are dropped;
-- entry IDs are assigned by the structure.
+- entries are appended chronologically with `Add`;
+- retained records are read oldest to newest;
+- capacity is configurable and must be greater than zero;
+- when capacity is exceeded, the oldest retained record is dropped;
+- entry IDs are assigned internally as increasing decimal strings.
 
 This covers console history, simple logs, chat scrollback, notification feeds, and other common streams.
+
+FIFO lookup only finds retained records. A record that was dropped by capacity overflow is treated as not found.
+
+Because FIFO IDs are sequential numbers, `BoundedFifoContentStructure` exposes numeric lookup:
+
+```csharp
+ContentEntryRecord record = fifo.Get(1);
+```
+
+The shared `ContentEntryId` lookup remains available for code that works through `IContentStructure`.
 
 ## Keyed Structure
 

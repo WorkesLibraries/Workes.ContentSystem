@@ -230,3 +230,23 @@ Keeping IDs on records instead of entry payloads keeps structures responsible fo
 #### Consequences
 
 Stored records expose a stable typed ID while structures remain responsible for ID assignment or validation. Stage 3 does not define automatic ID generation or configurable ID strategies; those belong with structure implementation.
+
+### D-011: Structure Abstraction Is Read And Lookup First
+
+#### Context
+
+ContentSystem needs one shared structure abstraction, but not every structure will add entries the same way. FIFO can assign IDs internally, while keyed or forum-like structures may require caller-provided IDs.
+
+#### Decision
+
+`IContentStructure` exposes retained records and lookup by `ContentEntryId`. Append workflows are structure-specific rather than part of the base abstraction.
+
+#### Reasoning
+
+This keeps the common structure API honest. It avoids forcing keyed/manual-ID structures to expose an unsupported generated-ID append method while still allowing normal consumers to read records and look them up consistently.
+
+#### Consequences
+
+`BoundedFifoContentStructure` exposes its own `Add(IContentEntry)` method and assigns IDs internally. Later structures can expose different add workflows without changing the shared read/lookup contract.
+
+Concrete structures may expose natural lookup overloads for their ID model. The shared `ContentEntryId` lookup remains the structure-agnostic path.

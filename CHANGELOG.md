@@ -18,3 +18,4 @@ Added during foundation work:
 
 - package-wide `ContentFailure` and content exception types for structured expected failures.
 - `ContentEntryId`, `ContentEntryRecord`, `IContentEntry`, and `PlainContentEntry` as the first entry foundation.
+- `IContentStructure` and `BoundedFifoContentStructure` for retained-record lookup and bounded FIFO storage.
