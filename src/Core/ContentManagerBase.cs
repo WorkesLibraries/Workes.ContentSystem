@@ -15,6 +15,11 @@ public abstract class ContentManagerBase
     protected ContentManagerBase(IContentStructure structure)
     {
         Structure = structure ?? throw new ArgumentNullException(nameof(structure));
+
+        if (Structure is IContentChangeSource changeSource)
+        {
+            changeSource.Changed += HandleStructureChanged;
+        }
     }
 
     /// <summary>
@@ -26,6 +31,11 @@ public abstract class ContentManagerBase
     /// Gets retained records in the active structure's read order.
     /// </summary>
     public IReadOnlyList<ContentEntryRecord> Records => Structure.Records;
+
+    /// <summary>
+    /// Occurs after the active structure commits a content mutation.
+    /// </summary>
+    public event EventHandler<ContentChangedEventArgs>? Changed;
 
     /// <summary>
     /// Attempts to get a retained record by ID.
@@ -48,5 +58,10 @@ public abstract class ContentManagerBase
     public ContentEntryRecord Get(ContentEntryId id)
     {
         return Structure.Get(id);
+    }
+
+    private void HandleStructureChanged(object? sender, ContentChangedEventArgs args)
+    {
+        Changed?.Invoke(this, args);
     }
 }

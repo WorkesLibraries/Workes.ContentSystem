@@ -7,8 +7,8 @@
     <LangVersion>10.0</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Workes.ContentSystem</PackageId>
-    <Version>0.1.0</Version>
-    <PackageReleaseNotes>Initial 0.1.0 release with extensible content entries, structured failures, bounded FIFO storage, keyed content storage, and manager workflows.</PackageReleaseNotes>
+    <Version>0.2.0</Version>
+    <PackageReleaseNotes>Add optional committed-change hooks for structures and managers.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Workes</Authors>
     <Company>Workes</Company>

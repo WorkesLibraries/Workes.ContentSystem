@@ -54,6 +54,26 @@ public sealed class KeyedContentStructureTests
     }
 
     [Test]
+    public void Add_EmitsChangedWithAddedRecord()
+    {
+        var structure = new KeyedContentStructure<string>();
+        ContentChangedEventArgs? changedArgs = null;
+        object? sender = null;
+        structure.Changed += (eventSender, args) =>
+        {
+            sender = eventSender;
+            changedArgs = args;
+        };
+
+        ContentEntryRecord record = structure.Add("entry", Entry("First"));
+
+        Assert.That(sender, Is.SameAs(structure));
+        Assert.That(changedArgs, Is.Not.Null);
+        Assert.That(changedArgs!.AddedRecords, Is.EqualTo(new[] { record }));
+        Assert.That(changedArgs.RemovedRecords, Is.Empty);
+    }
+
+    [Test]
     public void Records_AreReadInInsertionOrder()
     {
         var structure = new KeyedContentStructure<string>();
@@ -104,6 +124,8 @@ public sealed class KeyedContentStructureTests
     {
         var structure = new KeyedContentStructure<string>();
         structure.Add("duplicate", Entry("First"));
+        int eventCount = 0;
+        structure.Changed += (_, _) => eventCount++;
 
         bool accepted = structure.TryAdd("duplicate", Entry("Second"), out ContentEntryRecord? record, out ContentFailure? failure);
 
@@ -112,6 +134,7 @@ public sealed class KeyedContentStructureTests
         Assert.That(failure, Is.Not.Null);
         Assert.That(failure!.Kind, Is.EqualTo(ContentFailureKind.Entry));
         Assert.That(failure.Code, Is.EqualTo(ContentFailureCodes.EntryIdDuplicate));
+        Assert.That(eventCount, Is.EqualTo(0));
     }
 
     [Test]
@@ -132,6 +155,8 @@ public sealed class KeyedContentStructureTests
     public void TryAdd_InvalidStringIdReturnsFailure(string? id)
     {
         var structure = new KeyedContentStructure<string>();
+        int eventCount = 0;
+        structure.Changed += (_, _) => eventCount++;
 
         bool accepted = structure.TryAdd(id!, Entry("Entry"), out ContentEntryRecord? record, out ContentFailure? failure);
 
@@ -139,6 +164,7 @@ public sealed class KeyedContentStructureTests
         Assert.That(record, Is.Null);
         Assert.That(failure, Is.Not.Null);
         Assert.That(failure!.Code, Is.EqualTo(ContentFailureCodes.EntryIdInvalid));
+        Assert.That(eventCount, Is.EqualTo(0));
     }
 
     [Test]

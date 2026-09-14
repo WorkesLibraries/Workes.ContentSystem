@@ -4,8 +4,18 @@ This file records notable user-facing changes to `Workes.ContentSystem`.
 
 ## Unreleased
 
+No unreleased changes yet.
+
+## 0.2.0 - 2026-09-15
+
+Added:
+
+- Added optional committed-change hooks through `IContentChangeSource`, `ContentChangedEventArgs`, and `ContentManagerBase.Changed`.
+- Built-in FIFO and keyed structures now emit change events after successful adds.
+
 Documentation:
 
+- Added a focused guide for content change hooks.
 - Added focused guides for content manager workflows and content identity.
 - Refreshed documentation links so each major public system has a dedicated guide.
 - Clarified that `ContentManager` requires explicit structure selection and `ContentManagerBase` is for shared processing of existing managers.

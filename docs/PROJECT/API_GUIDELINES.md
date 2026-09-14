@@ -53,6 +53,7 @@ Document first-class public concepts in focused guides:
 - identity in `docs/CONTENT_IDENTITY.md`;
 - structures in `docs/CONTENT_STRUCTURES.md`;
 - managers in `docs/CONTENT_MANAGERS.md`;
+- change hooks in `docs/CONTENT_CHANGES.md`;
 - failures in `docs/FAILURES.md`;
 - future attachments in `docs/EXPORT_AND_ATTACHMENTS.md`.
 
@@ -82,6 +83,8 @@ This applies to:
 - change hooks.
 
 The simple use case should stay small: create a manager, add entries, read entries.
+
+Change hooks should use ordinary synchronous .NET events. Raise them only after a mutation has committed, and do not emit events for rejected no-op operations. Do not add thread marshaling, buffering, or async dispatch to the core hook contract.
 
 ## Documentation Expectations
 

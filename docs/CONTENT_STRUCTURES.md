@@ -14,6 +14,8 @@ The common abstraction exposes:
 - `TryGet` lookup by `ContentEntryId`;
 - expected-success `Get` lookup by `ContentEntryId`.
 
+Structures may also implement `IContentChangeSource` when they can notify observers about committed mutations.
+
 Write workflows are structure-specific. This lets structure-assigned-ID structures and caller-provided-ID structures expose honest APIs without forcing every structure into one add method.
 
 Prefer a concrete structure's natural lookup overload when working with that structure directly. Use `ContentEntryId` lookup through `IContentStructure` when writing structure-agnostic code.
@@ -37,6 +39,7 @@ Expected behavior:
 - capacity is configurable and must be greater than zero;
 - when capacity is exceeded, the oldest retained record is dropped;
 - entry IDs are assigned internally as increasing decimal strings.
+- successful adds raise `Changed` after the new record is retained.
 
 This covers console history, simple logs, chat scrollback, notification feeds, and other common streams.
 
@@ -49,6 +52,8 @@ content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
 ```
 
 FIFO lookup only finds retained records. A record that was dropped by capacity overflow is treated as not found.
+
+When capacity overflow drops the oldest record, FIFO emits one change event containing both the removed oldest record and the added new record.
 
 Because FIFO IDs are sequential numbers, `BoundedFifoContentStructure` exposes numeric lookup:
 
@@ -104,6 +109,8 @@ content.Add("thread-main", new PlainContentEntry(DateTimeOffset.UtcNow, "First p
 ```
 
 Duplicate IDs and IDs rejected by the active strategy fail through `ContentFailure`. Missing lookups still use `EntryNotFound`.
+
+Successful keyed adds raise `Changed` with the added record. Duplicate IDs and invalid IDs are rejected without raising change events.
 
 ## Future Structures
 

@@ -7,7 +7,7 @@ namespace Workes.ContentSystem.Core;
 /// <summary>
 /// Stores content records in chronological FIFO order with a fixed retained capacity.
 /// </summary>
-public sealed class BoundedFifoContentStructure : IStructureAssignedIdContentStructure
+public sealed class BoundedFifoContentStructure : IStructureAssignedIdContentStructure, IContentChangeSource
 {
     /// <summary>
     /// The default number of records retained by a bounded FIFO structure.
@@ -53,6 +53,9 @@ public sealed class BoundedFifoContentStructure : IStructureAssignedIdContentStr
     /// <inheritdoc />
     public IReadOnlyList<ContentEntryRecord> Records => _records.ToArray();
 
+    /// <inheritdoc />
+    public event EventHandler<ContentChangedEventArgs>? Changed;
+
     /// <summary>
     /// Adds an entry and returns the retained record created for it.
     /// </summary>
@@ -76,8 +79,10 @@ public sealed class BoundedFifoContentStructure : IStructureAssignedIdContentStr
             throw new ArgumentNullException(nameof(entry));
         }
 
+        ContentEntryRecord? removedRecord = null;
         if (_records.Count == Capacity)
         {
+            removedRecord = _records[0];
             _records.RemoveAt(0);
         }
 
@@ -87,6 +92,9 @@ public sealed class BoundedFifoContentStructure : IStructureAssignedIdContentStr
         record = new ContentEntryRecord(id, entry);
         _records.Add(record);
         failure = null;
+        OnChanged(new ContentChangedEventArgs(
+            new[] { record },
+            removedRecord is null ? null : new[] { removedRecord }));
         return true;
     }
 
@@ -161,5 +169,10 @@ public sealed class BoundedFifoContentStructure : IStructureAssignedIdContentStr
         }
 
         return new ContentEntryId(id.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private void OnChanged(ContentChangedEventArgs args)
+    {
+        Changed?.Invoke(this, args);
     }
 }

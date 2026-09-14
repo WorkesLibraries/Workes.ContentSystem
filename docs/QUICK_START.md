@@ -5,13 +5,13 @@ This package is a reusable content-entry backend. The first useful core supports
 ## Install
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.1.0
+dotnet add package Workes.ContentSystem --version 0.2.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.1.0" />
+<PackageReference Include="Workes.ContentSystem" Version="0.2.0" />
 ```
 
 ## Mental Model
@@ -71,6 +71,22 @@ content.Add(8, new PlainContentEntry(DateTimeOffset.UtcNow, "Eighth entry."));
 
 `ContentManagerBase` is the shared read and lookup ancestor for manager-agnostic code. Most users should construct `ContentManager` or `KeyedContentManager<TId>` directly, then use `ContentManagerBase` only when existing managers should be processed through their common read surface.
 
+## Observing Changes
+
+Managers expose `Changed` for structures that support change hooks:
+
+```csharp
+content.Changed += (_, args) =>
+{
+    foreach (ContentEntryRecord record in args.AddedRecords)
+    {
+        Render(record);
+    }
+};
+```
+
+Events are raised synchronously after a mutation is committed. Rejected operations do not raise events.
+
 ## What To Read Next
 
 - [Concepts](CONCEPTS.md) explains the package at a high level.
@@ -78,5 +94,6 @@ content.Add(8, new PlainContentEntry(DateTimeOffset.UtcNow, "Eighth entry."));
 - [Content Identity](CONTENT_IDENTITY.md) explains stored IDs and keyed ID strategies.
 - [Content Structures](CONTENT_STRUCTURES.md) explains the storage abstraction.
 - [Content Managers](CONTENT_MANAGERS.md) explains the manager workflow split.
+- [Content Changes](CONTENT_CHANGES.md) explains optional committed-change hooks.
 - [Failures](FAILURES.md) explains expected failures and exceptions.
 - [Export And Attachments](EXPORT_AND_ATTACHMENTS.md) explains optional bridge and export ideas.

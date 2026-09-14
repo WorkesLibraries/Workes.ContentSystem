@@ -42,7 +42,8 @@ It exposes:
 - `Structure`;
 - `Records`;
 - `TryGet(ContentEntryId, ...)`;
-- `Get(ContentEntryId)`.
+- `Get(ContentEntryId)`;
+- `Changed`.
 
 This is useful when code receives either `ContentManager` or `KeyedContentManager<TId>` and only needs to read records or look up records by the normalized `ContentEntryId`:
 
@@ -57,6 +58,28 @@ void Render(ContentManagerBase content)
 ```
 
 Most application code should construct `ContentManager` or `KeyedContentManager<TId>` directly. `ContentManagerBase` is abstract, so it is not constructed directly; it exists so both manager workflows can be processed through their common read surface.
+
+## Change Hooks
+
+`ContentManagerBase.Changed` forwards events from the active structure when that structure implements `IContentChangeSource`.
+
+```csharp
+ContentManagerBase content = new ContentManager(new BoundedFifoContentStructure());
+
+content.Changed += (_, args) =>
+{
+    foreach (ContentEntryRecord record in args.AddedRecords)
+    {
+        RenderRecord(record);
+    }
+};
+```
+
+Forwarded events use the manager as `sender` and preserve the structure's `ContentChangedEventArgs`.
+
+Structures that do not implement `IContentChangeSource` remain valid. Managers over those structures simply have no structure events to forward.
+
+See [Content Changes](CONTENT_CHANGES.md) for event payload and timing details.
 
 ## Try And Expected-Success APIs
 

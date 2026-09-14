@@ -59,6 +59,73 @@ public sealed class BoundedFifoContentStructureTests
     }
 
     [Test]
+    public void Add_EmitsChangedWithAddedRecord()
+    {
+        var structure = new BoundedFifoContentStructure(3);
+        ContentChangedEventArgs? changedArgs = null;
+        object? sender = null;
+        structure.Changed += (eventSender, args) =>
+        {
+            sender = eventSender;
+            changedArgs = args;
+        };
+
+        ContentEntryRecord record = structure.Add(Entry("First"));
+
+        Assert.That(sender, Is.SameAs(structure));
+        Assert.That(changedArgs, Is.Not.Null);
+        Assert.That(changedArgs!.AddedRecords, Is.EqualTo(new[] { record }));
+        Assert.That(changedArgs.RemovedRecords, Is.Empty);
+    }
+
+    [Test]
+    public void Add_WhenCapacityExceeded_EmitsOneChangedEventWithAddedAndRemovedRecords()
+    {
+        var structure = new BoundedFifoContentStructure(1);
+        ContentEntryRecord removed = structure.Add(Entry("First"));
+        int eventCount = 0;
+        ContentChangedEventArgs? changedArgs = null;
+        structure.Changed += (_, args) =>
+        {
+            eventCount++;
+            changedArgs = args;
+        };
+
+        ContentEntryRecord added = structure.Add(Entry("Second"));
+
+        Assert.That(eventCount, Is.EqualTo(1));
+        Assert.That(changedArgs, Is.Not.Null);
+        Assert.That(changedArgs!.AddedRecords, Is.EqualTo(new[] { added }));
+        Assert.That(changedArgs.RemovedRecords, Is.EqualTo(new[] { removed }));
+    }
+
+    [Test]
+    public void Add_NullEntryEmitsNoEventBeforeThrowing()
+    {
+        var structure = new BoundedFifoContentStructure(2);
+        int eventCount = 0;
+        structure.Changed += (_, _) => eventCount++;
+
+        Assert.Throws<ArgumentNullException>(() => structure.Add(null!));
+
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void Changed_UnsubscribedHandlerIsNotCalled()
+    {
+        var structure = new BoundedFifoContentStructure(2);
+        int eventCount = 0;
+        EventHandler<ContentChangedEventArgs> handler = (_, _) => eventCount++;
+
+        structure.Changed += handler;
+        structure.Changed -= handler;
+        structure.Add(Entry("First"));
+
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
     public void Records_AreReadOldestToNewest()
     {
         var structure = new BoundedFifoContentStructure(3);

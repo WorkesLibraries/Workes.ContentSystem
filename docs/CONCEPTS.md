@@ -36,6 +36,14 @@ Use `KeyedContentManager<TId>` for structures where caller-provided IDs are firs
 
 See [Content Managers](CONTENT_MANAGERS.md) for the manager workflow split.
 
+## Content Changes
+
+Some structures can raise committed-change notifications through `IContentChangeSource`.
+
+Built-in structures raise synchronous `Changed` events after successful mutations. Managers forward those events through `ContentManagerBase.Changed`, using the manager as the event sender. Rejected operations and read-only lookups do not raise events.
+
+See [Content Changes](CONTENT_CHANGES.md) for event payloads and hook semantics.
+
 ## Attachments
 
 Export, persistence, file appenders, log bridges, and platform integrations should be optional. The core package should make those capabilities possible without forcing every structure or every user to support them.

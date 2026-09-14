@@ -7,7 +7,7 @@ namespace Workes.ContentSystem.Core;
 /// Stores content records keyed by caller-provided IDs validated by an ID strategy.
 /// </summary>
 /// <typeparam name="TId">The caller-facing ID type.</typeparam>
-public sealed class KeyedContentStructure<TId> : IKeyedContentStructure<TId>
+public sealed class KeyedContentStructure<TId> : IKeyedContentStructure<TId>, IContentChangeSource
 {
     private readonly Dictionary<ContentEntryId, ContentEntryRecord> _recordsById = new Dictionary<ContentEntryId, ContentEntryRecord>();
     private readonly List<ContentEntryRecord> _records = new List<ContentEntryRecord>();
@@ -42,6 +42,9 @@ public sealed class KeyedContentStructure<TId> : IKeyedContentStructure<TId>
     /// <inheritdoc />
     public IReadOnlyList<ContentEntryRecord> Records => _records.ToArray();
 
+    /// <inheritdoc />
+    public event EventHandler<ContentChangedEventArgs>? Changed;
+
     /// <summary>
     /// Attempts to add an entry with a caller-provided ID.
     /// </summary>
@@ -74,6 +77,7 @@ public sealed class KeyedContentStructure<TId> : IKeyedContentStructure<TId>
         _recordsById.Add(normalizedId, record);
         _records.Add(record);
         failure = null;
+        OnChanged(new ContentChangedEventArgs(new[] { record }));
         return true;
     }
 
@@ -172,5 +176,10 @@ public sealed class KeyedContentStructure<TId> : IKeyedContentStructure<TId>
         {
             throw new ArgumentException("Content entry ID cannot be empty.", nameof(id));
         }
+    }
+
+    private void OnChanged(ContentChangedEventArgs args)
+    {
+        Changed?.Invoke(this, args);
     }
 }

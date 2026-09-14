@@ -13,6 +13,7 @@ It is intended to be useful anywhere an application needs an ordered or structur
 - Pluggable content structures, starting with a bounded FIFO structure.
 - Structure-assigned and caller-keyed manager workflows.
 - Structure-owned entry identity so different storage models can use the IDs that fit them.
+- Optional change hooks for observing committed mutations.
 - A shared failure and exception model matching the style used in other Workes packages.
 - Optional attachment points for export, persistence, bridges, and platform-specific integration.
 
@@ -21,13 +22,13 @@ It is intended to be useful anywhere an application needs an ordered or structur
 Install the package from [NuGet](https://www.nuget.org/packages/Workes.ContentSystem):
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.1.0
+dotnet add package Workes.ContentSystem --version 0.2.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.1.0" />
+<PackageReference Include="Workes.ContentSystem" Version="0.2.0" />
 ```
 
 The package targets .NET Standard 2.1.
@@ -73,6 +74,7 @@ Focused guides:
 - [Content Identity](docs/CONTENT_IDENTITY.md)
 - [Content Structures](docs/CONTENT_STRUCTURES.md)
 - [Content Managers](docs/CONTENT_MANAGERS.md)
+- [Content Changes](docs/CONTENT_CHANGES.md)
 - [Failures](docs/FAILURES.md)
 - [Export And Attachments](docs/EXPORT_AND_ATTACHMENTS.md)
 

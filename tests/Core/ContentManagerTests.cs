@@ -84,6 +84,37 @@ public sealed class ContentManagerTests
         Assert.That(manager.Get(added.Id), Is.SameAs(added));
     }
 
+    [Test]
+    public void Changed_ForwardsStructureEventsWithManagerSender()
+    {
+        var manager = new ContentManager(new BoundedFifoContentStructure());
+        ContentChangedEventArgs? changedArgs = null;
+        object? sender = null;
+        manager.Changed += (eventSender, args) =>
+        {
+            sender = eventSender;
+            changedArgs = args;
+        };
+
+        ContentEntryRecord added = manager.Add(Entry("Stored"));
+
+        Assert.That(sender, Is.SameAs(manager));
+        Assert.That(changedArgs, Is.Not.Null);
+        Assert.That(changedArgs!.AddedRecords, Is.EqualTo(new[] { added }));
+    }
+
+    [Test]
+    public void Changed_WithNonHookStructureEmitsNoEvents()
+    {
+        var manager = new ContentManager(new TestStructureAssignedIdContentStructure());
+        int eventCount = 0;
+        manager.Changed += (_, _) => eventCount++;
+
+        manager.Add(Entry("Stored"));
+
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
     private static PlainContentEntry Entry(string text)
     {
         return new PlainContentEntry(DateTimeOffset.UtcNow, text);

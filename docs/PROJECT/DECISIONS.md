@@ -312,3 +312,25 @@ This keeps the pre-0.1.0 stages focused on reaching the first usable core. Later
 #### Consequences
 
 After Stage 6, Trello should prioritize `Prepare 0.1.0 release` before optional hooks, capability metadata, attachments, and broader examples.
+
+### D-015: Committed Change Hooks Use Synchronous Events
+
+#### Context
+
+ContentSystem needs a lightweight way for UI layers, bridges, attachments, and manager-agnostic code to observe mutations without changing the pull-based `Records` and lookup workflow.
+
+#### Decision
+
+ContentSystem uses optional synchronous .NET events for committed content changes.
+
+Observable structures implement `IContentChangeSource`. Built-in structures raise `Changed` after successful mutations. `ContentChangedEventArgs` carries added and removed records. Managers forward structure events through `ContentManagerBase.Changed` when the active structure is observable.
+
+Rejected operations and read-only lookups do not raise events.
+
+#### Reasoning
+
+This mirrors the small event style used in Workes.InventorySystem while keeping hooks opt-in. Structures remain the authoritative mutation source, and managers provide a convenient shared observation point without inventing separate change payloads.
+
+#### Consequences
+
+Events are synchronous and handler exceptions are not swallowed. Core does not provide dispatcher behavior, async queues, weak events, buffering, or thread marshaling. Custom structures remain valid without implementing change hooks, but observers only receive manager events when the active structure opts in.

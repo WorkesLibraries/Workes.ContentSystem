@@ -59,6 +59,25 @@ public sealed class KeyedContentManagerTests
     }
 
     [Test]
+    public void Changed_ForwardsKeyedStructureEventsWithManagerSender()
+    {
+        var manager = new KeyedContentManager<string>();
+        ContentChangedEventArgs? changedArgs = null;
+        object? sender = null;
+        manager.Changed += (eventSender, args) =>
+        {
+            sender = eventSender;
+            changedArgs = args;
+        };
+
+        ContentEntryRecord added = manager.Add("entry", Entry("Stored"));
+
+        Assert.That(sender, Is.SameAs(manager));
+        Assert.That(changedArgs, Is.Not.Null);
+        Assert.That(changedArgs!.AddedRecords, Is.EqualTo(new[] { added }));
+    }
+
+    [Test]
     public void TryAdd_DuplicateIdReturnsFailure()
     {
         var manager = new KeyedContentManager<string>();
