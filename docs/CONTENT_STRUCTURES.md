@@ -1,6 +1,6 @@
 # Content Structures
 
-Content structures define how entries are stored, ordered, found, retained, and removed.
+Content structures define how entries are stored, ordered, found, and retained.
 
 ## Purpose
 
@@ -24,6 +24,8 @@ Manager workflows follow the same split:
 - `KeyedContentManager<TId>` works with `IKeyedContentStructure<TId>`;
 - `ContentManagerBase` provides shared read and lookup behavior for manager-agnostic code.
 
+See [Content Managers](CONTENT_MANAGERS.md) for manager usage.
+
 ## First Structure
 
 The first implementation is `BoundedFifoContentStructure`.
@@ -41,7 +43,7 @@ This covers console history, simple logs, chat scrollback, notification feeds, a
 `BoundedFifoContentStructure` implements `IStructureAssignedIdContentStructure`, so it can be used directly or through the default manager:
 
 ```csharp
-var content = new ContentManager();
+var content = new ContentManager(new BoundedFifoContentStructure());
 
 content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
 ```
@@ -60,14 +62,14 @@ The shared `ContentEntryId` lookup remains available for code that works through
 
 `KeyedContentStructure<TId>` stores records using caller-provided IDs.
 
-It uses an `IContentEntryIdStrategy<TId>` to validate and normalize typed IDs before records are stored or fetched. Stage 5 strategies validate caller-provided IDs only; they do not generate IDs.
+It uses an `IContentEntryIdStrategy<TId>` to validate and normalize typed IDs before records are stored or fetched. ID strategies validate caller-provided IDs only; they do not generate IDs.
 
 Built-in strategies include:
 
 - `StringContentEntryIdStrategy`, for non-empty string IDs;
 - `IntegerContentEntryIdStrategy`, for positive integer IDs normalized as invariant decimal strings.
 
-Default strategies are available for `string` and `long`, so normal keyed structures do not need explicit strategy setup.
+Built-in default strategies are available for `string` and `long`.
 
 String-keyed usage:
 
@@ -90,6 +92,8 @@ ContentEntryRecord record = keyed.Get(8);
 ```
 
 Custom ID types are supported by passing a custom `IContentEntryIdStrategy<TId>` to the constructor.
+
+See [Content Identity](CONTENT_IDENTITY.md) for the identity model and strategy guidance.
 
 `KeyedContentStructure<TId>` implements `IKeyedContentStructure<TId>`, so it can also be used through `KeyedContentManager<TId>`:
 

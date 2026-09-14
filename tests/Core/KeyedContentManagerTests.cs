@@ -41,9 +41,21 @@ public sealed class KeyedContentManagerTests
     }
 
     [Test]
+    public void Constructor_NullStrategyThrows()
+    {
+        Assert.Throws<ArgumentNullException>(() => new KeyedContentManager<string>((IContentEntryIdStrategy<string>)null!));
+    }
+
+    [Test]
+    public void Constructor_UnsupportedDefaultStrategyThrows()
+    {
+        Assert.Throws<NotSupportedException>(() => new KeyedContentManager<Guid>());
+    }
+
+    [Test]
     public void Constructor_NullStructureThrows()
     {
-        Assert.Throws<ArgumentNullException>(() => new KeyedContentManager<string>(null!));
+        Assert.Throws<ArgumentNullException>(() => new KeyedContentManager<string>((IKeyedContentStructure<string>)null!));
     }
 
     [Test]

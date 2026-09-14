@@ -34,10 +34,10 @@ The package targets .NET Standard 2.1.
 
 ## Quick Example
 
-The default manager uses a bounded FIFO structure and assigns IDs when entries are added:
+The structure-assigned-ID manager uses an explicit bounded FIFO structure here:
 
 ```csharp
-var content = new ContentManager();
+var content = new ContentManager(new BoundedFifoContentStructure());
 
 content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
 content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Player joined: Workes"));
@@ -70,7 +70,9 @@ Start here:
 Focused guides:
 
 - [Content Entries](docs/CONTENT_ENTRIES.md)
+- [Content Identity](docs/CONTENT_IDENTITY.md)
 - [Content Structures](docs/CONTENT_STRUCTURES.md)
+- [Content Managers](docs/CONTENT_MANAGERS.md)
 - [Failures](docs/FAILURES.md)
 - [Export And Attachments](docs/EXPORT_AND_ATTACHMENTS.md)
 

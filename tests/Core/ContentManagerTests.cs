@@ -7,9 +7,9 @@ namespace Workes.ContentSystem.Tests.Core;
 public sealed class ContentManagerTests
 {
     [Test]
-    public void DefaultConstructor_UsesFifoBehavior()
+    public void Constructor_UsesProvidedFifoBehavior()
     {
-        var manager = new ContentManager();
+        var manager = new ContentManager(new BoundedFifoContentStructure());
 
         ContentEntryRecord first = manager.Add(Entry("First"));
         ContentEntryRecord second = manager.Add(Entry("Second"));
@@ -64,7 +64,7 @@ public sealed class ContentManagerTests
     [Test]
     public void TryAdd_NullEntryThrows()
     {
-        var manager = new ContentManager();
+        var manager = new ContentManager(new BoundedFifoContentStructure());
 
         Assert.Throws<ArgumentNullException>(() => manager.TryAdd(null!, out _, out _));
     }
@@ -72,7 +72,7 @@ public sealed class ContentManagerTests
     [Test]
     public void BaseManager_ExposesRecordsAndDelegatesLookup()
     {
-        ContentManagerBase manager = new ContentManager();
+        ContentManagerBase manager = new ContentManager(new BoundedFifoContentStructure());
         ContentEntryRecord added = ((ContentManager)manager).Add(Entry("Stored"));
 
         bool found = manager.TryGet(added.Id, out ContentEntryRecord? record, out ContentFailure? failure);

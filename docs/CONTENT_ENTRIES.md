@@ -29,6 +29,8 @@ This keeps the identity rule clear:
 - structures decide how IDs are assigned or accepted;
 - records represent entries after they are stored in a structure.
 
+See [Content Identity](CONTENT_IDENTITY.md) for ID ownership, keyed ID strategies, and lookup.
+
 ## Entry Content
 
 `IContentEntry` is the core entry abstraction. It exposes:

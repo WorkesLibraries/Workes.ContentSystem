@@ -12,6 +12,8 @@ Entries are intentionally extensible. A simple application might only use plain 
 
 When an entry is stored, the retained record has a `ContentEntryId`. The structure decides what that ID means. A bounded FIFO structure might use an increasing integer-like value. A persistent or distributed structure might use a durable string or UUID-like value.
 
+See [Content Identity](CONTENT_IDENTITY.md) for stored IDs, caller-provided IDs, and ID strategies.
+
 ## Content Structures
 
 A content structure owns storage behavior.
@@ -26,11 +28,13 @@ Other structures can behave very differently. A forum-like structure might group
 
 Manager workflows are separated by entry ID ownership.
 
-Use `ContentManager` for structures that assign IDs when entries are added. The default constructor uses `BoundedFifoContentStructure`, so the simple path is create a manager, add entries, and read records.
+Use `ContentManager` for structures that assign IDs when entries are added. Structure choice is explicit, so the simple FIFO path is create a manager with `BoundedFifoContentStructure`, add entries, and read records.
 
-Use `KeyedContentManager<TId>` for structures where caller-provided IDs are first-class. This keeps keyed add and lookup typed without adding overloads for every possible ID shape.
+Use `KeyedContentManager<TId>` for structures where caller-provided IDs are first-class. This keeps keyed add and lookup typed without adding overloads for every possible ID shape. Built-in ID strategies are resolved for supported ID types, and custom ID types can provide custom strategies.
 
-`ContentManagerBase` provides the shared read and lookup surface for code that can work with either manager type. It is common infrastructure, not the normal construction path.
+`ContentManagerBase` provides the shared read and lookup surface for code that can work with existing managers from either workflow. It is common infrastructure, not a construction path.
+
+See [Content Managers](CONTENT_MANAGERS.md) for the manager workflow split.
 
 ## Attachments
 

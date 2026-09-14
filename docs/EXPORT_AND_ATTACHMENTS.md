@@ -10,7 +10,7 @@ Those features should be possible without forcing every user or every structure 
 
 ## Attachments
 
-An attachment is a planned optional component that works with content entries or structures.
+An attachment is a future optional component that works with content entries or structures.
 
 Examples:
 

@@ -71,7 +71,7 @@ The package is intended to support console history, chat, logs, feeds, forum-lik
 
 #### Decision
 
-The core abstraction is a content entry, likely represented by `IContentEntry`.
+The core abstraction is a content entry, represented by `IContentEntry`.
 
 #### Reasoning
 
@@ -97,7 +97,7 @@ This preserves a common way to reference stored entries while avoiding a one-siz
 
 #### Consequences
 
-The first implementation must be careful not to make FIFO indexing the permanent package-wide ID concept. D-010 clarifies that IDs live on stored records rather than entry payloads.
+The implementation must be careful not to make FIFO indexing the permanent package-wide ID concept. D-010 clarifies that IDs live on stored records rather than entry payloads.
 
 ### D-004: Structures Are Abstracted Through IContentStructure
 
@@ -229,7 +229,7 @@ Keeping IDs on records instead of entry payloads keeps structures responsible fo
 
 #### Consequences
 
-Stored records expose a stable typed ID while structures remain responsible for ID assignment or validation. Stage 3 does not define automatic ID generation or configurable ID strategies; those belong with structure implementation.
+Stored records expose a stable typed ID while structures remain responsible for ID assignment or validation. Entry payloads do not define automatic ID generation or configurable ID strategies; those belong with structure implementation.
 
 ### D-011: Structure Abstraction Is Read And Lookup First
 
@@ -283,9 +283,9 @@ FIFO remains internally generated and strategy-free. Keyed structures get clean 
 
 ContentSystem exposes separate manager workflows for the two implemented write categories.
 
-`ContentManager` works with `IStructureAssignedIdContentStructure` and uses `BoundedFifoContentStructure` by default. `KeyedContentManager<TId>` works with `IKeyedContentStructure<TId>`.
+`ContentManager` works with an explicitly provided `IStructureAssignedIdContentStructure`. `KeyedContentManager<TId>` works with `IKeyedContentStructure<TId>` and can create a keyed structure with a built-in default ID strategy for supported ID types.
 
-`ContentManagerBase` is a public abstract base for shared read and lookup behavior across managers.
+`ContentManagerBase` is a public abstract base for shared read and lookup behavior across already-created managers.
 
 #### Reasoning
 
@@ -293,7 +293,7 @@ This keeps write APIs honest and avoids a single manager with methods that only 
 
 #### Consequences
 
-Users choose between `ContentManager` and `KeyedContentManager<TId>` when constructing the root workflow. Shared code can accept `ContentManagerBase` when it only needs records or lookup by `ContentEntryId`.
+Users choose between `ContentManager` and `KeyedContentManager<TId>` when constructing the root workflow. Shared code can accept `ContentManagerBase` when it receives managers from either workflow and only needs records or lookup by `ContentEntryId`.
 
 ### D-014: 0.1.0 Is The First Useful Prerelease
 

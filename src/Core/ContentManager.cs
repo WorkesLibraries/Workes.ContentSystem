@@ -10,14 +10,6 @@ public sealed class ContentManager : ContentManagerBase
     private readonly IStructureAssignedIdContentStructure _structure;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ContentManager"/> class with the default bounded FIFO structure.
-    /// </summary>
-    public ContentManager()
-        : this(new BoundedFifoContentStructure())
-    {
-    }
-
-    /// <summary>
     /// Initializes a new instance of the <see cref="ContentManager"/> class.
     /// </summary>
     /// <param name="structure">The structure that assigns IDs when entries are added.</param>

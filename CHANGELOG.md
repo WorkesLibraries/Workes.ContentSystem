@@ -2,6 +2,14 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
+## Unreleased
+
+Documentation:
+
+- Added focused guides for content manager workflows and content identity.
+- Refreshed documentation links so each major public system has a dedicated guide.
+- Clarified that `ContentManager` requires explicit structure selection and `ContentManagerBase` is for shared processing of existing managers.
+
 ## 0.1.0 - 2026-09-14
 
 Initial package release.

@@ -11,10 +11,19 @@ public sealed class KeyedContentManager<TId> : ContentManagerBase
     private readonly IKeyedContentStructure<TId> _structure;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="KeyedContentManager{TId}"/> class with the default keyed structure for <typeparamref name="TId"/>.
+    /// Initializes a new instance of the <see cref="KeyedContentManager{TId}"/> class with a keyed structure using the default ID strategy for <typeparamref name="TId"/>.
     /// </summary>
     public KeyedContentManager()
         : this(new KeyedContentStructure<TId>())
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="KeyedContentManager{TId}"/> class.
+    /// </summary>
+    /// <param name="idStrategy">The strategy used by the created keyed structure to validate and normalize caller-provided IDs.</param>
+    public KeyedContentManager(IContentEntryIdStrategy<TId> idStrategy)
+        : this(new KeyedContentStructure<TId>(idStrategy))
     {
     }
 

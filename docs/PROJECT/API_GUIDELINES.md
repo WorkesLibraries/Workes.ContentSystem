@@ -10,11 +10,11 @@ These guidelines keep the package consistent with the other Workes packages whil
 
 Prefer manager-owned workflows for normal use.
 
-The default root type is `ContentManager`. It should have a simple default constructor. Passing no options should create the normal useful FIFO-backed workflow.
+The structure-assigned-ID root type is `ContentManager`. It should require an explicit structure so the active storage policy is visible at construction.
 
 Use `KeyedContentManager<TId>` for structures where caller-provided IDs are first-class. Do not make one manager expose write methods that only work for some structures.
 
-`ContentManagerBase` is public shared read/lookup plumbing for code that can work with either manager type. It should stay small and should not become a catch-all capability surface.
+`ContentManagerBase` is public shared read/lookup plumbing for code that can work with already-created managers from either workflow. It is abstract and should stay small rather than becoming a catch-all capability surface.
 
 Advanced behavior should be opt-in through options, structures, or attachments.
 
@@ -37,7 +37,7 @@ Do not force one append method into the base structure abstraction. Structure-as
 
 Concrete structures should expose natural lookup overloads for their ID model. For example, FIFO can support `Get(1)` while generic code can continue using `IContentStructure.Get(ContentEntryId)`.
 
-ID strategies should validate and normalize typed caller-provided IDs. Do not add generation behavior to that abstraction until a concrete structure needs configurable generated IDs.
+ID strategies should validate and normalize typed caller-provided IDs. Built-in default strategy resolution is acceptable for explicitly supported ID types such as `string` and `long`; custom ID types require custom strategies. Do not add generation behavior to that abstraction until a concrete structure needs configurable generated IDs.
 
 ## Entries
 
@@ -46,6 +46,15 @@ Use content entries as the primary extension path.
 Do not force all entries into a chat-message or log-message shape. Custom entries should be ordinary, supported usage.
 
 Stored entry records should have IDs. Entry payloads should not require callers to invent IDs before a structure stores them.
+
+Document first-class public concepts in focused guides:
+
+- entries in `docs/CONTENT_ENTRIES.md`;
+- identity in `docs/CONTENT_IDENTITY.md`;
+- structures in `docs/CONTENT_STRUCTURES.md`;
+- managers in `docs/CONTENT_MANAGERS.md`;
+- failures in `docs/FAILURES.md`;
+- future attachments in `docs/EXPORT_AND_ATTACHMENTS.md`.
 
 ## Failures And Exceptions
 

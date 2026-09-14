@@ -16,9 +16,11 @@ The package should be engine-neutral and centered on manager workflows that own 
 
 - `IContentEntry` is the core content payload abstraction.
 - `ContentEntryRecord` pairs a stored entry with the active structure's ID.
+- `ContentEntryId` is the shared stored-record identity representation.
+- `IContentEntryIdStrategy<TId>` validates and normalizes caller-provided IDs for keyed structures.
 - `IContentStructure` is the read/lookup storage abstraction.
 - `ContentManagerBase` is the shared manager read/lookup base.
-- `ContentManager` is the default manager for structure-assigned-ID workflows.
+- `ContentManager` is the manager for structure-assigned-ID workflows.
 - `KeyedContentManager<TId>` is the manager for caller-provided typed-ID workflows.
 - The first structure is a bounded chronological FIFO structure.
 - `KeyedContentStructure<TId>` provides configurable typed-ID validation for caller-keyed records.
@@ -53,7 +55,7 @@ The FIFO implementation should stay small and useful:
 
 Write workflows remain structure-specific. FIFO exposes structure-assigned-ID add, while keyed structures require caller-provided IDs.
 
-Managers mirror this split. `ContentManager` accepts any `IStructureAssignedIdContentStructure`, while `KeyedContentManager<TId>` accepts any `IKeyedContentStructure<TId>`. Shared read and lookup behavior belongs on `ContentManagerBase`.
+Managers mirror this split. `ContentManager` accepts any explicitly provided `IStructureAssignedIdContentStructure`, while `KeyedContentManager<TId>` accepts any `IKeyedContentStructure<TId>` or uses built-in default ID strategy resolution to create a keyed structure for supported ID types. Shared read and lookup behavior belongs on `ContentManagerBase`.
 
 Future structures may be grouped, threaded, indexed, persistent, channel-based, or grid-like.
 
