@@ -38,12 +38,12 @@ The package is still in foundation design. The intended normal shape is:
 ```csharp
 var content = new ContentManager();
 
-content.Add(new PlainContentEntry("Server started."));
-content.Add(new PlainContentEntry("Player joined: Workes"));
+content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
+content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Player joined: Workes"));
 
-foreach (IContentEntry entry in content.Entries)
+foreach (ContentEntryRecord record in content.Entries)
 {
-    Console.WriteLine(entry.PlainText);
+    Console.WriteLine($"{record.Id}: {record.PlainText}");
 }
 ```
 

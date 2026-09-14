@@ -81,7 +81,7 @@ Entries allow the package to store meaning without owning the host's rendering, 
 
 Custom entries should be first-class. Core should avoid making every entry look like a log entry, chat message, or console output line.
 
-### D-003: Every Entry Has A Structure-Owned ID
+### D-003: Every Stored Entry Has A Structure-Owned ID
 
 #### Context
 
@@ -89,15 +89,15 @@ Different structures may need different identity models. A FIFO structure can us
 
 #### Decision
 
-Every entry has an ID, but each structure defines what that ID means and how it is assigned.
+Every stored entry has an ID, but each structure defines what that ID means and how it is assigned or accepted.
 
 #### Reasoning
 
-This preserves a common way to reference entries while avoiding a one-size-fits-all identity model.
+This preserves a common way to reference stored entries while avoiding a one-size-fits-all identity model.
 
 #### Consequences
 
-The first implementation must be careful not to make FIFO indexing the permanent package-wide ID concept.
+The first implementation must be careful not to make FIFO indexing the permanent package-wide ID concept. D-010 clarifies that IDs live on stored records rather than entry payloads.
 
 ### D-004: Structures Are Abstracted Through IContentStructure
 
@@ -208,3 +208,25 @@ This mirrors the pattern used in Workes.InventorySystem and Workes.ConsoleSystem
 #### Consequences
 
 Try-style APIs can return structured failure data, while expected-success APIs can throw package-owned exceptions carrying the same failure. Programmer misuse remains represented by standard .NET exceptions.
+
+### D-010: Stored Entry Identity Uses ContentEntryId
+
+#### Context
+
+Stored content entries need IDs, but different structures may assign or accept different ID shapes.
+
+#### Decision
+
+ContentSystem uses `ContentEntryId` as the public stored-entry identity representation. `ContentEntryId` is a value type that wraps a non-empty string.
+
+`IContentEntry` does not expose an ID. A `ContentEntryRecord` pairs a structure-assigned `ContentEntryId` with an `IContentEntry`.
+
+#### Reasoning
+
+A string-backed value type keeps identity flexible for FIFO, persistent, distributed, and host-defined structures without exposing raw `object` values or making numeric FIFO IDs the package-wide model.
+
+Keeping IDs on records instead of entry payloads keeps structures responsible for identity policy. This avoids making every caller part of the ID strategy.
+
+#### Consequences
+
+Stored records expose a stable typed ID while structures remain responsible for ID assignment or validation. Stage 3 does not define automatic ID generation or configurable ID strategies; those belong with structure implementation.

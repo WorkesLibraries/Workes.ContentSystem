@@ -10,7 +10,7 @@ A content entry is one item in a content structure.
 
 Entries are intentionally extensible. A simple application might only use plain text entries. A larger game or tool might add entries for chat messages, command output, stack traces, item links, moderation events, audit events, or grouped feed items.
 
-Each entry has an ID. The structure decides what that ID means. A bounded FIFO structure might use an increasing integer or index-like ID. A persistent or distributed structure might use a string or UUID-like ID.
+When an entry is stored, the retained record has a `ContentEntryId`. The structure decides what that ID means. A bounded FIFO structure might use an increasing integer-like value. A persistent or distributed structure might use a durable string or UUID-like value.
 
 ## Content Structures
 

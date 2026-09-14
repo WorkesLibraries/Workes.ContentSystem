@@ -17,3 +17,4 @@ Planned first release shape:
 Added during foundation work:
 
 - package-wide `ContentFailure` and content exception types for structured expected failures.
+- `ContentEntryId`, `ContentEntryRecord`, `IContentEntry`, and `PlainContentEntry` as the first entry foundation.

@@ -25,7 +25,7 @@ A structure should own:
 - entry retention;
 - ordering;
 - lookup;
-- ID assignment;
+- ID assignment or validation;
 - mutability rules;
 - capability support.
 
@@ -35,7 +35,7 @@ Use content entries as the primary extension path.
 
 Do not force all entries into a chat-message or log-message shape. Custom entries should be ordinary, supported usage.
 
-Every entry should have an ID, but avoid locking the whole package to one ID representation until the structure design is finalized.
+Stored entry records should have IDs. Entry payloads should not require callers to invent IDs before a structure stores them.
 
 ## Failures And Exceptions
 

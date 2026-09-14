@@ -31,12 +31,12 @@ The exact API is not implemented yet, but normal usage is expected to look like 
 ```csharp
 var content = new ContentManager();
 
-content.Add(new PlainContentEntry("Ready."));
-content.Add(new PlainContentEntry("User submitted a command."));
+content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
+content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "User submitted a command."));
 
-foreach (IContentEntry entry in content.Entries)
+foreach (ContentEntryRecord record in content.Entries)
 {
-    Render(entry);
+    Render(record.Entry);
 }
 ```
 

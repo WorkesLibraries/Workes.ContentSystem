@@ -14,10 +14,11 @@ The package should be engine-neutral and centered on a root object, likely `Cont
 
 ## Main Concepts
 
-- `IContentEntry` is the core item abstraction.
-- Every entry has an ID, but the active structure defines what that ID means.
+- `IContentEntry` is the core content payload abstraction.
+- `ContentEntryRecord` pairs a stored entry with the active structure's ID.
 - `IContentStructure` is the storage and organization abstraction.
 - The first structure should be a bounded chronological FIFO structure.
+- A simple keyed structure should exercise configurable ID strategy after the FIFO foundation.
 - A shared failure model should represent expected content-system rejection.
 - Optional attachments should support export, persistence, bridges, and platform adapters without making those features mandatory.
 
@@ -29,11 +30,11 @@ The normal in-memory flow should be:
 host application
 -> ContentManager
 -> IContentStructure
--> retained IContentEntry values
+-> retained ContentEntryRecord values
 -> host UI, exporter, bridge, or adapter
 ```
 
-The manager should be the convenient root. The structure should own ordering, retention, lookup, ID assignment, mutability rules, and supported capabilities.
+The manager should be the convenient root. The structure should own ordering, retention, lookup, ID assignment or validation, mutability rules, and supported capabilities.
 
 ## Structures
 
@@ -51,7 +52,7 @@ Future structures may be grouped, threaded, indexed, persistent, channel-based, 
 
 ## Entries
 
-Entries should be extensible. Core may provide simple entry types, but host applications should be able to define entries for their own domains.
+Entries should be extensible content payloads. Core may provide simple entry types, but host applications should be able to define entries for their own domains.
 
 ContentSystem should not include a built-in user/role model. If a host needs users, authors, permissions, channels, moderation data, or ownership, it can represent those through custom entries, custom structures, or higher-level packages.
 

@@ -22,6 +22,19 @@ Expected behavior:
 
 This covers console history, simple logs, chat scrollback, notification feeds, and other common streams.
 
+## Keyed Structure
+
+A simple keyed content structure should be part of the MVP after the FIFO foundation.
+
+Expected behavior:
+
+- callers provide entry IDs when adding entries;
+- the structure validates IDs through a configured ID strategy;
+- retained records can be fetched by ID;
+- duplicate IDs are rejected consistently.
+
+This gives the package an early, simple structure that benefits from configurable ID strategy without making the first FIFO structure more complicated.
+
 ## Future Structures
 
 The abstraction should leave room for other useful structures:
