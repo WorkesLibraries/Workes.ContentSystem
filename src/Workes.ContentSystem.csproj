@@ -14,7 +14,7 @@
     <Company>Workes</Company>
     <Product>Workes.ContentSystem</Product>
     <Description>Engine-neutral content-entry storage for simple streams, keyed records, and extensible application content workflows.</Description>
-    <PackageTags>content entries storage fifo keyed history logs chat feed workes</PackageTags>
+    <PackageTags>entries game-tools game-development chat logs</PackageTags>
     <PackageProjectUrl>https://github.com/WorkesLibraries/Workes.ContentSystem</PackageProjectUrl>
     <RepositoryUrl>https://github.com/WorkesLibraries/Workes.ContentSystem.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
