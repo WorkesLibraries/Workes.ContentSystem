@@ -23,7 +23,7 @@ ContentSystem currently supports two ID ownership models.
 Structure-assigned IDs are used when the structure decides the stored ID:
 
 ```csharp
-var content = new ContentManager(
+var content = ContentManager.For(
     new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 ContentEntryRecord record = content.Add(
@@ -71,11 +71,20 @@ ID strategies validate caller-provided IDs. They do not generate IDs.
 
 ## Lookup
 
-Structure-specific code should use natural lookup methods:
+Structure-specific and typed-manager code should use natural lookup methods:
 
 ```csharp
 ContentEntryRecord sequenceRecord = sequence.Get(1);
 ContentEntryRecord keyedRecord = keyed.Get("entry-1");
+```
+
+For structure-assigned IDs, `ContentManager.For(...)` infers the natural ID type from the structure:
+
+```csharp
+var content = ContentManager.For(
+    new ContentSequenceStructure(ContentOverflowPolicy.None));
+
+ContentEntryRecord record = content.Get(1);
 ```
 
 Structure-agnostic code can use `ContentEntryId`:

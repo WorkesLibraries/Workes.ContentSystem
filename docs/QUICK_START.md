@@ -5,13 +5,13 @@ This package is a reusable content-entry backend. The first useful core supports
 ## Install
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.3.0
+dotnet add package Workes.ContentSystem --version 0.4.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.3.0" />
+<PackageReference Include="Workes.ContentSystem" Version="0.4.0" />
 ```
 
 ## Mental Model
@@ -26,14 +26,16 @@ The common sequence workflow uses a `ContentSequenceStructure` where the structu
 
 ## Sequence Workflow
 
-Use `ContentManager` when the structure assigns IDs for added entries:
+Use `ContentManager.For(...)` when the structure assigns IDs for added entries and exposes a natural lookup ID type:
 
 ```csharp
-var content = new ContentManager(
+var content = ContentManager.For(
     new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
 content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "User submitted a command."));
+
+ContentEntryRecord first = content.Get(1);
 
 foreach (ContentEntryRecord record in content.Records)
 {
@@ -41,15 +43,17 @@ foreach (ContentEntryRecord record in content.Records)
 }
 ```
 
-You can still provide a different structure-assigned-ID structure:
+You can still provide a different structure-assigned-ID structure. If you prefer the explicit form, this is equivalent for the built-in sequence:
 
 ```csharp
-var content = new ContentManager(
+var content = new ContentManager<long>(
     new ContentSequenceStructure(ContentOverflowPolicy.None));
 
 content.Add(new ChatContentEntry(channel: "global", text: "Hello!"));
 content.Add(new CollapsibleStackTraceEntry(exception));
 ```
+
+Most users should prefer `ContentManager.For(...)` because the structure owns the correct natural ID type.
 
 ## Keyed Workflow
 
@@ -71,7 +75,7 @@ var content = new KeyedContentManager<long>();
 content.Add(8, new PlainContentEntry(DateTimeOffset.UtcNow, "Eighth entry."));
 ```
 
-`ContentManagerBase` is the shared read and lookup ancestor for manager-agnostic code. Most users should construct `ContentManager` or `KeyedContentManager<TId>` directly, then use `ContentManagerBase` only when existing managers should be processed through their common read surface.
+`ContentManagerBase` is the shared ancestor for manager-agnostic code. Most users should construct `ContentManager` or `KeyedContentManager<TId>` directly, then use `ContentManagerBase` only when existing managers should be processed through their common read, lookup, event, and supported mutation surface.
 
 ## Observing Changes
 

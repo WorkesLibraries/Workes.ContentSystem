@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Workes.ContentSystem.Core;
 
 namespace Workes.ContentSystem.Tests.Core;
@@ -113,6 +114,136 @@ public sealed class ContentManagerTests
         manager.Add(Entry("Stored"));
 
         Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void BaseManager_TryClear_DelegatesToClearableStructure()
+    {
+        ContentManagerBase manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        ContentEntryRecord added = ((ContentManager)manager).Add(Entry("Stored"));
+
+        bool cleared = manager.TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure);
+
+        Assert.That(cleared, Is.True);
+        Assert.That(removedRecords, Is.EqualTo(new[] { added }));
+        Assert.That(failure, Is.Null);
+        Assert.That(manager.Records, Is.Empty);
+    }
+
+    [Test]
+    public void BaseManager_TryRemove_DelegatesToRemovalStructure()
+    {
+        ContentManagerBase manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        ContentEntryRecord added = ((ContentManager)manager).Add(Entry("Stored"));
+
+        bool removed = manager.TryRemove(added.Id, out ContentEntryRecord? removedRecord, out ContentFailure? failure);
+
+        Assert.That(removed, Is.True);
+        Assert.That(removedRecord, Is.SameAs(added));
+        Assert.That(failure, Is.Null);
+        Assert.That(manager.Records, Is.Empty);
+    }
+
+    [Test]
+    public void ContentManagerFor_InfersNaturalIdManagerForSequenceStructure()
+    {
+        var manager = ContentManager.For(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        ContentEntryRecord added = manager.Add(Entry("Stored"));
+
+        ContentEntryRecord found = manager.Get(1);
+        ContentEntryRecord removed = manager.Remove(1);
+
+        Assert.That(found, Is.SameAs(added));
+        Assert.That(removed, Is.SameAs(added));
+        Assert.That(manager.Records, Is.Empty);
+    }
+
+    [Test]
+    public void GenericContentManager_CanBeConstructedExplicitly()
+    {
+        var manager = new ContentManager<long>(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        ContentEntryRecord added = manager.Add(Entry("Stored"));
+
+        Assert.That(manager.Get(1), Is.SameAs(added));
+    }
+
+    [Test]
+    public void BaseManager_TrySetStructureParameter_DelegatesToParameterizedStructure()
+    {
+        ContentManagerBase manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        ((ContentManager)manager).Add(Entry("First"));
+        ContentEntryRecord second = ((ContentManager)manager).Add(Entry("Second"));
+
+        bool changed = manager.TrySetStructureParameter(
+            ContentSequenceStructure.OverflowPolicyParameterId,
+            ContentOverflowPolicy.DropOldest(1),
+            out IReadOnlyList<ContentEntryRecord> removedRecords,
+            out ContentFailure? failure);
+
+        Assert.That(changed, Is.True);
+        Assert.That(removedRecords.Count, Is.EqualTo(1));
+        Assert.That(failure, Is.Null);
+        Assert.That(manager.Records, Is.EqualTo(new[] { second }));
+        Assert.That(((IContentRetentionPolicyStructure)manager.Structure).OverflowPolicy, Is.EqualTo(ContentOverflowPolicy.DropOldest(1)));
+    }
+
+    [Test]
+    public void BaseManager_UnsupportedMutationsReturnStructuredFailures()
+    {
+        ContentManagerBase manager = new ContentManager(new TestStructureAssignedIdContentStructure());
+
+        bool cleared = manager.TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? clearFailure);
+        bool removed = manager.TryRemove(new ContentEntryId("missing"), out ContentEntryRecord? removedRecord, out ContentFailure? removeFailure);
+        bool changed = manager.TrySetStructureParameter(ContentSequenceStructure.OverflowPolicyParameterId, ContentOverflowPolicy.DropOldest(1), out IReadOnlyList<ContentEntryRecord> policyRemovedRecords, out ContentFailure? policyFailure);
+
+        Assert.That(cleared, Is.False);
+        Assert.That(removedRecords, Is.Empty);
+        Assert.That(clearFailure, Is.Not.Null);
+        Assert.That(clearFailure!.Code, Is.EqualTo(ContentFailureCodes.StructureUnsupportedOperation));
+        Assert.That(removed, Is.False);
+        Assert.That(removedRecord, Is.Null);
+        Assert.That(removeFailure, Is.Not.Null);
+        Assert.That(removeFailure!.Code, Is.EqualTo(ContentFailureCodes.StructureUnsupportedOperation));
+        Assert.That(changed, Is.False);
+        Assert.That(policyRemovedRecords, Is.Empty);
+        Assert.That(policyFailure, Is.Not.Null);
+        Assert.That(policyFailure!.Code, Is.EqualTo(ContentFailureCodes.StructureUnsupportedOperation));
+    }
+
+    [Test]
+    public void BaseManager_UnsupportedThrowingMutationThrowsContentOperationException()
+    {
+        ContentManagerBase manager = new ContentManager(new TestStructureAssignedIdContentStructure());
+
+        ContentOperationException? exception = Assert.Throws<ContentOperationException>(() => manager.Clear());
+
+        Assert.That(exception, Is.Not.Null);
+        Assert.That(exception!.Failure.Code, Is.EqualTo(ContentFailureCodes.StructureUnsupportedOperation));
+    }
+
+    [Test]
+    public void BaseManager_SetStructureParameter_EmitsConfigurationChangedEvent()
+    {
+        ContentManagerBase manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        ContentEntryRecord first = ((ContentManager)manager).Add(Entry("First"));
+        ((ContentManager)manager).Add(Entry("Second"));
+        ContentChangedEventArgs? changedArgs = null;
+        manager.Changed += (_, args) => changedArgs = args;
+
+        var removed = manager.SetStructureParameter(
+            ContentSequenceStructure.OverflowPolicyParameterId,
+            ContentOverflowPolicy.DropOldest(1));
+
+        Assert.That(removed, Is.EqualTo(new[] { first }));
+        Assert.That(changedArgs, Is.Not.Null);
+        Assert.That(changedArgs!.Kind, Is.EqualTo(ContentChangeKind.ConfigurationChanged));
+        Assert.That(changedArgs.RemovedRecords, Is.EqualTo(new[] { first }));
+        Assert.That(changedArgs.ConfigurationChanged.Single().Kind, Is.EqualTo(ContentConfigurationChangeKind.StructureParameter));
+        Assert.That(changedArgs.ConfigurationChanged.Single().ConfigurationId, Is.EqualTo(ContentSequenceStructure.OverflowPolicyParameterId));
+        Assert.That(changedArgs.ConfigurationChanged.Single().Value, Is.EqualTo(ContentOverflowPolicy.DropOldest(1)));
+        Assert.That(changedArgs.ConfigurationChanged.Single().PreviousComponent, Is.TypeOf<ContentSequenceStructure>());
+        Assert.That(changedArgs.ConfigurationChanged.Single().CurrentComponent, Is.TypeOf<ContentSequenceStructure>());
+        Assert.That(changedArgs.RequiresFullRefresh, Is.True);
     }
 
     private static PlainContentEntry Entry(string text)

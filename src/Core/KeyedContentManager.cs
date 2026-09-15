@@ -8,8 +8,6 @@ namespace Workes.ContentSystem.Core;
 /// <typeparam name="TId">The caller-facing ID type.</typeparam>
 public sealed class KeyedContentManager<TId> : ContentManagerBase
 {
-    private readonly IKeyedContentStructure<TId> _structure;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="KeyedContentManager{TId}"/> class with a keyed structure using the default ID strategy for <typeparamref name="TId"/>.
     /// </summary>
@@ -34,8 +32,13 @@ public sealed class KeyedContentManager<TId> : ContentManagerBase
     public KeyedContentManager(IKeyedContentStructure<TId> structure)
         : base(structure)
     {
-        _structure = structure ?? throw new ArgumentNullException(nameof(structure));
+        if (structure is null)
+        {
+            throw new ArgumentNullException(nameof(structure));
+        }
     }
+
+    private IKeyedContentStructure<TId> KeyedStructure => (IKeyedContentStructure<TId>)Structure;
 
     /// <summary>
     /// Attempts to add an entry with a caller-provided ID.
@@ -47,7 +50,7 @@ public sealed class KeyedContentManager<TId> : ContentManagerBase
     /// <returns><see langword="true"/> when the entry is added.</returns>
     public bool TryAdd(TId id, IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
     {
-        return _structure.TryAdd(id, entry, out record, out failure);
+        return KeyedStructure.TryAdd(id, entry, out record, out failure);
     }
 
     /// <summary>
@@ -59,7 +62,7 @@ public sealed class KeyedContentManager<TId> : ContentManagerBase
     /// <exception cref="ContentOperationException">Thrown when the ID is rejected.</exception>
     public ContentEntryRecord Add(TId id, IContentEntry entry)
     {
-        return _structure.Add(id, entry);
+        return KeyedStructure.Add(id, entry);
     }
 
     /// <summary>
@@ -71,7 +74,7 @@ public sealed class KeyedContentManager<TId> : ContentManagerBase
     /// <returns><see langword="true"/> when a retained record is found.</returns>
     public bool TryGet(TId id, out ContentEntryRecord? record, out ContentFailure? failure)
     {
-        return _structure.TryGet(id, out record, out failure);
+        return KeyedStructure.TryGet(id, out record, out failure);
     }
 
     /// <summary>
@@ -82,6 +85,54 @@ public sealed class KeyedContentManager<TId> : ContentManagerBase
     /// <exception cref="ContentOperationException">Thrown when the record cannot be found or the ID is rejected.</exception>
     public ContentEntryRecord Get(TId id)
     {
-        return _structure.Get(id);
+        return KeyedStructure.Get(id);
+    }
+
+    /// <summary>
+    /// Attempts to remove a retained record by caller-facing ID.
+    /// </summary>
+    /// <param name="id">The entry ID to remove.</param>
+    /// <param name="removedRecord">The removed record when found; otherwise <see langword="null"/>.</param>
+    /// <param name="failure">The structured failure when rejected; otherwise <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> when a retained record is removed.</returns>
+    public bool TryRemove(TId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
+    {
+        if (Structure is IKeyedContentRecordRemovalStructure<TId> removable)
+        {
+            return removable.TryRemove(id, out removedRecord, out failure);
+        }
+
+        removedRecord = null;
+        failure = ContentFailures.StructureUnsupportedOperation("The active keyed content structure does not support typed record removal.");
+        return false;
+    }
+
+    /// <summary>
+    /// Removes a retained record by caller-facing ID.
+    /// </summary>
+    /// <param name="id">The entry ID to remove.</param>
+    /// <returns>The removed record.</returns>
+    /// <exception cref="ContentOperationException">Thrown when removal is rejected or unsupported.</exception>
+    public ContentEntryRecord Remove(TId id)
+    {
+        if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure))
+        {
+            return removedRecord!;
+        }
+
+        throw new ContentOperationException(failure!);
+    }
+
+    /// <inheritdoc />
+    protected override bool TryAcceptStructureReplacement(IContentStructure structure, out ContentFailure? failure)
+    {
+        if (structure is IKeyedContentStructure<TId>)
+        {
+            failure = null;
+            return true;
+        }
+
+        failure = ContentFailures.StructureUnsupportedOperation("Replacement structure does not support the active keyed ID workflow.");
+        return false;
     }
 }

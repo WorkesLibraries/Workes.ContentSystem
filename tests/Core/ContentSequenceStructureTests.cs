@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Workes.ContentSystem.Core;
 
@@ -39,6 +40,16 @@ public sealed class ContentSequenceStructureTests
 
         Assert.That(retention.OverflowPolicy, Is.EqualTo(overflowPolicy));
         Assert.That(readOrder.ReadOrder, Is.EqualTo(ContentSequenceReadOrder.NewestFirst));
+    }
+
+    [Test]
+    public void CustomStructure_CanImplementMutationContracts()
+    {
+        var structure = new TestMutableStructure(ContentOverflowPolicy.None);
+
+        Assert.That(structure, Is.InstanceOf<IContentClearableStructure>());
+        Assert.That(structure, Is.InstanceOf<IContentRecordRemovalStructure>());
+        Assert.That(structure, Is.InstanceOf<IParameterizedContentStructure>());
     }
 
     [Test]
@@ -163,6 +174,7 @@ public sealed class ContentSequenceStructureTests
         Assert.That(changedArgs, Is.Not.Null);
         Assert.That(changedArgs!.AddedRecords, Is.EqualTo(new[] { record }));
         Assert.That(changedArgs.RemovedRecords, Is.Empty);
+        Assert.That(changedArgs.Kind, Is.EqualTo(ContentChangeKind.Added));
     }
 
     [Test]
@@ -184,6 +196,182 @@ public sealed class ContentSequenceStructureTests
         Assert.That(changedArgs, Is.Not.Null);
         Assert.That(changedArgs!.AddedRecords, Is.EqualTo(new[] { added }));
         Assert.That(changedArgs.RemovedRecords, Is.EqualTo(new[] { removed }));
+        Assert.That(changedArgs.Kind, Is.EqualTo(ContentChangeKind.Added));
+    }
+
+    [Test]
+    public void Clear_RemovesAllRecordsEmitsEventAndPreservesNextGeneratedId()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+        ContentEntryRecord first = structure.Add(Entry("First"));
+        ContentEntryRecord second = structure.Add(Entry("Second"));
+        ContentChangedEventArgs? changedArgs = null;
+        structure.Changed += (_, args) => changedArgs = args;
+
+        var removed = structure.Clear();
+
+        Assert.That(removed, Is.EqualTo(new[] { first, second }));
+        Assert.That(changedArgs, Is.Not.Null);
+        Assert.That(changedArgs!.RemovedRecords, Is.EqualTo(new[] { first, second }));
+        Assert.That(changedArgs.Kind, Is.EqualTo(ContentChangeKind.Cleared));
+        Assert.That(changedArgs.Cleared, Is.True);
+        Assert.That(changedArgs.RequiresFullRefresh, Is.True);
+
+        ContentEntryRecord third = structure.Add(Entry("Third"));
+
+        Assert.That(third.Id, Is.EqualTo(new ContentEntryId("3")));
+    }
+
+    [Test]
+    public void Clear_WhenEmptyEmitsNoEvent()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+        int eventCount = 0;
+        structure.Changed += (_, _) => eventCount++;
+
+        var removed = structure.Clear();
+
+        Assert.That(removed, Is.Empty);
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TryRemove_WithContentEntryId_RemovesRecordAndEmitsEvent()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+        ContentEntryRecord first = structure.Add(Entry("First"));
+        ContentEntryRecord second = structure.Add(Entry("Second"));
+        ContentChangedEventArgs? changedArgs = null;
+        structure.Changed += (_, args) => changedArgs = args;
+
+        bool removed = structure.TryRemove(first.Id, out ContentEntryRecord? removedRecord, out ContentFailure? failure);
+
+        Assert.That(removed, Is.True);
+        Assert.That(removedRecord, Is.SameAs(first));
+        Assert.That(failure, Is.Null);
+        Assert.That(structure.Records, Is.EqualTo(new[] { second }));
+        Assert.That(changedArgs, Is.Not.Null);
+        Assert.That(changedArgs!.Kind, Is.EqualTo(ContentChangeKind.Removed));
+        Assert.That(changedArgs.RemovedRecords, Is.EqualTo(new[] { first }));
+    }
+
+    [Test]
+    public void TryRemove_WithNumericId_RemovesRecord()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+        ContentEntryRecord first = structure.Add(Entry("First"));
+        ContentEntryRecord second = structure.Add(Entry("Second"));
+
+        bool removed = structure.TryRemove(2, out ContentEntryRecord? removedRecord, out ContentFailure? failure);
+
+        Assert.That(removed, Is.True);
+        Assert.That(removedRecord, Is.SameAs(second));
+        Assert.That(failure, Is.Null);
+        Assert.That(structure.Records, Is.EqualTo(new[] { first }));
+    }
+
+    [Test]
+    public void TryRemove_WhenMissingReturnsEntryNotFoundAndEmitsNoEvent()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+        int eventCount = 0;
+        structure.Changed += (_, _) => eventCount++;
+
+        bool removed = structure.TryRemove(new ContentEntryId("missing"), out ContentEntryRecord? removedRecord, out ContentFailure? failure);
+
+        Assert.That(removed, Is.False);
+        Assert.That(removedRecord, Is.Null);
+        Assert.That(failure, Is.Not.Null);
+        Assert.That(failure!.Code, Is.EqualTo(ContentFailureCodes.EntryNotFound));
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void Remove_WhenMissingThrowsContentOperationException()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+
+        ContentOperationException? exception = Assert.Throws<ContentOperationException>(() => structure.Remove(new ContentEntryId("missing")));
+
+        Assert.That(exception, Is.Not.Null);
+        Assert.That(exception!.Failure.Code, Is.EqualTo(ContentFailureCodes.EntryNotFound));
+    }
+
+    [Test]
+    public void TryCreateWithParameter_FromNoneToDropOldest_CreatesReplacementAndTrimsOldestRecords()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+        ContentEntryRecord first = structure.Add(Entry("First"));
+        ContentEntryRecord second = structure.Add(Entry("Second"));
+        ContentEntryRecord third = structure.Add(Entry("Third"));
+
+        bool changed = structure.TryCreateWithParameter(
+            ContentSequenceStructure.OverflowPolicyParameterId,
+            ContentOverflowPolicy.DropOldest(2),
+            out IContentStructure? replacement,
+            out var removedRecords,
+            out ContentFailure? failure);
+
+        Assert.That(changed, Is.True);
+        Assert.That(failure, Is.Null);
+        Assert.That(replacement, Is.TypeOf<ContentSequenceStructure>());
+        Assert.That(removedRecords, Is.EqualTo(new[] { first }));
+        Assert.That(structure.Records, Is.EqualTo(new[] { first, second, third }));
+        Assert.That(replacement!.Records, Is.EqualTo(new[] { second, third }));
+        Assert.That(((IContentRetentionPolicyStructure)replacement).OverflowPolicy, Is.EqualTo(ContentOverflowPolicy.DropOldest(2)));
+    }
+
+    [Test]
+    public void TrySetStructureParameter_ToNoneStopsFutureOverflow()
+    {
+        var manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(1)));
+        ContentEntryRecord first = manager.Add(Entry("First"));
+
+        manager.SetStructureParameter(ContentSequenceStructure.OverflowPolicyParameterId, ContentOverflowPolicy.None);
+        ContentEntryRecord second = manager.Add(Entry("Second"));
+
+        Assert.That(manager.Records, Is.EqualTo(new[] { first, second }));
+    }
+
+    [Test]
+    public void TrySetStructureParameter_SamePolicyEmitsNoEvent()
+    {
+        var manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2)));
+        int eventCount = 0;
+        manager.Changed += (_, _) => eventCount++;
+
+        bool changed = manager.TrySetStructureParameter(
+            ContentSequenceStructure.OverflowPolicyParameterId,
+            ContentOverflowPolicy.DropOldest(2),
+            out var removedRecords,
+            out ContentFailure? failure);
+
+        Assert.That(changed, Is.True);
+        Assert.That(removedRecords, Is.Empty);
+        Assert.That(failure, Is.Null);
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TryCreateWithParameter_NullPolicyReturnsFailureAndDoesNotAlterRecords()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+        ContentEntryRecord record = structure.Add(Entry("First"));
+
+        bool changed = structure.TryCreateWithParameter(
+            ContentSequenceStructure.OverflowPolicyParameterId,
+            null,
+            out IContentStructure? replacement,
+            out var removedRecords,
+            out ContentFailure? failure);
+
+        Assert.That(changed, Is.False);
+        Assert.That(replacement, Is.Null);
+        Assert.That(removedRecords, Is.Empty);
+        Assert.That(failure, Is.Not.Null);
+        Assert.That(failure!.Code, Is.EqualTo(ContentFailureCodes.ConfigurationRejected));
+        Assert.That(structure.Records, Is.EqualTo(new[] { record }));
+        Assert.That(structure.OverflowPolicy, Is.EqualTo(ContentOverflowPolicy.None));
     }
 
     [Test]
@@ -378,6 +566,81 @@ public sealed class ContentSequenceStructureTests
         public ContentSequenceReadOrder ReadOrder { get; }
 
         public System.Collections.Generic.IReadOnlyList<ContentEntryRecord> Records => Array.Empty<ContentEntryRecord>();
+
+        public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
+        {
+            record = null;
+            failure = ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing.");
+            return false;
+        }
+
+        public ContentEntryRecord Get(ContentEntryId id)
+        {
+            throw new ContentOperationException(ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing."));
+        }
+    }
+
+    private sealed class TestMutableStructure :
+        IContentClearableStructure,
+        IContentRecordRemovalStructure,
+        IParameterizedContentStructure
+    {
+        public TestMutableStructure(ContentOverflowPolicy overflowPolicy)
+        {
+            OverflowPolicy = overflowPolicy;
+        }
+
+        public ContentOverflowPolicy OverflowPolicy { get; private set; }
+
+        public IReadOnlyCollection<ContentParameterDefinition> Parameters =>
+            new[] { new ContentParameterDefinition("overflowPolicy", typeof(ContentOverflowPolicy), "Overflow policy.") };
+
+        public IReadOnlyList<ContentEntryRecord> Records => Array.Empty<ContentEntryRecord>();
+
+        public bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+        {
+            removedRecords = Array.Empty<ContentEntryRecord>();
+            failure = null;
+            return true;
+        }
+
+        public IReadOnlyList<ContentEntryRecord> Clear()
+        {
+            return Array.Empty<ContentEntryRecord>();
+        }
+
+        public bool TryRemove(ContentEntryId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
+        {
+            removedRecord = null;
+            failure = ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing.");
+            return false;
+        }
+
+        public ContentEntryRecord Remove(ContentEntryId id)
+        {
+            throw new ContentOperationException(ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing."));
+        }
+
+        public bool TryCreateWithParameter(
+            string parameterId,
+            object? value,
+            out IContentStructure? structure,
+            out IReadOnlyList<ContentEntryRecord> removedRecords,
+            out ContentFailure? failure)
+        {
+            if (parameterId != "overflowPolicy" || value is not ContentOverflowPolicy overflowPolicy)
+            {
+                structure = null;
+                removedRecords = Array.Empty<ContentEntryRecord>();
+                failure = ContentFailure.Create(ContentFailureKind.Configuration, ContentFailureCodes.ConfigurationRejected, "Invalid parameter.");
+                return false;
+            }
+
+            structure = new TestMutableStructure(overflowPolicy);
+            removedRecords = Array.Empty<ContentEntryRecord>();
+            failure = null;
+            return true;
+        }
 
         public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
         {

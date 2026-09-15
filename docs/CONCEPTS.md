@@ -28,11 +28,11 @@ Other structures can behave very differently. A forum-like structure might group
 
 Manager workflows are separated by entry ID ownership.
 
-Use `ContentManager` for structures that assign IDs when entries are added. Structure choice is explicit, so the simple sequence path is create a manager with `ContentSequenceStructure`, add entries, and read records.
+Use `ContentManager` for structures that assign IDs when entries are added. Structure choice is explicit, so the simple sequence path is create a manager with `ContentSequenceStructure`, add entries, and read records. When the structure exposes a natural ID type, `ContentManager.For(...)` creates a typed manager without making the user spell that type.
 
 Use `KeyedContentManager<TId>` for structures where caller-provided IDs are first-class. This keeps keyed add and lookup typed without adding overloads for every possible ID shape. Built-in ID strategies are resolved for supported ID types, and custom ID types can provide custom strategies.
 
-`ContentManagerBase` provides the shared read and lookup surface for code that can work with existing managers from either workflow. It is common infrastructure, not a construction path.
+`ContentManagerBase` provides the shared read, lookup, and manager-owned mutation surface for code that can work with existing managers from either workflow. It is common infrastructure, not a construction path.
 
 See [Content Managers](CONTENT_MANAGERS.md) for the manager workflow split.
 
@@ -40,7 +40,7 @@ See [Content Managers](CONTENT_MANAGERS.md) for the manager workflow split.
 
 Some structures can raise committed-change notifications through `IContentChangeSource`.
 
-Built-in structures raise synchronous `Changed` events after successful mutations. Managers forward those events through `ContentManagerBase.Changed`, using the manager as the event sender. Rejected operations and read-only lookups do not raise events.
+Built-in structures raise synchronous `Changed` events after successful mutations. Managers forward those events through `ContentManagerBase.Changed`, using the manager as the event sender. Event payloads identify adds, removals, clears, and runtime structure parameter changes. Rejected operations, no-op mutations, and read-only lookups do not raise events.
 
 See [Content Changes](CONTENT_CHANGES.md) for event payloads and hook semantics.
 

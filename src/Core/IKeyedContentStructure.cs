@@ -41,4 +41,5 @@ public interface IKeyedContentStructure<TId> : IContentStructure
     /// <returns>The retained record.</returns>
     /// <exception cref="ContentOperationException">Thrown when the record cannot be found or the ID is rejected.</exception>
     ContentEntryRecord Get(TId id);
+
 }

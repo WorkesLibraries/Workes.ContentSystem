@@ -10,10 +10,10 @@ The shared read and lookup behavior is common across managers, but adding entrie
 
 ## Manager Types
 
-Use `ContentManager` for structure-assigned-ID workflows.
+Use `ContentManager.For(...)` for structure-assigned-ID workflows where the structure exposes a natural ID type.
 
 ```csharp
-var content = new ContentManager(
+var content = ContentManager.For(
     new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 ContentEntryRecord record = content.Add(
@@ -21,6 +21,28 @@ ContentEntryRecord record = content.Add(
 ```
 
 `ContentSequenceStructure` assigns increasing numeric IDs stored as `ContentEntryId` values. The structure is passed explicitly so the manager never hides which storage or retention policy is active.
+
+`ContentManager.For(...)` lets C# infer the correct manager ID type from the structure:
+
+```csharp
+var content = ContentManager.For(
+    new ContentSequenceStructure(ContentOverflowPolicy.None));
+
+ContentEntryRecord record = content.Add(
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
+
+ContentEntryRecord found = content.Get(1);
+ContentEntryRecord removed = content.Remove(1);
+```
+
+This is equivalent to constructing the typed manager explicitly:
+
+```csharp
+var content = new ContentManager<long>(
+    new ContentSequenceStructure(ContentOverflowPolicy.None));
+```
+
+The explicit form is legal, but `ContentManager.For(...)` is the recommended path because the structure, not the user, owns the correct natural ID type.
 
 Use `KeyedContentManager<TId>` for caller-provided typed IDs.
 
@@ -36,7 +58,7 @@ ContentEntryRecord record = content.Add(
 
 ## Shared Base
 
-`ContentManagerBase` is the shared read and lookup ancestor for already-created managers.
+`ContentManagerBase` is the shared ancestor for already-created managers.
 
 It exposes:
 
@@ -44,9 +66,12 @@ It exposes:
 - `Records`;
 - `TryGet(ContentEntryId, ...)`;
 - `Get(ContentEntryId)`;
+- `TryClear(...)` and `Clear()`;
+- `TryRemove(ContentEntryId, ...)` and `Remove(ContentEntryId)`;
+- `TrySetStructureParameter(...)` and `SetStructureParameter(...)`;
 - `Changed`.
 
-This is useful when code receives either `ContentManager` or `KeyedContentManager<TId>` and only needs to read records or look up records by the normalized `ContentEntryId`:
+This is useful when code receives `ContentManager`, `ContentManager<TId>`, or `KeyedContentManager<TId>` and only needs to read records or look up records by the normalized `ContentEntryId`:
 
 ```csharp
 void Render(ContentManagerBase content)
@@ -58,7 +83,44 @@ void Render(ContentManagerBase content)
 }
 ```
 
-Most application code should construct `ContentManager` or `KeyedContentManager<TId>` directly. `ContentManagerBase` is abstract, so it is not constructed directly; it exists so both manager workflows can be processed through their common read surface.
+Most application code should construct `ContentManager` or `KeyedContentManager<TId>` directly. `ContentManagerBase` is abstract, so it is not constructed directly; it exists so both manager workflows can be processed through their common read and shared mutation surface.
+
+## Runtime Mutation
+
+Managers own the normal mutation workflow. Structures opt into the underlying focused contracts, and manager APIs return `StructureUnsupportedOperation` when the active structure does not support a requested mutation.
+
+Shared manager mutations include:
+
+- `Clear`, when the structure implements `IContentClearableStructure`;
+- `Remove(ContentEntryId)`, when the structure implements `IContentRecordRemovalStructure`;
+- `SetStructureParameter`, when the structure implements `IParameterizedContentStructure`.
+
+```csharp
+ContentManagerBase content = new ContentManager(
+    new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
+
+content.SetStructureParameter(
+    ContentSequenceStructure.OverflowPolicyParameterId,
+    ContentOverflowPolicy.DropOldest(capacity: 500));
+content.Remove(new ContentEntryId("1"));
+content.Clear();
+```
+
+Parameterized mutation mirrors InventorySystem's runtime configuration style: structures expose stable parameter IDs, and managers coordinate the commit. The first built-in parameter is `ContentSequenceStructure.OverflowPolicyParameterId`, whose value must be a `ContentOverflowPolicy`.
+
+Typed managers expose natural ID overloads where the workflow has a natural ID shape:
+
+```csharp
+var sequence = ContentManager.For(
+    new ContentSequenceStructure(ContentOverflowPolicy.None));
+
+sequence.Remove(1);
+
+var keyed = new KeyedContentManager<string>();
+keyed.Remove("thread-main");
+```
+
+Typed keyed removal requires the active keyed structure to implement `IKeyedContentRecordRemovalStructure<TId>`. The built-in keyed structure does. Custom keyed structures that do not opt in remain valid, and the typed removal manager API returns `StructureUnsupportedOperation`.
 
 ## Change Hooks
 
@@ -106,7 +168,8 @@ Programmer misuse, such as a null entry or null structure, uses standard .NET ex
 Choose based on who owns entry IDs:
 
 - use `ContentManager` when the structure assigns IDs;
+- use `ContentManager.For(...)` when a structure-assigned-ID structure exposes a natural ID type;
 - use `KeyedContentManager<TId>` when callers provide IDs;
-- use `ContentManagerBase` when code only needs shared read/lookup behavior.
+- use `ContentManagerBase` when code only needs shared read, lookup, clear/remove, or structure-parameter mutation behavior.
 
 This split keeps the API explicit. It avoids one broad manager with add methods that only work for some structures.

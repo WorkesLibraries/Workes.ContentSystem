@@ -12,13 +12,15 @@ Prefer manager-owned workflows for normal use.
 
 The structure-assigned-ID root type is `ContentManager`. It should require an explicit structure so the active storage policy is visible at construction.
 
+Use `ContentManager.For(...)` when a structure-assigned-ID structure exposes a natural retained-record ID type. This keeps normal usage ergonomic without asking users to spell a generic type that the structure already owns. Keep `new ContentManager<TId>(structure)` legal and document it briefly as the explicit equivalent.
+
 Use `KeyedContentManager<TId>` for structures where caller-provided IDs are first-class. Do not make one manager expose write methods that only work for some structures.
 
 `ContentManagerBase` is public shared read/lookup plumbing for code that can work with already-created managers from either workflow. It is abstract and should stay small rather than becoming a catch-all capability surface.
 
 Advanced behavior should be opt-in through options, focused structure contracts, snapshots, or attachments.
 
-Runtime mutation should be manager-owned for normal callers. Structures may expose focused opt-in contracts that managers coordinate.
+Runtime mutation should be manager-owned for normal callers. Structures may expose focused opt-in contracts that managers coordinate. Unsupported manager mutations should return `StructureUnsupportedOperation` from try APIs and throw `ContentOperationException` from expected-success APIs.
 
 ## Structures
 
@@ -26,7 +28,7 @@ Represent shared read and lookup behavior through `IContentStructure`.
 
 Avoid baking FIFO assumptions into the whole package. `ContentSequenceStructure` provides the first sequence behavior, with unbounded retention and bounded drop-oldest retention expressed through `ContentOverflowPolicy`.
 
-Use focused opt-in contracts to expose inspectable structure behavior. For example, retention policy belongs on `IContentRetentionPolicyStructure`, and read order belongs on `IContentReadOrderStructure`.
+Use focused opt-in contracts to expose inspectable structure behavior and supported mutations. For example, retention policy belongs on `IContentRetentionPolicyStructure`, read order belongs on `IContentReadOrderStructure`, clear/remove support belongs on mutation-specific contracts, and runtime configuration belongs on `IParameterizedContentStructure`.
 
 A structure should own:
 
@@ -39,7 +41,7 @@ A structure should own:
 
 Do not force one append method into the base structure abstraction. Structure-assigned-ID structures and caller-provided-ID structures should expose their own write workflows through focused interfaces.
 
-Concrete structures should expose natural lookup overloads for their ID model. For example, sequence generated-ID structures can support `Get(1)` while generic code can continue using `IContentStructure.Get(ContentEntryId)`.
+Concrete structures should expose natural lookup and removal overloads for their ID model when removal is supported. For example, sequence generated-ID structures can support `Get(1)` and `Remove(1)` while generic code can continue using `ContentEntryId`. Keyed structures that support typed removal should opt into `IKeyedContentRecordRemovalStructure<TId>`.
 
 ID strategies should validate and normalize typed caller-provided IDs. Built-in default strategy resolution is acceptable for explicitly supported ID types such as `string`, `long`, `Guid`, and `ContentEntryId`; custom ID types require custom strategies. Do not add generation behavior to that abstraction until a concrete structure needs configurable generated IDs.
 
@@ -84,12 +86,12 @@ This applies to:
 - platform adapters;
 - advanced structures;
 - search/indexing;
-- mutation support;
+- specialized mutation support;
 - change hooks.
 
 The simple use case should stay small: create a manager, add entries, read entries.
 
-Change hooks should use ordinary synchronous .NET events. Raise them only after a mutation has committed, and do not emit events for rejected no-op operations. Do not add thread marshaling, buffering, or async dispatch to the core hook contract.
+Change hooks should use ordinary synchronous .NET events. Raise them only after a mutation has committed, and do not emit events for rejected or no-op operations. Include enough event metadata for UI code to distinguish adds, removals, clears, and configuration changes. Do not add thread marshaling, buffering, or async dispatch to the core hook contract.
 
 Snapshots should be serializer-friendly DTOs rather than direct file I/O. Unsupported custom entries or structures should fail snapshot capture or restore with structured failures unless they opt in.
 

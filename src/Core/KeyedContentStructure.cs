@@ -7,7 +7,10 @@ namespace Workes.ContentSystem.Core;
 /// Stores content records keyed by caller-provided IDs validated by an ID strategy.
 /// </summary>
 /// <typeparam name="TId">The caller-facing ID type.</typeparam>
-public sealed class KeyedContentStructure<TId> : IKeyedContentStructure<TId>, IContentChangeSource
+public sealed class KeyedContentStructure<TId> :
+    IKeyedContentRecordRemovalStructure<TId>,
+    IContentClearableStructure,
+    IContentChangeSource
 {
     private readonly Dictionary<ContentEntryId, ContentEntryRecord> _recordsById = new Dictionary<ContentEntryId, ContentEntryRecord>();
     private readonly List<ContentEntryRecord> _records = new List<ContentEntryRecord>();
@@ -77,7 +80,7 @@ public sealed class KeyedContentStructure<TId> : IKeyedContentStructure<TId>, IC
         _recordsById.Add(normalizedId, record);
         _records.Add(record);
         failure = null;
-        OnChanged(new ContentChangedEventArgs(new[] { record }));
+        OnChanged(new ContentChangedEventArgs(new[] { record }, kind: ContentChangeKind.Added));
         return true;
     }
 
@@ -160,6 +163,104 @@ public sealed class KeyedContentStructure<TId> : IKeyedContentStructure<TId>, IC
         if (TryGet(id, out ContentEntryRecord? record, out ContentFailure? failure))
         {
             return record!;
+        }
+
+        throw new ContentOperationException(failure!);
+    }
+
+    /// <inheritdoc />
+    public bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+    {
+        removedRecords = _records.ToArray();
+        failure = null;
+
+        if (_records.Count == 0)
+        {
+            return true;
+        }
+
+        _recordsById.Clear();
+        _records.Clear();
+        OnChanged(new ContentChangedEventArgs(
+            removedRecords: removedRecords,
+            kind: ContentChangeKind.Cleared,
+            cleared: true,
+            requiresFullRefresh: true));
+        return true;
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<ContentEntryRecord> Clear()
+    {
+        if (TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure))
+        {
+            return removedRecords;
+        }
+
+        throw new ContentOperationException(failure!);
+    }
+
+    /// <inheritdoc />
+    public bool TryRemove(ContentEntryId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
+    {
+        EnsureValidId(id);
+
+        if (!_recordsById.TryGetValue(id, out removedRecord))
+        {
+            removedRecord = null;
+            failure = ContentFailures.EntryNotFound($"Entry '{id}' was not found.", id.ToString());
+            return false;
+        }
+
+        _recordsById.Remove(id);
+        _records.Remove(removedRecord);
+        failure = null;
+        OnChanged(new ContentChangedEventArgs(
+            removedRecords: new[] { removedRecord },
+            kind: ContentChangeKind.Removed));
+        return true;
+    }
+
+    /// <summary>
+    /// Attempts to remove a retained record by caller-facing ID.
+    /// </summary>
+    /// <param name="id">The entry ID to remove.</param>
+    /// <param name="removedRecord">The removed record when found; otherwise <see langword="null"/>.</param>
+    /// <param name="failure">The structured failure when rejected; otherwise <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> when a retained record is removed.</returns>
+    public bool TryRemove(TId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
+    {
+        if (!TryNormalize(id, out ContentEntryId normalizedId, out failure))
+        {
+            removedRecord = null;
+            return false;
+        }
+
+        return TryRemove(normalizedId, out removedRecord, out failure);
+    }
+
+    /// <inheritdoc />
+    public ContentEntryRecord Remove(ContentEntryId id)
+    {
+        if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure))
+        {
+            return removedRecord!;
+        }
+
+        throw new ContentOperationException(failure!);
+    }
+
+    /// <summary>
+    /// Removes a retained record by caller-facing ID.
+    /// </summary>
+    /// <param name="id">The entry ID to remove.</param>
+    /// <returns>The removed record.</returns>
+    /// <exception cref="ContentOperationException">Thrown when the record cannot be removed or the ID is rejected.</exception>
+    public ContentEntryRecord Remove(TId id)
+    {
+        if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure))
+        {
+            return removedRecord!;
         }
 
         throw new ContentOperationException(failure!);

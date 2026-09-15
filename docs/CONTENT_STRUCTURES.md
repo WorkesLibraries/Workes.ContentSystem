@@ -14,7 +14,7 @@ The common abstraction exposes:
 - `TryGet` lookup by `ContentEntryId`;
 - expected-success `Get` lookup by `ContentEntryId`.
 
-Structures may also implement `IContentChangeSource` when they can notify observers about committed mutations.
+Structures may also implement focused optional contracts when they support committed mutations, configuration inspection, or change notifications.
 
 Write workflows are structure-specific. This lets structure-assigned-ID structures and caller-provided-ID structures expose honest APIs without forcing every structure into one add method.
 
@@ -23,6 +23,7 @@ Prefer a concrete structure's natural lookup overload when working with that str
 Manager workflows follow the same split:
 
 - `ContentManager` works with `IStructureAssignedIdContentStructure`;
+- `ContentManager.For(...)` creates a typed manager when the structure exposes a natural ID type;
 - `KeyedContentManager<TId>` works with `IKeyedContentStructure<TId>`;
 - `ContentManagerBase` provides shared read and lookup behavior for manager-agnostic code.
 
@@ -42,30 +43,36 @@ Expected behavior:
 - `ContentSequenceReadOrder.NewestFirst` can expose retained records newest to oldest;
 - entry IDs are assigned internally as increasing decimal strings.
 - successful adds raise `Changed` after the new record is retained.
+- records can be removed by ID;
+- retained records can be cleared;
+- the overflow policy can be changed at runtime.
 
 This covers console history, simple logs, chat scrollback, notification feeds, and other common streams.
 
 FIFO-style history is now expressed as `ContentSequenceStructure` plus `ContentOverflowPolicy.DropOldest(capacity)` rather than as a separate type.
 
-`ContentSequenceStructure` implements `IStructureAssignedIdContentStructure`, so it can be used directly or through `ContentManager`:
+`ContentSequenceStructure` implements `IStructureAssignedIdContentStructure<long>`, so it can be used directly or through a typed manager inferred by `ContentManager.For(...)`:
 
 ```csharp
-var content = new ContentManager(
+var content = ContentManager.For(
     new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
+ContentEntryRecord record = content.Get(1);
 ```
 
 Unbounded usage is explicit:
 
 ```csharp
-var content = new ContentManager(
+var content = ContentManager.For(
     new ContentSequenceStructure(ContentOverflowPolicy.None));
 ```
 
 Lookup only finds retained records. A record that was dropped by capacity overflow is treated as not found.
 
 When `DropOldest` overflow drops the oldest record, the structure emits one change event containing both the removed oldest record and the added new record.
+
+Changing the sequence `overflowPolicy` parameter through `ContentManagerBase.SetStructureParameter` may trim oldest records immediately. Changing from `DropOldest` to `None` stops future overflow without resetting generated IDs.
 
 Because sequence-generated IDs are sequential numbers, `ContentSequenceStructure` exposes numeric lookup:
 
@@ -122,7 +129,7 @@ content.Add("thread-main", new PlainContentEntry(DateTimeOffset.UtcNow, "First p
 
 Duplicate IDs and IDs rejected by the active strategy fail through `ContentFailure`. Missing lookups still use `EntryNotFound`.
 
-Successful keyed adds raise `Changed` with the added record. Duplicate IDs and invalid IDs are rejected without raising change events.
+Successful keyed adds, removals, and clears raise `Changed`. Duplicate IDs, invalid IDs, and missing removals are rejected without raising change events.
 
 ## Future Structures
 
@@ -151,11 +158,17 @@ Additional behavior should be exposed through focused opt-in contracts, mirrorin
 - `IKeyedContentStructure<TId>`;
 - `IContentChangeSource`;
 - `IContentRetentionPolicyStructure`;
-- `IContentReadOrderStructure`.
+- `IContentReadOrderStructure`;
+- `IContentNaturalIdStructure<TId>`;
+- `IContentNaturalIdRemovalStructure<TId>`;
+- `IContentClearableStructure`;
+- `IContentRecordRemovalStructure`;
+- `IKeyedContentRecordRemovalStructure<TId>`;
+- `IParameterizedContentStructure`.
 
-`ContentSequenceStructure` implements the retention policy and read-order contracts so structure-agnostic code can inspect those configured behaviors without depending on the concrete sequence type.
+`ContentSequenceStructure` implements the retention policy, read-order, natural long-ID lookup/removal, clear, remove, and parameterized structure contracts. Its first parameter is `ContentSequenceStructure.OverflowPolicyParameterId`. `KeyedContentStructure<TId>` implements keyed add/lookup, clear, typed keyed removal, normalized removal, and change-source contracts.
 
-Future contracts can cover clearing, removing, retention mutation, snapshots, sorting, searching, or export only where a structure genuinely supports that behavior.
+Future contracts can cover snapshots, sorting, searching, or export only where a structure genuinely supports that behavior.
 
 Runtime mutation should be manager-owned for normal callers, with structures opting into the underlying contracts that managers coordinate.
 

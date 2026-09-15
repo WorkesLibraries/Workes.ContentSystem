@@ -116,6 +116,90 @@ public sealed class KeyedContentManagerTests
     }
 
     [Test]
+    public void TryRemove_WithTypedId_RemovesRecord()
+    {
+        var manager = new KeyedContentManager<string>();
+        ContentEntryRecord added = manager.Add("entry", Entry("Stored"));
+
+        bool removed = manager.TryRemove("entry", out ContentEntryRecord? removedRecord, out ContentFailure? failure);
+
+        Assert.That(removed, Is.True);
+        Assert.That(removedRecord, Is.SameAs(added));
+        Assert.That(failure, Is.Null);
+        Assert.That(manager.Records, Is.Empty);
+    }
+
+    [Test]
+    public void TryRemove_DuplicateOrMissingSemanticsArePreserved()
+    {
+        var manager = new KeyedContentManager<string>();
+
+        bool removed = manager.TryRemove("missing", out ContentEntryRecord? removedRecord, out ContentFailure? failure);
+
+        Assert.That(removed, Is.False);
+        Assert.That(removedRecord, Is.Null);
+        Assert.That(failure, Is.Not.Null);
+        Assert.That(failure!.Code, Is.EqualTo(ContentFailureCodes.EntryNotFound));
+    }
+
+    [Test]
+    public void TryRemove_WhenCustomKeyedStructureDoesNotOptInReturnsUnsupportedFailure()
+    {
+        var manager = new KeyedContentManager<CustomId>(new TestKeyedContentStructure());
+
+        bool removed = manager.TryRemove(new CustomId("missing"), out ContentEntryRecord? removedRecord, out ContentFailure? failure);
+
+        Assert.That(removed, Is.False);
+        Assert.That(removedRecord, Is.Null);
+        Assert.That(failure, Is.Not.Null);
+        Assert.That(failure!.Code, Is.EqualTo(ContentFailureCodes.StructureUnsupportedOperation));
+    }
+
+    [Test]
+    public void Remove_InvalidIdThrowsContentOperationException()
+    {
+        var manager = new KeyedContentManager<string>();
+
+        ContentOperationException? exception = Assert.Throws<ContentOperationException>(() => manager.Remove("   "));
+
+        Assert.That(exception, Is.Not.Null);
+        Assert.That(exception!.Failure.Code, Is.EqualTo(ContentFailureCodes.EntryIdInvalid));
+    }
+
+    [Test]
+    public void Clear_UsesBaseManagerMutation()
+    {
+        var manager = new KeyedContentManager<string>();
+        ContentEntryRecord first = manager.Add("first", Entry("First"));
+        ContentEntryRecord second = manager.Add("second", Entry("Second"));
+
+        var removed = manager.Clear();
+
+        Assert.That(removed, Is.EqualTo(new[] { first, second }));
+        Assert.That(manager.Records, Is.Empty);
+    }
+
+    [Test]
+    public void Changed_ForwardsKeyedRemovalEventWithManagerSender()
+    {
+        var manager = new KeyedContentManager<string>();
+        manager.Add("entry", Entry("Stored"));
+        ContentChangedEventArgs? changedArgs = null;
+        object? sender = null;
+        manager.Changed += (eventSender, args) =>
+        {
+            sender = eventSender;
+            changedArgs = args;
+        };
+
+        manager.Remove("entry");
+
+        Assert.That(sender, Is.SameAs(manager));
+        Assert.That(changedArgs, Is.Not.Null);
+        Assert.That(changedArgs!.Kind, Is.EqualTo(ContentChangeKind.Removed));
+    }
+
+    [Test]
     public void Get_MissingIdThrowsContentOperationException()
     {
         var manager = new KeyedContentManager<string>();
@@ -217,5 +301,6 @@ public sealed class KeyedContentManagerTests
 
             throw new ContentOperationException(failure!);
         }
+
     }
 }

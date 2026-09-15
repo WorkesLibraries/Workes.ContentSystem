@@ -22,3 +22,13 @@ public interface IStructureAssignedIdContentStructure : IContentStructure
     /// <exception cref="ContentOperationException">Thrown when the entry cannot be added.</exception>
     ContentEntryRecord Add(IContentEntry entry);
 }
+
+/// <summary>
+/// Represents a content structure that assigns entry IDs and exposes a natural retained-record ID type.
+/// </summary>
+/// <typeparam name="TId">The natural retained-record ID type.</typeparam>
+public interface IStructureAssignedIdContentStructure<TId> :
+    IStructureAssignedIdContentStructure,
+    IContentNaturalIdStructure<TId>
+{
+}

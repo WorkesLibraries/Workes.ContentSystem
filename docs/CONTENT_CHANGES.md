@@ -2,7 +2,7 @@
 
 Content change hooks are optional synchronous notifications for committed mutations.
 
-They let UI layers, bridges, attachments, and shared manager code observe additions and retention drops without changing the normal pull-based `Records` and `Get` workflow.
+They let UI layers, bridges, attachments, and shared manager code observe additions, removals, clears, retention drops, and runtime structure parameter changes without changing the normal pull-based `Records` and `Get` workflow.
 
 ## Change Source
 
@@ -26,24 +26,34 @@ Custom structures do not need to implement `IContentChangeSource`. They remain v
 
 `ContentChangedEventArgs` contains:
 
+- `Kind`;
 - `AddedRecords`;
-- `RemovedRecords`.
+- `RemovedRecords`;
+- `Cleared`;
+- `ConfigurationChanged`;
+- `RequiresFullRefresh`.
 
-Both collections are read-only snapshots. Null collections passed to the event args constructor become empty collections.
+Collections are read-only snapshots. Null collections passed to the event args constructor become empty collections.
 
-For a normal add, `AddedRecords` contains the committed record and `RemovedRecords` is empty.
+For a normal add, `Kind` is `ContentChangeKind.Added`, `AddedRecords` contains the committed record, and `RemovedRecords` is empty.
 
 For `ContentOverflowPolicy.DropOldest(capacity)` overflow, one event is raised with:
 
 - the newly added record in `AddedRecords`;
 - the dropped oldest record in `RemovedRecords`.
 
+For removal, `Kind` is `ContentChangeKind.Removed` and `RemovedRecords` contains the removed record.
+
+For clear, `Kind` is `ContentChangeKind.Cleared`, `Cleared` is true, `RemovedRecords` contains all cleared records, and `RequiresFullRefresh` is true.
+
+For runtime structure parameter changes, `Kind` is `ContentChangeKind.ConfigurationChanged`, `ConfigurationChanged` contains a `ContentConfigurationChanged` entry with `ContentConfigurationChangeKind.StructureParameter`, and `RequiresFullRefresh` is true. The configuration change reports the parameter ID, committed value, previous component, and current component. If the committed parameter change removes retained records, those records also appear in `RemovedRecords`.
+
 ## Subscribing Through A Manager
 
 Managers forward structure events through `ContentManagerBase.Changed` when the active structure implements `IContentChangeSource`:
 
 ```csharp
-var content = new ContentManager(
+var content = ContentManager.For(
     new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 content.Changed += OnContentChanged;
@@ -72,12 +82,15 @@ content.Add("thread-main", new PlainContentEntry(DateTimeOffset.UtcNow, "First p
 
 ## Rejected Operations
 
-Rejected or failed no-op operations do not raise change events.
+Rejected or no-op operations do not raise change events.
 
 For example:
 
 - a duplicate keyed ID returns `EntryIdDuplicate` and emits no event;
 - an invalid keyed ID returns `EntryIdInvalid` and emits no event;
+- removing a missing record returns `EntryNotFound` and emits no event;
+- clearing an already-empty structure succeeds and emits no event;
+- setting a structure parameter to the already-committed value succeeds and emits no event;
 - null entry misuse throws a standard .NET exception before any event is emitted.
 
 ## Event Semantics

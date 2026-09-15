@@ -22,8 +22,15 @@ The package should be engine-neutral and centered on manager workflows that own 
 - `IContentChangeSource` is the optional committed-change notification abstraction.
 - `IContentRetentionPolicyStructure` is the optional retention-policy inspection contract.
 - `IContentReadOrderStructure` is the optional read-order inspection contract.
+- `IContentNaturalIdStructure<TId>` is the optional natural retained-record ID lookup contract.
+- `IContentNaturalIdRemovalStructure<TId>` is the optional natural retained-record ID removal contract.
+- `IContentClearableStructure` is the optional clear mutation contract.
+- `IContentRecordRemovalStructure` is the optional record removal contract.
+- `IKeyedContentRecordRemovalStructure<TId>` is the optional typed keyed record removal contract.
+- `IParameterizedContentStructure` is the optional runtime structure-parameter contract.
 - `ContentManagerBase` is the shared manager read/lookup base.
 - `ContentManager` is the manager for structure-assigned-ID workflows.
+- `ContentManager<TId>` is the typed manager for structure-assigned-ID workflows with a natural retained-record ID type.
 - `KeyedContentManager<TId>` is the manager for caller-provided typed-ID workflows.
 - The first structure is a configurable sequence structure.
 - `KeyedContentStructure<TId>` provides configurable typed-ID validation for caller-keyed records.
@@ -45,7 +52,7 @@ host application
 
 When a structure implements `IContentChangeSource`, mutations can also notify observers synchronously after commit. Managers forward those structure events through `ContentManagerBase.Changed`.
 
-The manager should be the convenient root. The structure should own ordering, retention, lookup, ID assignment or validation, mutability rules, and supported opt-in contracts.
+The manager should be the convenient root. The structure should own ordering, retention, lookup, ID assignment or validation, mutability rules, and supported opt-in contracts. Shared runtime mutation is manager-owned, with managers delegating only when the active structure implements the relevant focused contract.
 
 ## Structures
 
@@ -60,11 +67,13 @@ The current sequence implementation should stay small and useful:
 
 Write workflows remain structure-specific. The sequence structure exposes structure-assigned-ID add, while keyed structures require caller-provided IDs.
 
-Managers mirror this split. `ContentManager` accepts any explicitly provided `IStructureAssignedIdContentStructure`, while `KeyedContentManager<TId>` accepts any `IKeyedContentStructure<TId>` or uses built-in default ID strategy resolution to create a keyed structure for supported ID types. Shared read and lookup behavior belongs on `ContentManagerBase`.
+Managers mirror this split. `ContentManager` accepts any explicitly provided `IStructureAssignedIdContentStructure`. `ContentManager.For(...)` infers `ContentManager<TId>` for structures such as `ContentSequenceStructure` where the structure owns the one correct natural ID type. `KeyedContentManager<TId>` accepts any `IKeyedContentStructure<TId>` or uses built-in default ID strategy resolution to create a keyed structure for supported ID types. Shared read and lookup behavior belongs on `ContentManagerBase`.
 
 Change hooks are optional structure contracts. Built-in mutable structures implement `IContentChangeSource`; custom structures can opt in without changing the base `IContentStructure` contract.
 
 Retention policy and read order are optional structure contracts. `ContentSequenceStructure` implements `IContentRetentionPolicyStructure` and `IContentReadOrderStructure`; custom structures can implement either contract when those concepts are meaningful.
+
+Clear, removal, and parameterized structure mutation are optional structure contracts coordinated through managers. `ContentSequenceStructure` supports all three and exposes `overflowPolicy` as a stable runtime parameter. The built-in keyed structure supports clear, normalized removal, and typed keyed removal.
 
 FIFO-style history is a sequence plus `ContentOverflowPolicy.DropOldest(capacity)`, not a separate type. Additional retention or placement policies can be added when a later stage needs them.
 

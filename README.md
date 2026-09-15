@@ -22,27 +22,29 @@ It is intended to be useful anywhere an application needs an ordered or structur
 Install the package from [NuGet](https://www.nuget.org/packages/Workes.ContentSystem):
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.3.0
+dotnet add package Workes.ContentSystem --version 0.4.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.3.0" />
+<PackageReference Include="Workes.ContentSystem" Version="0.4.0" />
 ```
 
 The package targets .NET Standard 2.1.
 
 ## Quick Example
 
-The structure-assigned-ID manager uses an explicit sequence structure here:
+The structure-assigned-ID manager uses an explicit sequence structure here. `ContentManager.For(...)` lets the sequence expose its natural numeric ID type without making you write the generic type:
 
 ```csharp
-var content = new ContentManager(
+var content = ContentManager.For(
     new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
 content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Player joined: Workes"));
+
+ContentEntryRecord first = content.Get(1);
 
 foreach (ContentEntryRecord record in content.Records)
 {

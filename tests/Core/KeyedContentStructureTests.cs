@@ -71,6 +71,7 @@ public sealed class KeyedContentStructureTests
         Assert.That(changedArgs, Is.Not.Null);
         Assert.That(changedArgs!.AddedRecords, Is.EqualTo(new[] { record }));
         Assert.That(changedArgs.RemovedRecords, Is.Empty);
+        Assert.That(changedArgs.Kind, Is.EqualTo(ContentChangeKind.Added));
     }
 
     [Test]
@@ -191,6 +192,115 @@ public sealed class KeyedContentStructureTests
         Assert.That(record, Is.Null);
         Assert.That(failure, Is.Not.Null);
         Assert.That(failure!.Code, Is.EqualTo(ContentFailureCodes.EntryNotFound));
+    }
+
+    [Test]
+    public void TryRemove_WithStringId_RemovesRecordAndEmitsEvent()
+    {
+        var structure = new KeyedContentStructure<string>();
+        ContentEntryRecord first = structure.Add("first", Entry("First"));
+        ContentEntryRecord second = structure.Add("second", Entry("Second"));
+        ContentChangedEventArgs? changedArgs = null;
+        structure.Changed += (_, args) => changedArgs = args;
+
+        bool removed = structure.TryRemove("first", out ContentEntryRecord? removedRecord, out ContentFailure? failure);
+
+        Assert.That(removed, Is.True);
+        Assert.That(removedRecord, Is.SameAs(first));
+        Assert.That(failure, Is.Null);
+        Assert.That(structure.Records, Is.EqualTo(new[] { second }));
+        Assert.That(changedArgs, Is.Not.Null);
+        Assert.That(changedArgs!.Kind, Is.EqualTo(ContentChangeKind.Removed));
+        Assert.That(changedArgs.RemovedRecords, Is.EqualTo(new[] { first }));
+    }
+
+    [Test]
+    public void TryRemove_WithLongId_RemovesRecord()
+    {
+        var structure = new KeyedContentStructure<long>();
+        ContentEntryRecord record = structure.Add(8, Entry("Eighth"));
+
+        bool removed = structure.TryRemove(8, out ContentEntryRecord? removedRecord, out ContentFailure? failure);
+
+        Assert.That(removed, Is.True);
+        Assert.That(removedRecord, Is.SameAs(record));
+        Assert.That(failure, Is.Null);
+        Assert.That(structure.Records, Is.Empty);
+    }
+
+    [Test]
+    public void TryRemove_InvalidIdReturnsFailureAndEmitsNoEvent()
+    {
+        var structure = new KeyedContentStructure<string>();
+        int eventCount = 0;
+        structure.Changed += (_, _) => eventCount++;
+
+        bool removed = structure.TryRemove("   ", out ContentEntryRecord? removedRecord, out ContentFailure? failure);
+
+        Assert.That(removed, Is.False);
+        Assert.That(removedRecord, Is.Null);
+        Assert.That(failure, Is.Not.Null);
+        Assert.That(failure!.Code, Is.EqualTo(ContentFailureCodes.EntryIdInvalid));
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TryRemove_MissingIdReturnsEntryNotFoundAndEmitsNoEvent()
+    {
+        var structure = new KeyedContentStructure<string>();
+        int eventCount = 0;
+        structure.Changed += (_, _) => eventCount++;
+
+        bool removed = structure.TryRemove("missing", out ContentEntryRecord? removedRecord, out ContentFailure? failure);
+
+        Assert.That(removed, Is.False);
+        Assert.That(removedRecord, Is.Null);
+        Assert.That(failure, Is.Not.Null);
+        Assert.That(failure!.Code, Is.EqualTo(ContentFailureCodes.EntryNotFound));
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void Remove_MissingIdThrowsContentOperationException()
+    {
+        var structure = new KeyedContentStructure<string>();
+
+        ContentOperationException? exception = Assert.Throws<ContentOperationException>(() => structure.Remove("missing"));
+
+        Assert.That(exception, Is.Not.Null);
+        Assert.That(exception!.Failure.Code, Is.EqualTo(ContentFailureCodes.EntryNotFound));
+    }
+
+    [Test]
+    public void Clear_RemovesAllRecordsAndEmitsEvent()
+    {
+        var structure = new KeyedContentStructure<string>();
+        ContentEntryRecord first = structure.Add("first", Entry("First"));
+        ContentEntryRecord second = structure.Add("second", Entry("Second"));
+        ContentChangedEventArgs? changedArgs = null;
+        structure.Changed += (_, args) => changedArgs = args;
+
+        var removed = structure.Clear();
+
+        Assert.That(removed, Is.EqualTo(new[] { first, second }));
+        Assert.That(structure.Records, Is.Empty);
+        Assert.That(changedArgs, Is.Not.Null);
+        Assert.That(changedArgs!.Kind, Is.EqualTo(ContentChangeKind.Cleared));
+        Assert.That(changedArgs.Cleared, Is.True);
+        Assert.That(changedArgs.RemovedRecords, Is.EqualTo(new[] { first, second }));
+    }
+
+    [Test]
+    public void Clear_WhenEmptyEmitsNoEvent()
+    {
+        var structure = new KeyedContentStructure<string>();
+        int eventCount = 0;
+        structure.Changed += (_, _) => eventCount++;
+
+        var removed = structure.Clear();
+
+        Assert.That(removed, Is.Empty);
+        Assert.That(eventCount, Is.EqualTo(0));
     }
 
     [Test]

@@ -4,13 +4,20 @@ This file records notable user-facing changes to `Workes.ContentSystem`.
 
 ## Unreleased
 
+## 0.4.0 - 2026-09-15
+
 Added:
 
 - Added `IContentRetentionPolicyStructure` and `IContentReadOrderStructure` as focused opt-in structure contracts.
+- Added manager-owned runtime mutation for clear, remove, and generic structure parameter changes.
+- Added focused mutation contracts for clear, record removal, typed keyed record removal, and parameterized structures.
+- Added richer content change event metadata for change kind, clear events, configuration changes with previous/current components, and full-refresh guidance.
+- Added inferred natural-ID managers for structure-assigned-ID structures through `ContentManager.For(...)`.
 
 Documentation:
 
 - Reframed structure capabilities as focused opt-in contracts instead of broad metadata.
+- Documented manager-owned mutation and richer event semantics.
 
 ## 0.3.0 - 2026-09-15
 

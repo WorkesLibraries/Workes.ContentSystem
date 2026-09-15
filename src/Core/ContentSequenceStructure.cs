@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 
 namespace Workes.ContentSystem.Core;
 
@@ -8,11 +9,29 @@ namespace Workes.ContentSystem.Core;
 /// Stores content records as an ordered sequence with configurable retention behavior.
 /// </summary>
 public sealed class ContentSequenceStructure :
-    IStructureAssignedIdContentStructure,
+    IStructureAssignedIdContentStructure<long>,
     IContentRetentionPolicyStructure,
     IContentReadOrderStructure,
+    IParameterizedContentStructure,
+    IContentClearableStructure,
+    IContentNaturalIdRemovalStructure<long>,
+    IContentRecordRemovalStructure,
     IContentChangeSource
 {
+    /// <summary>
+    /// Stable parameter ID for the sequence overflow policy.
+    /// </summary>
+    public const string OverflowPolicyParameterId = "overflowPolicy";
+
+    private static readonly IReadOnlyCollection<ContentParameterDefinition> s_parameters =
+        new[]
+        {
+            new ContentParameterDefinition(
+                OverflowPolicyParameterId,
+                typeof(ContentOverflowPolicy),
+                "The sequence overflow policy.")
+        };
+
     private readonly List<ContentEntryRecord> _records = new List<ContentEntryRecord>();
     private long _nextId = 1;
 
@@ -35,6 +54,18 @@ public sealed class ContentSequenceStructure :
         ReadOrder = readOrder;
     }
 
+    private ContentSequenceStructure(
+        ContentOverflowPolicy overflowPolicy,
+        ContentSequenceReadOrder readOrder,
+        IEnumerable<ContentEntryRecord> records,
+        long nextId)
+    {
+        OverflowPolicy = overflowPolicy ?? throw new ArgumentNullException(nameof(overflowPolicy));
+        ReadOrder = readOrder;
+        _records.AddRange(records);
+        _nextId = nextId;
+    }
+
     /// <summary>
     /// Gets the order used when reading retained records.
     /// </summary>
@@ -43,12 +74,15 @@ public sealed class ContentSequenceStructure :
     /// <summary>
     /// Gets the policy used for retention and overflow.
     /// </summary>
-    public ContentOverflowPolicy OverflowPolicy { get; }
+    public ContentOverflowPolicy OverflowPolicy { get; private set; }
 
     /// <summary>
     /// Gets the number of records currently retained by the structure.
     /// </summary>
     public int Count => _records.Count;
+
+    /// <inheritdoc />
+    public IReadOnlyCollection<ContentParameterDefinition> Parameters => s_parameters;
 
     /// <inheritdoc />
     public IReadOnlyList<ContentEntryRecord> Records => CreateReadSnapshot();
@@ -94,7 +128,8 @@ public sealed class ContentSequenceStructure :
         failure = null;
         OnChanged(new ContentChangedEventArgs(
             new[] { record },
-            removedRecord is null ? null : new[] { removedRecord }));
+            removedRecord is null ? null : new[] { removedRecord },
+            ContentChangeKind.Added));
         return true;
     }
 
@@ -153,6 +188,134 @@ public sealed class ContentSequenceStructure :
         return Get(CreateNumericId(id));
     }
 
+    /// <inheritdoc />
+    public bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+    {
+        removedRecords = _records.ToArray();
+        failure = null;
+
+        if (_records.Count == 0)
+        {
+            return true;
+        }
+
+        _records.Clear();
+        OnChanged(new ContentChangedEventArgs(
+            removedRecords: removedRecords,
+            kind: ContentChangeKind.Cleared,
+            cleared: true,
+            requiresFullRefresh: true));
+        return true;
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<ContentEntryRecord> Clear()
+    {
+        if (TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure))
+        {
+            return removedRecords;
+        }
+
+        throw new ContentOperationException(failure!);
+    }
+
+    /// <inheritdoc />
+    public bool TryRemove(ContentEntryId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
+    {
+        EnsureValidId(id);
+
+        for (int i = 0; i < _records.Count; i++)
+        {
+            ContentEntryRecord candidate = _records[i];
+            if (candidate.Id == id)
+            {
+                _records.RemoveAt(i);
+                removedRecord = candidate;
+                failure = null;
+                OnChanged(new ContentChangedEventArgs(
+                    removedRecords: new[] { candidate },
+                    kind: ContentChangeKind.Removed));
+                return true;
+            }
+        }
+
+        removedRecord = null;
+        failure = ContentFailures.EntryNotFound($"Entry '{id}' was not found.", id.ToString());
+        return false;
+    }
+
+    /// <summary>
+    /// Attempts to remove a retained record by its structure-assigned numeric ID.
+    /// </summary>
+    /// <param name="id">The structure-assigned numeric entry ID.</param>
+    /// <param name="removedRecord">The removed record when found; otherwise <see langword="null"/>.</param>
+    /// <param name="failure">The structured failure when rejected; otherwise <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> when a retained record is removed.</returns>
+    public bool TryRemove(long id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
+    {
+        return TryRemove(CreateNumericId(id), out removedRecord, out failure);
+    }
+
+    /// <inheritdoc />
+    public ContentEntryRecord Remove(ContentEntryId id)
+    {
+        if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure))
+        {
+            return removedRecord!;
+        }
+
+        throw new ContentOperationException(failure!);
+    }
+
+    /// <summary>
+    /// Removes a retained record by its structure-assigned numeric ID.
+    /// </summary>
+    /// <param name="id">The structure-assigned numeric entry ID.</param>
+    /// <returns>The removed record.</returns>
+    /// <exception cref="ContentOperationException">Thrown when the record cannot be removed.</exception>
+    public ContentEntryRecord Remove(long id)
+    {
+        return Remove(CreateNumericId(id));
+    }
+
+    /// <inheritdoc />
+    public bool TryCreateWithParameter(
+        string parameterId,
+        object? value,
+        out IContentStructure? structure,
+        out IReadOnlyList<ContentEntryRecord> removedRecords,
+        out ContentFailure? failure)
+    {
+        structure = null;
+        removedRecords = Array.Empty<ContentEntryRecord>();
+
+        if (parameterId != OverflowPolicyParameterId)
+        {
+            failure = ContentFailures.Configuration($"Parameter '{parameterId}' is not supported by ContentSequenceStructure.");
+            return false;
+        }
+
+        if (value is not ContentOverflowPolicy overflowPolicy)
+        {
+            failure = ContentFailures.Configuration($"Parameter '{OverflowPolicyParameterId}' expects value type '{nameof(ContentOverflowPolicy)}'.");
+            return false;
+        }
+
+        if (OverflowPolicy.Equals(overflowPolicy))
+        {
+            structure = this;
+            failure = null;
+            return true;
+        }
+
+        ContentEntryRecord[] retained = _records.ToArray();
+        ContentEntryRecord[] removed = TrimForOverflowPolicy(overflowPolicy, ref retained);
+        removedRecords = removed;
+        structure = new ContentSequenceStructure(overflowPolicy, ReadOrder, retained, _nextId);
+        failure = null;
+        return true;
+    }
+
     private static void EnsureValidId(ContentEntryId id)
     {
         if (string.IsNullOrWhiteSpace(id.Value))
@@ -180,6 +343,21 @@ public sealed class ContentSequenceStructure :
         }
 
         return snapshot;
+    }
+
+    private static ContentEntryRecord[] TrimForOverflowPolicy(
+        ContentOverflowPolicy overflowPolicy,
+        ref ContentEntryRecord[] retained)
+    {
+        if (overflowPolicy.Kind != ContentOverflowPolicyKind.DropOldest || retained.Length <= overflowPolicy.Capacity!.Value)
+        {
+            return Array.Empty<ContentEntryRecord>();
+        }
+
+        int removeCount = retained.Length - overflowPolicy.Capacity!.Value;
+        ContentEntryRecord[] removed = retained.Take(removeCount).ToArray();
+        retained = retained.Skip(removeCount).ToArray();
+        return removed;
     }
 
     private void OnChanged(ContentChangedEventArgs args)

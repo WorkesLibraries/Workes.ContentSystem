@@ -285,7 +285,7 @@ FIFO remains internally generated and strategy-free. Keyed structures get clean 
 
 ContentSystem exposes separate manager workflows for the two implemented write categories.
 
-`ContentManager` works with an explicitly provided `IStructureAssignedIdContentStructure`. `KeyedContentManager<TId>` works with `IKeyedContentStructure<TId>` and can create a keyed structure with a built-in default ID strategy for supported ID types.
+`ContentManager` works with an explicitly provided `IStructureAssignedIdContentStructure`. `ContentManager.For(...)` creates `ContentManager<TId>` for structure-assigned-ID structures that expose a natural retained-record ID type. `KeyedContentManager<TId>` works with `IKeyedContentStructure<TId>` and can create a keyed structure with a built-in default ID strategy for supported ID types.
 
 `ContentManagerBase` is a public abstract base for shared read and lookup behavior across already-created managers.
 
@@ -295,7 +295,7 @@ This keeps write APIs honest and avoids a single manager with methods that only 
 
 #### Consequences
 
-Users choose between `ContentManager` and `KeyedContentManager<TId>` when constructing the root workflow. Shared code can accept `ContentManagerBase` when it receives managers from either workflow and only needs records or lookup by `ContentEntryId`.
+Users choose between structure-assigned managers and `KeyedContentManager<TId>` when constructing the root workflow. Shared code can accept `ContentManagerBase` when it receives managers from either workflow and only needs records or lookup by `ContentEntryId`.
 
 ### D-014: 0.1.0 Is The First Useful Prerelease
 
@@ -495,3 +495,23 @@ Contracts are harder to desynchronize than separate feature flags. If a structur
 #### Consequences
 
 Stage 11 should be reframed from capability metadata to capability contracts. Manager-owned workflows should coordinate these contracts instead of reading a broad metadata object.
+
+### D-024: Runtime Mutation Uses Manager-Owned Shared APIs Over Focused Contracts
+
+#### Context
+
+After clear, remove, and runtime structure configuration were promoted into the core roadmap, the package needed a way to expose those operations without requiring every structure to support them.
+
+#### Decision
+
+`ContentManagerBase` owns the shared mutation APIs for clearing, removing by `ContentEntryId`, and setting structure parameters by stable ID. Those APIs delegate only when the active structure implements the relevant focused contract: `IContentClearableStructure`, `IContentRecordRemovalStructure`, or `IParameterizedContentStructure`.
+
+Concrete managers can add natural typed overloads where the workflow owns a natural ID shape, such as sequence numeric IDs or keyed `TId` values. Typed keyed removal is itself opt-in through `IKeyedContentRecordRemovalStructure<TId>`, so custom keyed structures are not forced to support removal.
+
+#### Reasoning
+
+This mirrors InventorySystem's manager-owned mutation direction while keeping `IContentStructure` small. Shared manager code can mutate managers uniformly when the active structure supports the operation, structure configuration does not leak structure-specific methods onto the manager, and unsupported operations fail through the existing structured failure model instead of being hidden behind unrelated feature flags.
+
+#### Consequences
+
+Try-style unsupported mutations return `StructureUnsupportedOperation`. Expected-success mutation APIs throw `ContentOperationException` carrying the same failure. Successful mutations emit synchronous committed-change events when the structure is observable; rejected and no-op mutations emit no events.
