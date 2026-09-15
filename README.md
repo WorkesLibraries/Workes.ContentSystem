@@ -15,7 +15,7 @@ It is intended to be useful anywhere an application needs an ordered or structur
 - Structure-owned entry identity so different storage models can use the IDs that fit them.
 - Optional change hooks for observing committed mutations.
 - A shared failure and exception model matching the style used in other Workes packages.
-- Optional attachment points for export, persistence, bridges, and platform-specific integration.
+- Planned portable snapshots for persistence, plus optional attachment points for export, bridges, and platform-specific integration.
 
 ## Installation
 
@@ -75,6 +75,7 @@ Focused guides:
 - [Content Structures](docs/CONTENT_STRUCTURES.md)
 - [Content Managers](docs/CONTENT_MANAGERS.md)
 - [Content Changes](docs/CONTENT_CHANGES.md)
+- [Content Snapshots](docs/CONTENT_SNAPSHOTS.md)
 - [Failures](docs/FAILURES.md)
 - [Export And Attachments](docs/EXPORT_AND_ATTACHMENTS.md)
 

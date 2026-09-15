@@ -8,7 +8,7 @@ This is a project-control document for maintaining architectural consistency. It
 
 ## Current Architecture
 
-Workes.ContentSystem now has its first useful core: public entry, failure, structure, and manager pieces are implemented. This document records the intended architecture to guide implementation stages.
+Workes.ContentSystem now has its first useful core: public entry, failure, structure, manager, and change-hook pieces are implemented. This document records both the current architecture and the intended 1.0 direction.
 
 The package should be engine-neutral and centered on manager workflows that own one active content structure and expose simple APIs for normal users.
 
@@ -26,7 +26,8 @@ The package should be engine-neutral and centered on manager workflows that own 
 - The first structure is a bounded chronological FIFO structure.
 - `KeyedContentStructure<TId>` provides configurable typed-ID validation for caller-keyed records.
 - A shared failure model should represent expected content-system rejection.
-- Optional attachments should support export, persistence, bridges, and platform adapters without making those features mandatory.
+- Portable snapshots are the planned serialization foundation.
+- Optional attachments should support export, bridges, and platform adapters without making those features mandatory.
 
 ## Intended Data Flow
 
@@ -48,7 +49,7 @@ The manager should be the convenient root. The structure should own ordering, re
 
 The structure abstraction should be close in spirit to the InventorySystem structure model: core behavior belongs behind an abstraction so new storage models can be introduced without changing the manager into a one-purpose container.
 
-The FIFO implementation should stay small and useful:
+The current FIFO implementation should stay small and useful:
 
 - bounded capacity;
 - append entries;
@@ -62,11 +63,13 @@ Managers mirror this split. `ContentManager` accepts any explicitly provided `IS
 
 Change hooks are optional structure capabilities. Built-in mutable structures implement `IContentChangeSource`; custom structures can opt in without changing the base `IContentStructure` contract.
 
-Future structures may be grouped, threaded, indexed, persistent, channel-based, or grid-like.
+The 1.0 direction is to evolve FIFO-specific bounded behavior into a configurable bounded structure with placement and overflow policy. FIFO remains the first supported configuration, not the whole long-term bounded model.
+
+Future structures may be unbounded, bounded keyed, grouped, threaded, indexed, persistent, channel-based, or grid-like. Grouped and threaded structures should wait until capability, mutation, and snapshot contracts are stable.
 
 ## Entries
 
-Entries should be extensible content payloads. Core may provide simple entry types, but host applications should be able to define entries for their own domains.
+Entries should be extensible content payloads. `PlainContentEntry` is the only planned 1.0 built-in entry type. Host applications should define entries for their own richer domains.
 
 ContentSystem should not include a built-in user/role model. If a host needs users, authors, permissions, channels, moderation data, or ownership, it can represent those through custom entries, custom structures, or higher-level packages.
 
@@ -81,9 +84,11 @@ The package should mirror the error style used in Workes.InventorySystem and Wor
 
 ## Attachments
 
+Portable snapshots are planned as the core serialization foundation. Snapshot capture should produce serializer-friendly objects; applications choose how to serialize and store them.
+
 Attachments are planned optional capabilities around the core model.
 
-Examples include file export, append-only logging, host logging bridges, persistence, Unity adapters, Godot adapters, and .NET logging adapters.
+Examples include file export, append-only logging, host logging bridges, snapshot exporters, Unity adapters, Godot adapters, and .NET logging adapters.
 
 Core should make these possible without requiring every user or every structure to configure them.
 

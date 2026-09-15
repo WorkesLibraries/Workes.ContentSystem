@@ -52,7 +52,7 @@ The core provides enough common shape to be useful without making every custom e
 
 ## Plain Content Entries
 
-`PlainContentEntry` is the first built-in entry type.
+`PlainContentEntry` is the first built-in entry type and the only planned built-in entry type for 1.0.
 
 It stores:
 
@@ -60,6 +60,8 @@ It stores:
 - plain text.
 
 It is intended for simple content streams and tests. It does not include author, channel, severity, metadata, rendering data, or attachment behavior.
+
+This keeps the core package from baking in assumptions about chat, logs, forums, notifications, or UI rendering.
 
 ## Custom Entries
 
@@ -70,3 +72,5 @@ If a host wants clickable player names, expandable exceptions, embedded buttons,
 This keeps ContentSystem focused on storing meaning rather than owning visual rendering.
 
 Custom entries implement `IContentEntry` directly. They do not need to inherit from a package base class.
+
+Custom entries that need future snapshot support are expected to opt into snapshot round-trip contracts. See [Content Snapshots](CONTENT_SNAPSHOTS.md) for the planned direction.

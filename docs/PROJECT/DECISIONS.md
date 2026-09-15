@@ -334,3 +334,117 @@ This mirrors the small event style used in Workes.InventorySystem while keeping 
 #### Consequences
 
 Events are synchronous and handler exceptions are not swallowed. Core does not provide dispatcher behavior, async queues, weak events, buffering, or thread marshaling. Custom structures remain valid without implementing change hooks, but observers only receive manager events when the active structure opts in.
+
+### D-016: PlainContentEntry Is The Only Planned Built-In Entry For 1.0
+
+#### Context
+
+ContentSystem entries are intentionally extensible, but adding many built-in entry shapes would bake in assumptions about chat, logs, forums, users, roles, severity, metadata, or presentation.
+
+#### Decision
+
+For the 1.0 built-in surface, `PlainContentEntry` is the only planned built-in entry type.
+
+#### Reasoning
+
+Plain text plus timestamp is useful for simple streams and examples without claiming to model every domain. Custom entries remain the primary extension path for richer semantics.
+
+#### Consequences
+
+Core should not add built-in chat, log, notification, forum, or metadata entry types before 1.0 unless a later decision changes this direction.
+
+### D-017: 1.0 ID Strategy Built-Ins Stay Narrow
+
+#### Context
+
+ID strategies make keyed structures ergonomic, but every built-in strategy implies package support for an ID shape.
+
+#### Decision
+
+The selected 1.0 direction is to keep the built-in ID strategy set narrow: `string`, positive `long`, `Guid`, and `ContentEntryId` identity/fallback support.
+
+#### Reasoning
+
+These cover common string, numeric, globally unique, and already-normalized ID workflows without overfitting to slugs, enums, timestamps, ULIDs, or other domain choices.
+
+#### Consequences
+
+Additional strategies are late roadmap work and should not distract from core structure, mutation, and snapshot foundations.
+
+### D-018: Bounded FIFO Evolves Into Configurable Bounded Structure Behavior
+
+#### Context
+
+The first bounded structure is FIFO-specific, but users may need the same bounded retention concept with different placement, read order, or overflow behavior.
+
+#### Decision
+
+The 1.0 direction is to reframe the FIFO-specific bounded structure into configurable bounded structure behavior. FIFO should become a placement and overflow configuration rather than the whole type identity.
+
+#### Reasoning
+
+This avoids forcing users to implement near-duplicate structures just to change a bounded structure's ordering or overflow policy.
+
+#### Consequences
+
+Future implementation should plan a rename or migration path from `BoundedFifoContentStructure` toward a configurable bounded structure while preserving the current FIFO behavior as a supported configuration.
+
+### D-019: Runtime Mutation Is Manager-Owned
+
+#### Context
+
+Runtime mutation such as clearing, removing, changing capacity, or applying snapshot state needs validation, atomicity, capability checks, and coherent events.
+
+#### Decision
+
+Runtime mutation should mirror the InventorySystem direction: normal callers mutate through manager-owned APIs, while structures opt into the underlying capabilities that make those mutations possible.
+
+#### Reasoning
+
+Manager-owned mutation keeps the normal workflow coherent and prevents callers from bypassing validation or event semantics. Structure opt-ins keep the base abstractions small.
+
+#### Consequences
+
+Structures should expose focused capabilities for mutation support, but normal user documentation should route runtime mutation through managers.
+
+### D-020: Snapshots Are The Serialization Foundation
+
+#### Context
+
+ContentSystem users need a low-friction way to save logs, chats, feeds, or forum-like content without the core package owning files, save slots, or a serializer dependency.
+
+#### Decision
+
+Core serialization should be based on portable snapshots split into three layers:
+
+- entry snapshots for entry payloads;
+- record snapshots for stored IDs plus entry payloads;
+- structure snapshots for retained records plus structure-owned state.
+
+Entry and structure snapshot support should be opt-in for custom implementations. Built-in entries and structures should provide exact round-trip support where practical.
+
+#### Reasoning
+
+This follows the InventorySystem snapshot lesson: expose serializer-friendly state objects, let applications choose storage, and reject unsupported custom data through structured failures instead of silently losing information.
+
+#### Consequences
+
+Export helpers and attachments can build on snapshots later, but they should not replace snapshots as the persistence foundation.
+
+### D-021: Grouped And Threaded Structures Are Deferred Until Core Contracts Stabilize
+
+#### Context
+
+Grouped and threaded content are important use cases, but they may need custom write workflows, custom managers, snapshot behavior, mutation rules, and capability metadata.
+
+#### Decision
+
+Grouped and threaded structures are deferred until bounded configuration, capabilities, runtime mutation, and snapshot contracts are stable.
+
+#### Reasoning
+
+Implementing richer structures before the core contracts settle would risk baking in the wrong manager and serialization shapes.
+
+#### Consequences
+
+The roadmap keeps grouped content and threaded/forum-like content as later 1.0 stages or evaluation work. Core still avoids a built-in user or role system.

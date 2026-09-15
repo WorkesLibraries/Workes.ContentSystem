@@ -4,7 +4,10 @@ This file records notable user-facing changes to `Workes.ContentSystem`.
 
 ## Unreleased
 
-No unreleased changes yet.
+Documentation:
+
+- Reconciled the 1.0 architecture roadmap and documented the planned built-in surface.
+- Added roadmap and snapshot planning docs.
 
 ## 0.2.0 - 2026-09-15
 

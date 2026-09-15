@@ -43,6 +43,8 @@ Expected behavior:
 
 This covers console history, simple logs, chat scrollback, notification feeds, and other common streams.
 
+The 1.0 direction is to reframe this FIFO-specific type into configurable bounded structure behavior. FIFO should remain available as a supported placement and overflow configuration, but bounded retention should not permanently mean only FIFO.
+
 `BoundedFifoContentStructure` implements `IStructureAssignedIdContentStructure`, so it can be used directly or through the default manager:
 
 ```csharp
@@ -117,6 +119,7 @@ Successful keyed adds raise `Changed` with the added record. Duplicate IDs and i
 The abstraction should leave room for other useful structures:
 
 - unbounded in-memory sequence;
+- bounded keyed sequence;
 - grouped feed;
 - channel-based chat history;
 - threaded conversation/forum structure;
@@ -125,12 +128,16 @@ The abstraction should leave room for other useful structures:
 - grid-like structure for forum or board-style UIs;
 - composite structures that mirror entries into more than one view.
 
-These should grow from the existing abstractions rather than making the first FIFO implementation complicated.
+These should grow from the existing abstractions rather than making the first FIFO implementation complicated. Grouped and threaded structures should wait until capability metadata, manager-owned runtime mutation, and snapshot contracts are stable.
 
 ## Capabilities
 
 Not every structure should support every operation.
 
 A structure can be append-only, mutable, searchable, persistent, exportable, or none of those. Capability metadata can let consumers ask what a structure supports without forcing every structure into one large interface.
+
+Runtime mutation should be manager-owned for normal callers, with structures opting into the underlying capabilities.
+
+Built-in structures that support future snapshots should capture their own state, including retained records and structure-owned configuration.
 
 This mirrors the strategy used in other Workes packages: keep the central abstraction small, then add optional capabilities where they are genuinely needed.

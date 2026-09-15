@@ -16,13 +16,15 @@ Use `KeyedContentManager<TId>` for structures where caller-provided IDs are firs
 
 `ContentManagerBase` is public shared read/lookup plumbing for code that can work with already-created managers from either workflow. It is abstract and should stay small rather than becoming a catch-all capability surface.
 
-Advanced behavior should be opt-in through options, structures, or attachments.
+Advanced behavior should be opt-in through options, structures, capabilities, snapshots, or attachments.
+
+Runtime mutation should be manager-owned for normal callers. Structures may expose focused opt-in capabilities that managers coordinate.
 
 ## Structures
 
 Represent shared read and lookup behavior through `IContentStructure`.
 
-Avoid baking FIFO assumptions into the whole package. FIFO is the first implementation, not the whole model.
+Avoid baking FIFO assumptions into the whole package. FIFO is the first implementation, not the whole model. The 1.0 direction is configurable bounded behavior where placement and overflow policy can vary.
 
 A structure should own:
 
@@ -37,13 +39,13 @@ Do not force one append method into the base structure abstraction. Structure-as
 
 Concrete structures should expose natural lookup overloads for their ID model. For example, FIFO can support `Get(1)` while generic code can continue using `IContentStructure.Get(ContentEntryId)`.
 
-ID strategies should validate and normalize typed caller-provided IDs. Built-in default strategy resolution is acceptable for explicitly supported ID types such as `string` and `long`; custom ID types require custom strategies. Do not add generation behavior to that abstraction until a concrete structure needs configurable generated IDs.
+ID strategies should validate and normalize typed caller-provided IDs. Built-in default strategy resolution is acceptable for explicitly supported ID types such as `string`, `long`, `Guid`, and `ContentEntryId`; custom ID types require custom strategies. Do not add generation behavior to that abstraction until a concrete structure needs configurable generated IDs.
 
 ## Entries
 
 Use content entries as the primary extension path.
 
-Do not force all entries into a chat-message or log-message shape. Custom entries should be ordinary, supported usage.
+Do not force all entries into a chat-message or log-message shape. Custom entries should be ordinary, supported usage. `PlainContentEntry` is the only planned built-in entry type for 1.0.
 
 Stored entry records should have IDs. Entry payloads should not require callers to invent IDs before a structure stores them.
 
@@ -54,6 +56,7 @@ Document first-class public concepts in focused guides:
 - structures in `docs/CONTENT_STRUCTURES.md`;
 - managers in `docs/CONTENT_MANAGERS.md`;
 - change hooks in `docs/CONTENT_CHANGES.md`;
+- planned snapshots in `docs/CONTENT_SNAPSHOTS.md`;
 - failures in `docs/FAILURES.md`;
 - future attachments in `docs/EXPORT_AND_ATTACHMENTS.md`.
 
@@ -74,7 +77,7 @@ If a subsystem increases setup cost or is not needed by every consumer, make it 
 This applies to:
 
 - export;
-- persistence;
+- portable snapshots;
 - host logging bridges;
 - platform adapters;
 - advanced structures;
@@ -85,6 +88,8 @@ This applies to:
 The simple use case should stay small: create a manager, add entries, read entries.
 
 Change hooks should use ordinary synchronous .NET events. Raise them only after a mutation has committed, and do not emit events for rejected no-op operations. Do not add thread marshaling, buffering, or async dispatch to the core hook contract.
+
+Snapshots should be serializer-friendly DTOs rather than direct file I/O. Unsupported custom entries or structures should fail snapshot capture or restore with structured failures unless they opt in.
 
 ## Documentation Expectations
 

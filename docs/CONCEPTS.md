@@ -20,6 +20,8 @@ A content structure owns storage behavior.
 
 The first implementation is a bounded chronological FIFO structure: new entries are appended, old records are dropped when capacity is reached, and consumers can read retained records in order.
 
+The 1.0 direction is to evolve this into configurable bounded behavior where FIFO is one supported placement and overflow policy.
+
 A keyed structure is also available for callers that want to provide typed IDs directly. It uses an ID strategy to validate and normalize those IDs.
 
 Other structures can behave very differently. A forum-like structure might group entries by thread. A chat structure might group by channel. A searchable structure might maintain indexes. A persistent structure might load and save entries.
@@ -46,7 +48,9 @@ See [Content Changes](CONTENT_CHANGES.md) for event payloads and hook semantics.
 
 ## Attachments
 
-Export, persistence, file appenders, log bridges, and platform integrations should be optional. The core package should make those capabilities possible without forcing every structure or every user to support them.
+Portable snapshots are planned as the serialization foundation. Snapshot objects should be easy for applications to serialize, save, and load with their own tools.
+
+Export, file appenders, log bridges, and platform integrations should be optional. The core package should make those capabilities possible without forcing every structure or every user to support them.
 
 ## Relationship To ConsoleSystem
 

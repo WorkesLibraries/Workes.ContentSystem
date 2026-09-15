@@ -50,6 +50,8 @@ Built-in strategies are:
 - `StringContentEntryIdStrategy`, which accepts non-empty strings;
 - `IntegerContentEntryIdStrategy`, which accepts positive `long` values and normalizes them to invariant decimal strings.
 
+The 1.0 direction is to add `Guid` and `ContentEntryId` identity/fallback support while keeping the built-in strategy set narrow.
+
 Built-in strategies are resolved for supported ID types:
 
 ```csharp
