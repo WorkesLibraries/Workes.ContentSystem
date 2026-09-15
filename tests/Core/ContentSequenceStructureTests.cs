@@ -7,6 +7,41 @@ namespace Workes.ContentSystem.Tests.Core;
 public sealed class ContentSequenceStructureTests
 {
     [Test]
+    public void ContentSequenceStructure_ImplementsRetentionPolicyContract()
+    {
+        ContentOverflowPolicy overflowPolicy = ContentOverflowPolicy.DropOldest(3);
+
+        IContentRetentionPolicyStructure structure = new ContentSequenceStructure(overflowPolicy);
+
+        Assert.That(structure.OverflowPolicy, Is.EqualTo(overflowPolicy));
+    }
+
+    [Test]
+    public void ContentSequenceStructure_ImplementsReadOrderContract()
+    {
+        IContentReadOrderStructure structure = new ContentSequenceStructure(
+            ContentOverflowPolicy.None,
+            ContentSequenceReadOrder.NewestFirst);
+
+        Assert.That(structure.ReadOrder, Is.EqualTo(ContentSequenceReadOrder.NewestFirst));
+    }
+
+    [Test]
+    public void CustomStructure_CanImplementRetentionAndReadOrderContracts()
+    {
+        ContentOverflowPolicy overflowPolicy = ContentOverflowPolicy.DropOldest(5);
+        var structure = new TestConfiguredStructure(
+            overflowPolicy,
+            ContentSequenceReadOrder.NewestFirst);
+
+        IContentRetentionPolicyStructure retention = structure;
+        IContentReadOrderStructure readOrder = structure;
+
+        Assert.That(retention.OverflowPolicy, Is.EqualTo(overflowPolicy));
+        Assert.That(readOrder.ReadOrder, Is.EqualTo(ContentSequenceReadOrder.NewestFirst));
+    }
+
+    [Test]
     public void Constructor_StoresConfiguration()
     {
         ContentOverflowPolicy overflowPolicy = ContentOverflowPolicy.DropOldest(3);
@@ -328,5 +363,32 @@ public sealed class ContentSequenceStructureTests
     private static PlainContentEntry Entry(string text)
     {
         return new PlainContentEntry(DateTimeOffset.UtcNow, text);
+    }
+
+    private sealed class TestConfiguredStructure : IContentRetentionPolicyStructure, IContentReadOrderStructure
+    {
+        public TestConfiguredStructure(ContentOverflowPolicy overflowPolicy, ContentSequenceReadOrder readOrder)
+        {
+            OverflowPolicy = overflowPolicy;
+            ReadOrder = readOrder;
+        }
+
+        public ContentOverflowPolicy OverflowPolicy { get; }
+
+        public ContentSequenceReadOrder ReadOrder { get; }
+
+        public System.Collections.Generic.IReadOnlyList<ContentEntryRecord> Records => Array.Empty<ContentEntryRecord>();
+
+        public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
+        {
+            record = null;
+            failure = ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing.");
+            return false;
+        }
+
+        public ContentEntryRecord Get(ContentEntryId id)
+        {
+            throw new ContentOperationException(ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing."));
+        }
     }
 }

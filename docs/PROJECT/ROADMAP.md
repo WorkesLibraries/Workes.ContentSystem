@@ -12,13 +12,13 @@ Trello remains the task-state source of truth. This document records the archite
 
 Reframe the FIFO-specific bounded structure into a configurable content sequence. Completed implementation uses `ContentSequenceStructure` with explicit `ContentOverflowPolicy.None` or `ContentOverflowPolicy.DropOldest(capacity)`.
 
-### Stage 11: Add structure capability metadata
+### Stage 11: Add structure capability contracts
 
-Expose what an active structure supports without forcing every structure into one large interface.
+Define focused opt-in contracts for structure behavior beyond the base `IContentStructure` contract. Avoid a separate capability metadata object unless a later concrete need appears.
 
 ### Stage 12: Add manager-owned runtime mutation and richer change events
 
-Add manager-owned mutation workflows, with structures opting into underlying capabilities. Successful mutations should emit coherent events; rejected mutations should be atomic and quiet.
+Add manager-owned mutation workflows, with structures opting into focused mutation contracts. Successful mutations should emit coherent events; rejected mutations should be atomic and quiet.
 
 ### Stage 13: Add entry snapshot round-trip contracts
 
@@ -34,7 +34,7 @@ Implement exact snapshot capture and restore for built-in structures that opt in
 
 ### Stage 16: Add selected remaining built-in structures
 
-Add selected built-in structures after configuration, capability, mutation, and snapshot contracts are stable.
+Add selected built-in structures after configuration, opt-in contracts, mutation, and snapshot contracts are stable.
 
 ### Stage 17: Add optional grouped content structure
 
@@ -74,7 +74,7 @@ Add examples and focused usage docs for the implemented 1.0 feature set.
 
 ### Stage 26: Add extension author documentation
 
-Document custom entries, custom structures, snapshot opt-ins, capabilities, mutation opt-ins, sorting opt-ins, failures, events, and compatibility expectations.
+Document custom entries, custom structures, snapshot opt-ins, focused structure contracts, mutation opt-ins, sorting opt-ins, failures, events, and compatibility expectations.
 
 ### Stage 27: Prepare 1.0.0 release
 

@@ -16,15 +16,17 @@ Use `KeyedContentManager<TId>` for structures where caller-provided IDs are firs
 
 `ContentManagerBase` is public shared read/lookup plumbing for code that can work with already-created managers from either workflow. It is abstract and should stay small rather than becoming a catch-all capability surface.
 
-Advanced behavior should be opt-in through options, structures, capabilities, snapshots, or attachments.
+Advanced behavior should be opt-in through options, focused structure contracts, snapshots, or attachments.
 
-Runtime mutation should be manager-owned for normal callers. Structures may expose focused opt-in capabilities that managers coordinate.
+Runtime mutation should be manager-owned for normal callers. Structures may expose focused opt-in contracts that managers coordinate.
 
 ## Structures
 
 Represent shared read and lookup behavior through `IContentStructure`.
 
 Avoid baking FIFO assumptions into the whole package. `ContentSequenceStructure` provides the first sequence behavior, with unbounded retention and bounded drop-oldest retention expressed through `ContentOverflowPolicy`.
+
+Use focused opt-in contracts to expose inspectable structure behavior. For example, retention policy belongs on `IContentRetentionPolicyStructure`, and read order belongs on `IContentReadOrderStructure`.
 
 A structure should own:
 
@@ -33,7 +35,7 @@ A structure should own:
 - lookup;
 - ID assignment or validation;
 - mutability rules;
-- capability support.
+- focused contract support.
 
 Do not force one append method into the base structure abstraction. Structure-assigned-ID structures and caller-provided-ID structures should expose their own write workflows through focused interfaces.
 

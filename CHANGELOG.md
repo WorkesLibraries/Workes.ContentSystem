@@ -4,6 +4,14 @@ This file records notable user-facing changes to `Workes.ContentSystem`.
 
 ## Unreleased
 
+Added:
+
+- Added `IContentRetentionPolicyStructure` and `IContentReadOrderStructure` as focused opt-in structure contracts.
+
+Documentation:
+
+- Reframed structure capabilities as focused opt-in contracts instead of broad metadata.
+
 ## 0.3.0 - 2026-09-15
 
 Changed:

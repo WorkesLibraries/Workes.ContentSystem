@@ -313,7 +313,7 @@ This keeps the pre-0.1.0 stages focused on reaching the first usable core. Later
 
 #### Consequences
 
-After Stage 6, Trello should prioritize `Prepare 0.1.0 release` before optional hooks, capability metadata, attachments, and broader examples.
+After Stage 6, Trello should prioritize `Prepare 0.1.0 release` before optional hooks, focused structure contracts, attachments, and broader examples.
 
 ### D-015: Committed Change Hooks Use Synchronous Events
 
@@ -399,7 +399,7 @@ Runtime mutation such as clearing, removing, changing capacity, or applying snap
 
 #### Decision
 
-Runtime mutation should mirror the InventorySystem direction: normal callers mutate through manager-owned APIs, while structures opt into the underlying capabilities that make those mutations possible.
+Runtime mutation should mirror the InventorySystem direction: normal callers mutate through manager-owned APIs, while structures opt into the underlying focused contracts that make those mutations possible.
 
 #### Reasoning
 
@@ -407,7 +407,7 @@ Manager-owned mutation keeps the normal workflow coherent and prevents callers f
 
 #### Consequences
 
-Structures should expose focused capabilities for mutation support, but normal user documentation should route runtime mutation through managers.
+Structures should expose focused contracts for mutation support, but normal user documentation should route runtime mutation through managers.
 
 ### D-020: Snapshots Are The Serialization Foundation
 
@@ -437,11 +437,11 @@ Export helpers and attachments can build on snapshots later, but they should not
 
 #### Context
 
-Grouped and threaded content are important use cases, but they may need custom write workflows, custom managers, snapshot behavior, mutation rules, and capability metadata.
+Grouped and threaded content are important use cases, but they may need custom write workflows, custom managers, snapshot behavior, mutation rules, and focused structure contracts.
 
 #### Decision
 
-Grouped and threaded structures are deferred until bounded configuration, capabilities, runtime mutation, and snapshot contracts are stable.
+Grouped and threaded structures are deferred until sequence configuration, focused structure contracts, runtime mutation, and snapshot contracts are stable.
 
 #### Reasoning
 
@@ -475,3 +475,23 @@ This keeps the simple FIFO-style workflow intact while avoiding a public type na
 #### Consequences
 
 This is a prerelease breaking rename. Existing callers should construct `ContentSequenceStructure` directly and choose an explicit `ContentOverflowPolicy`. Additional placement and retention policies remain future work.
+
+### D-023: Structure Capabilities Are Focused Opt-In Contracts
+
+#### Context
+
+The next roadmap stage needs a way to express what structures can do beyond the base read and lookup surface. A broad capability metadata object would risk duplicating the truth already expressed by implemented interfaces.
+
+#### Decision
+
+ContentSystem should mirror InventorySystem's contract style: `IContentStructure` remains the base minimum useful contract, and additional structure behavior is represented by focused opt-in interfaces.
+
+Existing examples include `IStructureAssignedIdContentStructure`, `IKeyedContentStructure<TId>`, `IContentChangeSource`, `IContentRetentionPolicyStructure`, and `IContentReadOrderStructure`. Future mutation, snapshot, sorting, searching, or export behavior should follow the same pattern unless a later concrete requirement proves metadata is needed.
+
+#### Reasoning
+
+Contracts are harder to desynchronize than separate feature flags. If a structure implements an interface, callers can both discover and use the behavior through the same surface.
+
+#### Consequences
+
+Stage 11 should be reframed from capability metadata to capability contracts. Manager-owned workflows should coordinate these contracts instead of reading a broad metadata object.

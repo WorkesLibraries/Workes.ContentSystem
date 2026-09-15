@@ -137,16 +137,28 @@ The abstraction should leave room for other useful structures:
 - grid-like structure for forum or board-style UIs;
 - composite structures that mirror entries into more than one view.
 
-These should grow from the existing abstractions rather than making the sequence implementation complicated. Grouped and threaded structures should wait until capability metadata, manager-owned runtime mutation, and snapshot contracts are stable.
+These should grow from the existing abstractions rather than making the sequence implementation complicated. Grouped and threaded structures should wait until focused structure contracts, manager-owned runtime mutation, and snapshot contracts are stable.
 
-## Capabilities
+## Structure Contracts
 
 Not every structure should support every operation.
 
-A structure can be append-only, mutable, searchable, snapshot-aware, exportable, or none of those. Capability metadata can let consumers ask what a structure supports without forcing every structure into one large interface.
+`IContentStructure` is the base minimum useful contract. It covers retained records and lookup.
 
-Runtime mutation should be manager-owned for normal callers, with structures opting into the underlying capabilities.
+Additional behavior should be exposed through focused opt-in contracts, mirroring the InventorySystem style already used by:
+
+- `IStructureAssignedIdContentStructure`;
+- `IKeyedContentStructure<TId>`;
+- `IContentChangeSource`;
+- `IContentRetentionPolicyStructure`;
+- `IContentReadOrderStructure`.
+
+`ContentSequenceStructure` implements the retention policy and read-order contracts so structure-agnostic code can inspect those configured behaviors without depending on the concrete sequence type.
+
+Future contracts can cover clearing, removing, retention mutation, snapshots, sorting, searching, or export only where a structure genuinely supports that behavior.
+
+Runtime mutation should be manager-owned for normal callers, with structures opting into the underlying contracts that managers coordinate.
 
 Built-in structures that support future snapshots should capture their own state, including retained records and structure-owned configuration.
 
-This mirrors the strategy used in other Workes packages: keep the central abstraction small, then add optional capabilities where they are genuinely needed.
+This mirrors the strategy used in other Workes packages: keep the central abstraction small, then add focused optional contracts where they are genuinely needed. Avoid a broad capability metadata object unless a future stage finds a concrete use case that opt-in contracts cannot solve cleanly.

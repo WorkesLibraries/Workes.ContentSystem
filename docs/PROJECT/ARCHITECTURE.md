@@ -20,6 +20,8 @@ The package should be engine-neutral and centered on manager workflows that own 
 - `IContentEntryIdStrategy<TId>` validates and normalizes caller-provided IDs for keyed structures.
 - `IContentStructure` is the read/lookup storage abstraction.
 - `IContentChangeSource` is the optional committed-change notification abstraction.
+- `IContentRetentionPolicyStructure` is the optional retention-policy inspection contract.
+- `IContentReadOrderStructure` is the optional read-order inspection contract.
 - `ContentManagerBase` is the shared manager read/lookup base.
 - `ContentManager` is the manager for structure-assigned-ID workflows.
 - `KeyedContentManager<TId>` is the manager for caller-provided typed-ID workflows.
@@ -43,7 +45,7 @@ host application
 
 When a structure implements `IContentChangeSource`, mutations can also notify observers synchronously after commit. Managers forward those structure events through `ContentManagerBase.Changed`.
 
-The manager should be the convenient root. The structure should own ordering, retention, lookup, ID assignment or validation, mutability rules, and supported capabilities.
+The manager should be the convenient root. The structure should own ordering, retention, lookup, ID assignment or validation, mutability rules, and supported opt-in contracts.
 
 ## Structures
 
@@ -60,11 +62,13 @@ Write workflows remain structure-specific. The sequence structure exposes struct
 
 Managers mirror this split. `ContentManager` accepts any explicitly provided `IStructureAssignedIdContentStructure`, while `KeyedContentManager<TId>` accepts any `IKeyedContentStructure<TId>` or uses built-in default ID strategy resolution to create a keyed structure for supported ID types. Shared read and lookup behavior belongs on `ContentManagerBase`.
 
-Change hooks are optional structure capabilities. Built-in mutable structures implement `IContentChangeSource`; custom structures can opt in without changing the base `IContentStructure` contract.
+Change hooks are optional structure contracts. Built-in mutable structures implement `IContentChangeSource`; custom structures can opt in without changing the base `IContentStructure` contract.
+
+Retention policy and read order are optional structure contracts. `ContentSequenceStructure` implements `IContentRetentionPolicyStructure` and `IContentReadOrderStructure`; custom structures can implement either contract when those concepts are meaningful.
 
 FIFO-style history is a sequence plus `ContentOverflowPolicy.DropOldest(capacity)`, not a separate type. Additional retention or placement policies can be added when a later stage needs them.
 
-Future structures may be bounded keyed, grouped, threaded, indexed, snapshot-aware, channel-based, or grid-like. Grouped and threaded structures should wait until capability, mutation, and snapshot contracts are stable.
+Future structures may be bounded keyed, grouped, threaded, indexed, snapshot-aware, channel-based, or grid-like. Grouped and threaded structures should wait until focused structure contracts, mutation, and snapshot contracts are stable.
 
 ## Entries
 

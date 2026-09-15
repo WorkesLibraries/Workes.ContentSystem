@@ -7,7 +7,11 @@ namespace Workes.ContentSystem.Core;
 /// <summary>
 /// Stores content records as an ordered sequence with configurable retention behavior.
 /// </summary>
-public sealed class ContentSequenceStructure : IStructureAssignedIdContentStructure, IContentChangeSource
+public sealed class ContentSequenceStructure :
+    IStructureAssignedIdContentStructure,
+    IContentRetentionPolicyStructure,
+    IContentReadOrderStructure,
+    IContentChangeSource
 {
     private readonly List<ContentEntryRecord> _records = new List<ContentEntryRecord>();
     private long _nextId = 1;
