@@ -45,7 +45,7 @@ This covers console history, simple logs, chat scrollback, notification feeds, a
 
 The 1.0 direction is to reframe this FIFO-specific type into configurable bounded structure behavior. FIFO should remain available as a supported placement and overflow configuration, but bounded retention should not permanently mean only FIFO.
 
-`BoundedFifoContentStructure` implements `IStructureAssignedIdContentStructure`, so it can be used directly or through the default manager:
+`BoundedFifoContentStructure` implements `IStructureAssignedIdContentStructure`, so it can be used directly or through `ContentManager`:
 
 ```csharp
 var content = new ContentManager(new BoundedFifoContentStructure());
@@ -124,7 +124,7 @@ The abstraction should leave room for other useful structures:
 - channel-based chat history;
 - threaded conversation/forum structure;
 - indexed/searchable structure;
-- persistent file-backed structure;
+- snapshot-aware structure;
 - grid-like structure for forum or board-style UIs;
 - composite structures that mirror entries into more than one view.
 
@@ -134,7 +134,7 @@ These should grow from the existing abstractions rather than making the first FI
 
 Not every structure should support every operation.
 
-A structure can be append-only, mutable, searchable, persistent, exportable, or none of those. Capability metadata can let consumers ask what a structure supports without forcing every structure into one large interface.
+A structure can be append-only, mutable, searchable, snapshot-aware, exportable, or none of those. Capability metadata can let consumers ask what a structure supports without forcing every structure into one large interface.
 
 Runtime mutation should be manager-owned for normal callers, with structures opting into the underlying capabilities.
 

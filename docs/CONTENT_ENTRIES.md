@@ -15,7 +15,7 @@ Stored entries expose a `ContentEntryId`.
 The structure decides what IDs mean and how they are assigned. This keeps the model flexible:
 
 - a bounded FIFO structure can use an increasing numeric ID;
-- a persistent structure can use a durable string ID;
+- a distributed or externally synchronized structure can use a durable string ID;
 - a distributed structure can use UUID-like IDs;
 - a threaded structure can use IDs that help relate replies and parents.
 

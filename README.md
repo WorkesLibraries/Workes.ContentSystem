@@ -15,7 +15,7 @@ It is intended to be useful anywhere an application needs an ordered or structur
 - Structure-owned entry identity so different storage models can use the IDs that fit them.
 - Optional change hooks for observing committed mutations.
 - A shared failure and exception model matching the style used in other Workes packages.
-- Planned portable snapshots for persistence, plus optional attachment points for export, bridges, and platform-specific integration.
+- Planned portable snapshots for serialization and state transfer, plus optional attachment points for export, bridges, and platform-specific integration.
 
 ## Installation
 

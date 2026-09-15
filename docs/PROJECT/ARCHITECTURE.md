@@ -65,7 +65,7 @@ Change hooks are optional structure capabilities. Built-in mutable structures im
 
 The 1.0 direction is to evolve FIFO-specific bounded behavior into a configurable bounded structure with placement and overflow policy. FIFO remains the first supported configuration, not the whole long-term bounded model.
 
-Future structures may be unbounded, bounded keyed, grouped, threaded, indexed, persistent, channel-based, or grid-like. Grouped and threaded structures should wait until capability, mutation, and snapshot contracts are stable.
+Future structures may be unbounded, bounded keyed, grouped, threaded, indexed, snapshot-aware, channel-based, or grid-like. Grouped and threaded structures should wait until capability, mutation, and snapshot contracts are stable.
 
 ## Entries
 

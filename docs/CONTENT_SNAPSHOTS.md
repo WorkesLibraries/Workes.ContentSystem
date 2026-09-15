@@ -51,6 +51,6 @@ Whole-structure restore should be atomic. A failed restore should leave the acti
 
 ## Relationship To Export And Attachments
 
-Snapshots are the persistence foundation.
+Snapshots are the serialization and state-transfer foundation.
 
 Export helpers and attachments can consume snapshots or change events later, but they should not replace the portable snapshot model.

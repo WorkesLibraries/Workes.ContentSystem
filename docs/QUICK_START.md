@@ -22,7 +22,7 @@ A ContentSystem application has three core ideas:
 - A content structure owns how entries are stored, ordered, found, and retained.
 - A content manager is the normal root object that gives users a simple workflow over one chosen structure category.
 
-The common FIFO workflow uses a bounded FIFO structure where the structure assigns IDs. Keyed workflows use caller-provided typed IDs. Later structures may be threaded, indexed, grouped, persistent, grid-like, or forum-like.
+The common FIFO workflow uses a bounded FIFO structure where the structure assigns IDs. Keyed workflows use caller-provided typed IDs. Later structures may be threaded, indexed, grouped, snapshot-aware, grid-like, or forum-like.
 
 ## Default FIFO Workflow
 

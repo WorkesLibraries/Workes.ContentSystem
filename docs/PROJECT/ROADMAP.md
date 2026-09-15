@@ -66,7 +66,7 @@ Add opt-in structure-owned sorting only for structures where reordering retained
 
 ### Stage 24: Add export helpers and attachment abstractions
 
-Add optional export helpers and attachment abstractions after portable snapshots exist. Export and attachments should not become the persistence foundation.
+Add optional export helpers and attachment abstractions after portable snapshots exist. Export and attachments should not become the serialization foundation.
 
 ### Stage 25: Add example tests and usage docs
 

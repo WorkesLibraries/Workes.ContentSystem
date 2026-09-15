@@ -85,7 +85,7 @@ Custom entries should be first-class. Core should avoid making every entry look 
 
 #### Context
 
-Different structures may need different identity models. A FIFO structure can use a simple increasing value, while persistent or distributed structures may need durable IDs.
+Different structures may need different identity models. A FIFO structure can use a simple increasing value, while distributed or externally synchronized structures may need durable IDs.
 
 #### Decision
 
@@ -103,7 +103,7 @@ The implementation must be careful not to make FIFO indexing the permanent packa
 
 #### Context
 
-The package should eventually support more than one storage shape, including FIFO history, chat channels, forums, indexed structures, and persistent structures.
+The package should eventually support more than one storage shape, including FIFO history, chat channels, forums, indexed structures, and snapshot-aware structures.
 
 #### Decision
 
@@ -153,15 +153,17 @@ A built-in user model would either be too weak for serious hosts or too intrusiv
 
 Permissions and roles belong in consuming systems such as ConsoleSystem or application-specific layers, not in ContentSystem core.
 
-### D-007: Export, Persistence, And Bridges Are Optional Attachments
+### D-007: Export, Storage Integration, And Bridges Are Optional Attachments
 
 #### Context
 
-Some hosts need file export, append-only logs, persistence, or external logging bridges. Others only need in-memory content.
+Some hosts need file export, append-only logs, storage integration, or external logging bridges. Others only need in-memory content.
 
 #### Decision
 
-Export, persistence, and bridge behavior should be opt-in attachment-style capabilities.
+Export, storage integration, and bridge behavior should be opt-in attachment-style capabilities.
+
+D-020 refines the storage direction: portable snapshots are the core serialization foundation, while attachments and bridges can build on those snapshots or on change events.
 
 #### Reasoning
 
@@ -223,7 +225,7 @@ ContentSystem uses `ContentEntryId` as the public stored-entry identity represen
 
 #### Reasoning
 
-A string-backed value type keeps identity flexible for FIFO, persistent, distributed, and host-defined structures without exposing raw `object` values or making numeric FIFO IDs the package-wide model.
+A string-backed value type keeps identity flexible for FIFO, distributed, externally synchronized, and host-defined structures without exposing raw `object` values or making numeric FIFO IDs the package-wide model.
 
 Keeping IDs on records instead of entry payloads keeps structures responsible for identity policy. This avoids making every caller part of the ID strategy.
 
@@ -267,7 +269,7 @@ Default keyed structure constructors resolve built-in strategies for `string` an
 
 #### Reasoning
 
-This proves configurable identity with a simple structure before introducing richer forum, chat, or persistent structures. Keeping strategy non-generating avoids over-designing until a structure needs configurable generated IDs.
+This proves configurable identity with a simple structure before introducing richer forum, chat, or snapshot-aware structures. Keeping strategy non-generating avoids over-designing until a structure needs configurable generated IDs.
 
 #### Consequences
 
@@ -429,7 +431,7 @@ This follows the InventorySystem snapshot lesson: expose serializer-friendly sta
 
 #### Consequences
 
-Export helpers and attachments can build on snapshots later, but they should not replace snapshots as the persistence foundation.
+Export helpers and attachments can build on snapshots later, but they should not replace snapshots as the serialization foundation.
 
 ### D-021: Grouped And Threaded Structures Are Deferred Until Core Contracts Stabilize
 

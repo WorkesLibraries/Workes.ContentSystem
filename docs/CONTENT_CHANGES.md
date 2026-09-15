@@ -89,4 +89,4 @@ Change events are intentionally small:
 - no dispatcher, background queue, buffering, or thread marshaling is added;
 - reads and lookups do not raise events.
 
-Applications that need UI-thread dispatch, async fan-out, event buffering, persistence, or bridge behavior should add that behavior in their own integration layer or a future attachment.
+Applications that need UI-thread dispatch, async fan-out, event buffering, storage integration, or bridge behavior should add that behavior in their own integration layer or a future attachment.
