@@ -23,7 +23,8 @@ ContentSystem currently supports two ID ownership models.
 Structure-assigned IDs are used when the structure decides the stored ID:
 
 ```csharp
-var content = new ContentManager(new BoundedFifoContentStructure());
+var content = new ContentManager(
+    new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 ContentEntryRecord record = content.Add(
     new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
@@ -73,7 +74,7 @@ ID strategies validate caller-provided IDs. They do not generate IDs.
 Structure-specific code should use natural lookup methods:
 
 ```csharp
-ContentEntryRecord fifoRecord = fifo.Get(1);
+ContentEntryRecord sequenceRecord = sequence.Get(1);
 ContentEntryRecord keyedRecord = keyed.Get("entry-1");
 ```
 

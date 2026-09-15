@@ -7,8 +7,8 @@
     <LangVersion>10.0</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Workes.ContentSystem</PackageId>
-    <Version>0.2.0</Version>
-    <PackageReleaseNotes>Add optional committed-change hooks for structures and managers.</PackageReleaseNotes>
+    <Version>0.3.0</Version>
+    <PackageReleaseNotes>Add configurable content sequences with explicit overflow policies.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Workes</Authors>
     <Company>Workes</Company>

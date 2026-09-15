@@ -249,7 +249,7 @@ This keeps the common structure API honest. It avoids forcing keyed/manual-ID st
 
 #### Consequences
 
-`BoundedFifoContentStructure` exposes its own `Add(IContentEntry)` method and assigns IDs internally. Later structures can expose different add workflows without changing the shared read/lookup contract.
+`ContentSequenceStructure` exposes its own `Add(IContentEntry)` method and assigns IDs internally. Later structures can expose different add workflows without changing the shared read/lookup contract.
 
 Concrete structures may expose natural lookup overloads for their ID model. The shared `ContentEntryId` lookup remains the structure-agnostic path.
 
@@ -389,7 +389,7 @@ This avoids forcing users to implement near-duplicate structures just to change 
 
 #### Consequences
 
-Future implementation should plan a rename or migration path from `BoundedFifoContentStructure` toward a configurable bounded structure while preserving the current FIFO behavior as a supported configuration.
+D-022 completes this rename by replacing `BoundedFifoContentStructure` with `ContentSequenceStructure` and making bounded retention an overflow policy instead of a structure identity.
 
 ### D-019: Runtime Mutation Is Manager-Owned
 
@@ -450,3 +450,28 @@ Implementing richer structures before the core contracts settle would risk bakin
 #### Consequences
 
 The roadmap keeps grouped content and threaded/forum-like content as later 1.0 stages or evaluation work. Core still avoids a built-in user or role system.
+
+### D-022: ContentSequenceStructure Replaces BoundedFifoContentStructure
+
+#### Context
+
+The first bounded implementation was named around FIFO behavior, but Stage 9 established that retention should be configurable and FIFO should be a policy choice rather than the type identity.
+
+#### Decision
+
+`BoundedFifoContentStructure` is replaced by `ContentSequenceStructure` with explicit read order and overflow policy configuration.
+
+The first supported read orders are `OldestFirst` and `NewestFirst`.
+
+The first supported overflow policies are:
+
+- `ContentOverflowPolicy.None`, which retains all records;
+- `ContentOverflowPolicy.DropOldest(capacity)`, which owns the retention bound and drops the oldest retained record when full.
+
+#### Reasoning
+
+This keeps the simple FIFO-style workflow intact while avoiding a public type name that makes bounded retention look permanently FIFO-only. It also avoids splitting sequence storage into bounded and unbounded structures when the real choice is retention policy.
+
+#### Consequences
+
+This is a prerelease breaking rename. Existing callers should construct `ContentSequenceStructure` directly and choose an explicit `ContentOverflowPolicy`. Additional placement and retention policies remain future work.

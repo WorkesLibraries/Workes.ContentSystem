@@ -4,6 +4,14 @@ This file records notable user-facing changes to `Workes.ContentSystem`.
 
 ## Unreleased
 
+## 0.3.0 - 2026-09-15
+
+Changed:
+
+- Replaced `BoundedFifoContentStructure` with `ContentSequenceStructure`.
+- Added sequence read-order configuration through `ContentSequenceReadOrder`.
+- Added policy-owned retention through `ContentOverflowPolicy.None` and `ContentOverflowPolicy.DropOldest(capacity)`.
+
 Documentation:
 
 - Reconciled the 1.0 architecture roadmap and documented the planned built-in surface.

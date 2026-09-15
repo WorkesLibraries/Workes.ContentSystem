@@ -10,7 +10,7 @@ A content entry is one item in a content structure.
 
 Entries are intentionally extensible. A simple application might only use plain text entries. A larger game or tool might add entries for chat messages, command output, stack traces, item links, moderation events, audit events, or grouped feed items.
 
-When an entry is stored, the retained record has a `ContentEntryId`. The structure decides what that ID means. A bounded FIFO structure might use an increasing integer-like value. A distributed or externally synchronized structure might use a durable string or UUID-like value.
+When an entry is stored, the retained record has a `ContentEntryId`. The structure decides what that ID means. A sequence structure might use an increasing integer-like value. A distributed or externally synchronized structure might use a durable string or UUID-like value.
 
 See [Content Identity](CONTENT_IDENTITY.md) for stored IDs, caller-provided IDs, and ID strategies.
 
@@ -18,9 +18,7 @@ See [Content Identity](CONTENT_IDENTITY.md) for stored IDs, caller-provided IDs,
 
 A content structure owns storage behavior.
 
-The first implementation is a bounded chronological FIFO structure: new entries are appended, old records are dropped when capacity is reached, and consumers can read retained records in order.
-
-The 1.0 direction is to evolve this into configurable bounded behavior where FIFO is one supported placement and overflow policy.
+The first implementation is a configurable sequence structure: new entries are appended, retention is controlled by `ContentOverflowPolicy`, and consumers can choose oldest-first or newest-first read order.
 
 A keyed structure is also available for callers that want to provide typed IDs directly. It uses an ID strategy to validate and normalize those IDs.
 
@@ -30,7 +28,7 @@ Other structures can behave very differently. A forum-like structure might group
 
 Manager workflows are separated by entry ID ownership.
 
-Use `ContentManager` for structures that assign IDs when entries are added. Structure choice is explicit, so the simple FIFO path is create a manager with `BoundedFifoContentStructure`, add entries, and read records.
+Use `ContentManager` for structures that assign IDs when entries are added. Structure choice is explicit, so the simple sequence path is create a manager with `ContentSequenceStructure`, add entries, and read records.
 
 Use `KeyedContentManager<TId>` for structures where caller-provided IDs are first-class. This keeps keyed add and lookup typed without adding overloads for every possible ID shape. Built-in ID strategies are resolved for supported ID types, and custom ID types can provide custom strategies.
 

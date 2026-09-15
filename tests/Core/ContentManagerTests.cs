@@ -7,9 +7,9 @@ namespace Workes.ContentSystem.Tests.Core;
 public sealed class ContentManagerTests
 {
     [Test]
-    public void Constructor_UsesProvidedFifoBehavior()
+    public void Constructor_UsesProvidedBoundedBehavior()
     {
-        var manager = new ContentManager(new BoundedFifoContentStructure());
+        var manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(200)));
 
         ContentEntryRecord first = manager.Add(Entry("First"));
         ContentEntryRecord second = manager.Add(Entry("Second"));
@@ -22,7 +22,7 @@ public sealed class ContentManagerTests
     [Test]
     public void Constructor_AcceptsStructureAssignedIdStructure()
     {
-        var structure = new BoundedFifoContentStructure(capacity: 1);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(1));
         var manager = new ContentManager(structure);
 
         ContentEntryRecord record = manager.Add(Entry("Entry"));
@@ -64,7 +64,7 @@ public sealed class ContentManagerTests
     [Test]
     public void TryAdd_NullEntryThrows()
     {
-        var manager = new ContentManager(new BoundedFifoContentStructure());
+        var manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(200)));
 
         Assert.Throws<ArgumentNullException>(() => manager.TryAdd(null!, out _, out _));
     }
@@ -72,7 +72,7 @@ public sealed class ContentManagerTests
     [Test]
     public void BaseManager_ExposesRecordsAndDelegatesLookup()
     {
-        ContentManagerBase manager = new ContentManager(new BoundedFifoContentStructure());
+        ContentManagerBase manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(200)));
         ContentEntryRecord added = ((ContentManager)manager).Add(Entry("Stored"));
 
         bool found = manager.TryGet(added.Id, out ContentEntryRecord? record, out ContentFailure? failure);
@@ -87,7 +87,7 @@ public sealed class ContentManagerTests
     [Test]
     public void Changed_ForwardsStructureEventsWithManagerSender()
     {
-        var manager = new ContentManager(new BoundedFifoContentStructure());
+        var manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(200)));
         ContentChangedEventArgs? changedArgs = null;
         object? sender = null;
         manager.Changed += (eventSender, args) =>

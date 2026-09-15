@@ -17,7 +17,7 @@ public interface IContentChangeSource
 
 The built-in structures are observable:
 
-- `BoundedFifoContentStructure`;
+- `ContentSequenceStructure`;
 - `KeyedContentStructure<TId>`.
 
 Custom structures do not need to implement `IContentChangeSource`. They remain valid content structures without change hooks.
@@ -33,7 +33,7 @@ Both collections are read-only snapshots. Null collections passed to the event a
 
 For a normal add, `AddedRecords` contains the committed record and `RemovedRecords` is empty.
 
-For FIFO overflow, one event is raised with:
+For `ContentOverflowPolicy.DropOldest(capacity)` overflow, one event is raised with:
 
 - the newly added record in `AddedRecords`;
 - the dropped oldest record in `RemovedRecords`.
@@ -43,7 +43,8 @@ For FIFO overflow, one event is raised with:
 Managers forward structure events through `ContentManagerBase.Changed` when the active structure implements `IContentChangeSource`:
 
 ```csharp
-var content = new ContentManager(new BoundedFifoContentStructure(capacity: 200));
+var content = new ContentManager(
+    new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 content.Changed += OnContentChanged;
 

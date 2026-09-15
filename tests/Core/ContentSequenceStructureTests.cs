@@ -4,37 +4,89 @@ using Workes.ContentSystem.Core;
 
 namespace Workes.ContentSystem.Tests.Core;
 
-public sealed class BoundedFifoContentStructureTests
+public sealed class ContentSequenceStructureTests
 {
     [Test]
-    public void Constructor_UsesDefaultCapacity()
+    public void Constructor_StoresConfiguration()
     {
-        var structure = new BoundedFifoContentStructure();
+        ContentOverflowPolicy overflowPolicy = ContentOverflowPolicy.DropOldest(3);
 
-        Assert.That(structure.Capacity, Is.EqualTo(200));
+        var structure = new ContentSequenceStructure(
+            overflowPolicy,
+            ContentSequenceReadOrder.NewestFirst);
+
+        Assert.That(structure.ReadOrder, Is.EqualTo(ContentSequenceReadOrder.NewestFirst));
+        Assert.That(structure.OverflowPolicy, Is.EqualTo(overflowPolicy));
         Assert.That(structure.Count, Is.EqualTo(0));
         Assert.That(structure.Records, Is.Empty);
     }
 
     [Test]
-    public void Constructor_StoresCustomCapacity()
+    public void Constructor_NullOverflowPolicyThrows()
     {
-        var structure = new BoundedFifoContentStructure(3);
+        Assert.Throws<ArgumentNullException>(() => new ContentSequenceStructure(null!));
+    }
 
-        Assert.That(structure.Capacity, Is.EqualTo(3));
+    [Test]
+    public void Constructor_InvalidReadOrderThrows()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ContentSequenceStructure(
+            ContentOverflowPolicy.None,
+            (ContentSequenceReadOrder)99));
+    }
+
+    [Test]
+    public void OverflowPolicy_None_RetainsAllRecords()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+
+        structure.Add(Entry("First"));
+        structure.Add(Entry("Second"));
+        structure.Add(Entry("Third"));
+
+        Assert.That(structure.Count, Is.EqualTo(3));
+        Assert.That(structure.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "First", "Second", "Third" }));
+        Assert.That(structure.OverflowPolicy.Kind, Is.EqualTo(ContentOverflowPolicyKind.None));
+        Assert.That(structure.OverflowPolicy.Capacity, Is.Null);
+    }
+
+    [Test]
+    public void OverflowPolicy_DropOldest_StoresCapacity()
+    {
+        ContentOverflowPolicy policy = ContentOverflowPolicy.DropOldest(3);
+
+        Assert.That(policy.Kind, Is.EqualTo(ContentOverflowPolicyKind.DropOldest));
+        Assert.That(policy.Capacity, Is.EqualTo(3));
+        Assert.That(policy.ToString(), Is.EqualTo("DropOldest(3)"));
     }
 
     [TestCase(0)]
     [TestCase(-1)]
-    public void Constructor_InvalidCapacityThrows(int capacity)
+    public void OverflowPolicy_DropOldest_InvalidCapacityThrows(int capacity)
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new BoundedFifoContentStructure(capacity));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ContentOverflowPolicy.DropOldest(capacity));
+    }
+
+    [Test]
+    public void OverflowPolicy_EqualityIsValueBased()
+    {
+        ContentOverflowPolicy none = ContentOverflowPolicy.None;
+        ContentOverflowPolicy sameNone = ContentOverflowPolicy.None;
+        ContentOverflowPolicy bounded = ContentOverflowPolicy.DropOldest(2);
+        ContentOverflowPolicy sameBounded = ContentOverflowPolicy.DropOldest(2);
+        ContentOverflowPolicy differentBounded = ContentOverflowPolicy.DropOldest(3);
+
+        Assert.That(none, Is.EqualTo(sameNone));
+        Assert.That(bounded, Is.EqualTo(sameBounded));
+        Assert.That(bounded.GetHashCode(), Is.EqualTo(sameBounded.GetHashCode()));
+        Assert.That(bounded, Is.Not.EqualTo(differentBounded));
+        Assert.That(bounded, Is.Not.EqualTo(none));
     }
 
     [Test]
     public void Add_ReturnsRecordWithSequentialStructureAssignedId()
     {
-        var structure = new BoundedFifoContentStructure(3);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(3));
 
         ContentEntryRecord first = structure.Add(Entry("First"));
         ContentEntryRecord second = structure.Add(Entry("Second"));
@@ -48,7 +100,7 @@ public sealed class BoundedFifoContentStructureTests
     [Test]
     public void TryAdd_ReturnsRecordWithSequentialStructureAssignedId()
     {
-        var structure = new BoundedFifoContentStructure(3);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(3));
 
         bool accepted = structure.TryAdd(Entry("First"), out ContentEntryRecord? record, out ContentFailure? failure);
 
@@ -61,7 +113,7 @@ public sealed class BoundedFifoContentStructureTests
     [Test]
     public void Add_EmitsChangedWithAddedRecord()
     {
-        var structure = new BoundedFifoContentStructure(3);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(3));
         ContentChangedEventArgs? changedArgs = null;
         object? sender = null;
         structure.Changed += (eventSender, args) =>
@@ -79,9 +131,9 @@ public sealed class BoundedFifoContentStructureTests
     }
 
     [Test]
-    public void Add_WhenCapacityExceeded_EmitsOneChangedEventWithAddedAndRemovedRecords()
+    public void Add_WhenDropOldestCapacityExceeded_EmitsOneChangedEventWithAddedAndRemovedRecords()
     {
-        var structure = new BoundedFifoContentStructure(1);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(1));
         ContentEntryRecord removed = structure.Add(Entry("First"));
         int eventCount = 0;
         ContentChangedEventArgs? changedArgs = null;
@@ -102,7 +154,7 @@ public sealed class BoundedFifoContentStructureTests
     [Test]
     public void Add_NullEntryEmitsNoEventBeforeThrowing()
     {
-        var structure = new BoundedFifoContentStructure(2);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2));
         int eventCount = 0;
         structure.Changed += (_, _) => eventCount++;
 
@@ -114,7 +166,7 @@ public sealed class BoundedFifoContentStructureTests
     [Test]
     public void Changed_UnsubscribedHandlerIsNotCalled()
     {
-        var structure = new BoundedFifoContentStructure(2);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2));
         int eventCount = 0;
         EventHandler<ContentChangedEventArgs> handler = (_, _) => eventCount++;
 
@@ -126,9 +178,9 @@ public sealed class BoundedFifoContentStructureTests
     }
 
     [Test]
-    public void Records_AreReadOldestToNewest()
+    public void Records_WithOldestFirstReadOrder_AreReadOldestToNewest()
     {
-        var structure = new BoundedFifoContentStructure(3);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(3), ContentSequenceReadOrder.OldestFirst);
 
         structure.Add(Entry("First"));
         structure.Add(Entry("Second"));
@@ -138,16 +190,28 @@ public sealed class BoundedFifoContentStructureTests
     }
 
     [Test]
-    public void Add_WhenCapacityExceeded_DropsOldestRetainedRecord()
+    public void Records_WithNewestFirstReadOrder_AreReadNewestToOldest()
     {
-        var structure = new BoundedFifoContentStructure(2);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(3), ContentSequenceReadOrder.NewestFirst);
+
+        structure.Add(Entry("First"));
+        structure.Add(Entry("Second"));
+        structure.Add(Entry("Third"));
+
+        Assert.That(structure.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "Third", "Second", "First" }));
+    }
+
+    [Test]
+    public void Add_WhenDropOldestCapacityExceeded_DropsChronologicalOldestRetainedRecord()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2), ContentSequenceReadOrder.NewestFirst);
 
         ContentEntryRecord first = structure.Add(Entry("First"));
         ContentEntryRecord second = structure.Add(Entry("Second"));
         ContentEntryRecord third = structure.Add(Entry("Third"));
 
         Assert.That(structure.Count, Is.EqualTo(2));
-        Assert.That(structure.Records, Is.EqualTo(new[] { second, third }));
+        Assert.That(structure.Records, Is.EqualTo(new[] { third, second }));
         Assert.That(structure.TryGet(first.Id, out _, out ContentFailure? failure), Is.False);
         Assert.That(failure, Is.Not.Null);
         Assert.That(failure!.Code, Is.EqualTo(ContentFailureCodes.EntryNotFound));
@@ -156,7 +220,7 @@ public sealed class BoundedFifoContentStructureTests
     [Test]
     public void Add_AfterOverflow_ContinuesIncreasingIds()
     {
-        var structure = new BoundedFifoContentStructure(2);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2));
 
         structure.Add(Entry("First"));
         structure.Add(Entry("Second"));
@@ -168,7 +232,7 @@ public sealed class BoundedFifoContentStructureTests
     [Test]
     public void TryGet_WhenRecordIsRetained_ReturnsRecord()
     {
-        var structure = new BoundedFifoContentStructure(2);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2));
         ContentEntryRecord record = structure.Add(Entry("First"));
 
         bool found = structure.TryGet(record.Id, out ContentEntryRecord? foundRecord, out ContentFailure? failure);
@@ -181,7 +245,7 @@ public sealed class BoundedFifoContentStructureTests
     [Test]
     public void TryGet_WithNumericId_ReturnsRecord()
     {
-        var structure = new BoundedFifoContentStructure(2);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2));
         ContentEntryRecord record = structure.Add(Entry("First"));
 
         bool found = structure.TryGet(1, out ContentEntryRecord? foundRecord, out ContentFailure? failure);
@@ -194,7 +258,7 @@ public sealed class BoundedFifoContentStructureTests
     [Test]
     public void TryGet_WhenRecordIsMissing_ReturnsEntryNotFoundFailure()
     {
-        var structure = new BoundedFifoContentStructure(2);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2));
 
         bool found = structure.TryGet(new ContentEntryId("missing"), out ContentEntryRecord? record, out ContentFailure? failure);
 
@@ -208,7 +272,7 @@ public sealed class BoundedFifoContentStructureTests
     [Test]
     public void Get_WhenRecordIsMissing_ThrowsContentOperationException()
     {
-        var structure = new BoundedFifoContentStructure(2);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2));
 
         ContentOperationException? exception = Assert.Throws<ContentOperationException>(() => structure.Get(new ContentEntryId("missing")));
 
@@ -220,7 +284,7 @@ public sealed class BoundedFifoContentStructureTests
     [Test]
     public void Get_WithNumericId_ReturnsRecord()
     {
-        var structure = new BoundedFifoContentStructure(2);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2));
         ContentEntryRecord record = structure.Add(Entry("First"));
 
         ContentEntryRecord found = structure.Get(1);
@@ -231,7 +295,7 @@ public sealed class BoundedFifoContentStructureTests
     [Test]
     public void Add_NullEntryThrows()
     {
-        var structure = new BoundedFifoContentStructure(2);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2));
 
         Assert.Throws<ArgumentNullException>(() => structure.Add(null!));
     }
@@ -239,7 +303,7 @@ public sealed class BoundedFifoContentStructureTests
     [Test]
     public void TryAdd_NullEntryThrows()
     {
-        var structure = new BoundedFifoContentStructure(2);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2));
 
         Assert.Throws<ArgumentNullException>(() => structure.TryAdd(null!, out _, out _));
     }
@@ -247,7 +311,7 @@ public sealed class BoundedFifoContentStructureTests
     [Test]
     public void TryGet_DefaultIdThrows()
     {
-        var structure = new BoundedFifoContentStructure(2);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2));
 
         Assert.Throws<ArgumentException>(() => structure.TryGet(default(ContentEntryId), out _, out _));
     }
@@ -256,7 +320,7 @@ public sealed class BoundedFifoContentStructureTests
     [TestCase(-1)]
     public void TryGet_InvalidNumericIdThrows(long id)
     {
-        var structure = new BoundedFifoContentStructure(2);
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2));
 
         Assert.Throws<ArgumentOutOfRangeException>(() => structure.TryGet(id, out _, out _));
     }

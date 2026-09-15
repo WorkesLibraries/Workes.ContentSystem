@@ -23,7 +23,7 @@ The package should be engine-neutral and centered on manager workflows that own 
 - `ContentManagerBase` is the shared manager read/lookup base.
 - `ContentManager` is the manager for structure-assigned-ID workflows.
 - `KeyedContentManager<TId>` is the manager for caller-provided typed-ID workflows.
-- The first structure is a bounded chronological FIFO structure.
+- The first structure is a configurable sequence structure.
 - `KeyedContentStructure<TId>` provides configurable typed-ID validation for caller-keyed records.
 - A shared failure model should represent expected content-system rejection.
 - Portable snapshots are the planned serialization foundation.
@@ -49,23 +49,22 @@ The manager should be the convenient root. The structure should own ordering, re
 
 The structure abstraction should be close in spirit to the InventorySystem structure model: core behavior belongs behind an abstraction so new storage models can be introduced without changing the manager into a one-purpose container.
 
-The current FIFO implementation should stay small and useful:
+The current sequence implementation should stay small and useful:
 
-- bounded capacity;
 - append entries;
-- drop oldest on overflow;
-- read retained records in chronological order;
+- retain all records or drop oldest through explicit overflow policy;
+- read retained records oldest-first or newest-first;
 - assign structure-owned IDs.
 
-Write workflows remain structure-specific. FIFO exposes structure-assigned-ID add, while keyed structures require caller-provided IDs.
+Write workflows remain structure-specific. The sequence structure exposes structure-assigned-ID add, while keyed structures require caller-provided IDs.
 
 Managers mirror this split. `ContentManager` accepts any explicitly provided `IStructureAssignedIdContentStructure`, while `KeyedContentManager<TId>` accepts any `IKeyedContentStructure<TId>` or uses built-in default ID strategy resolution to create a keyed structure for supported ID types. Shared read and lookup behavior belongs on `ContentManagerBase`.
 
 Change hooks are optional structure capabilities. Built-in mutable structures implement `IContentChangeSource`; custom structures can opt in without changing the base `IContentStructure` contract.
 
-The 1.0 direction is to evolve FIFO-specific bounded behavior into a configurable bounded structure with placement and overflow policy. FIFO remains the first supported configuration, not the whole long-term bounded model.
+FIFO-style history is a sequence plus `ContentOverflowPolicy.DropOldest(capacity)`, not a separate type. Additional retention or placement policies can be added when a later stage needs them.
 
-Future structures may be unbounded, bounded keyed, grouped, threaded, indexed, snapshot-aware, channel-based, or grid-like. Grouped and threaded structures should wait until capability, mutation, and snapshot contracts are stable.
+Future structures may be bounded keyed, grouped, threaded, indexed, snapshot-aware, channel-based, or grid-like. Grouped and threaded structures should wait until capability, mutation, and snapshot contracts are stable.
 
 ## Entries
 

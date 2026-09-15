@@ -14,12 +14,12 @@ Stored entries expose a `ContentEntryId`.
 
 The structure decides what IDs mean and how they are assigned. This keeps the model flexible:
 
-- a bounded FIFO structure can use an increasing numeric ID;
+- a sequence structure can use an increasing numeric ID;
 - a distributed or externally synchronized structure can use a durable string ID;
 - a distributed structure can use UUID-like IDs;
 - a threaded structure can use IDs that help relate replies and parents.
 
-`ContentEntryId` wraps a non-empty string value. It stores the ID assigned by a structure without making FIFO indexes, GUIDs, or durable IDs the only package-wide identity model.
+`ContentEntryId` wraps a non-empty string value. It stores the ID assigned by a structure without making sequence numeric IDs, GUIDs, or durable IDs the only package-wide identity model.
 
 An `IContentEntry` does not carry its own ID. A `ContentEntryRecord` pairs a structure-assigned `ContentEntryId` with an `IContentEntry`.
 

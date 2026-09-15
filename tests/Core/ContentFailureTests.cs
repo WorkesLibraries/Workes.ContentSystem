@@ -17,14 +17,14 @@ public sealed class ContentFailureTests
             ContentFailureKind.Entry,
             ContentFailureCodes.EntryRejected,
             "Entry was rejected.",
-            component: "BoundedContentStructure",
+            component: "ContentSequenceStructure",
             source: "entry:42",
             cause: cause);
 
         Assert.That(failure.Kind, Is.EqualTo(ContentFailureKind.Entry));
         Assert.That(failure.Code, Is.EqualTo(ContentFailureCodes.EntryRejected));
         Assert.That(failure.Message, Is.EqualTo("Entry was rejected."));
-        Assert.That(failure.Component, Is.EqualTo("BoundedContentStructure"));
+        Assert.That(failure.Component, Is.EqualTo("ContentSequenceStructure"));
         Assert.That(failure.Source, Is.EqualTo("entry:42"));
         Assert.That(failure.Cause, Is.SameAs(cause));
     }

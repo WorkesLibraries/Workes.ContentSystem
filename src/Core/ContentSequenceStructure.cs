@@ -5,45 +5,41 @@ using System.Globalization;
 namespace Workes.ContentSystem.Core;
 
 /// <summary>
-/// Stores content records in chronological FIFO order with a fixed retained capacity.
+/// Stores content records as an ordered sequence with configurable retention behavior.
 /// </summary>
-public sealed class BoundedFifoContentStructure : IStructureAssignedIdContentStructure, IContentChangeSource
+public sealed class ContentSequenceStructure : IStructureAssignedIdContentStructure, IContentChangeSource
 {
-    /// <summary>
-    /// The default number of records retained by a bounded FIFO structure.
-    /// </summary>
-    public const int DefaultCapacity = 200;
-
-    private readonly List<ContentEntryRecord> _records;
+    private readonly List<ContentEntryRecord> _records = new List<ContentEntryRecord>();
     private long _nextId = 1;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="BoundedFifoContentStructure"/> class.
+    /// Initializes a new instance of the <see cref="ContentSequenceStructure"/> class.
     /// </summary>
-    public BoundedFifoContentStructure()
-        : this(DefaultCapacity)
+    /// <param name="overflowPolicy">The policy used for retention and overflow.</param>
+    /// <param name="readOrder">The order used when reading retained records.</param>
+    public ContentSequenceStructure(
+        ContentOverflowPolicy overflowPolicy,
+        ContentSequenceReadOrder readOrder = ContentSequenceReadOrder.OldestFirst)
     {
-    }
+        OverflowPolicy = overflowPolicy ?? throw new ArgumentNullException(nameof(overflowPolicy));
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="BoundedFifoContentStructure"/> class.
-    /// </summary>
-    /// <param name="capacity">The maximum number of records to retain.</param>
-    public BoundedFifoContentStructure(int capacity)
-    {
-        if (capacity <= 0)
+        if (!Enum.IsDefined(typeof(ContentSequenceReadOrder), readOrder))
         {
-            throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "Capacity values must be greater than zero.");
+            throw new ArgumentOutOfRangeException(nameof(readOrder), readOrder, "Content sequence read order is not supported.");
         }
 
-        Capacity = capacity;
-        _records = new List<ContentEntryRecord>(capacity);
+        ReadOrder = readOrder;
     }
 
     /// <summary>
-    /// Gets the maximum number of records retained by the structure.
+    /// Gets the order used when reading retained records.
     /// </summary>
-    public int Capacity { get; }
+    public ContentSequenceReadOrder ReadOrder { get; }
+
+    /// <summary>
+    /// Gets the policy used for retention and overflow.
+    /// </summary>
+    public ContentOverflowPolicy OverflowPolicy { get; }
 
     /// <summary>
     /// Gets the number of records currently retained by the structure.
@@ -51,7 +47,7 @@ public sealed class BoundedFifoContentStructure : IStructureAssignedIdContentStr
     public int Count => _records.Count;
 
     /// <inheritdoc />
-    public IReadOnlyList<ContentEntryRecord> Records => _records.ToArray();
+    public IReadOnlyList<ContentEntryRecord> Records => CreateReadSnapshot();
 
     /// <inheritdoc />
     public event EventHandler<ContentChangedEventArgs>? Changed;
@@ -80,7 +76,7 @@ public sealed class BoundedFifoContentStructure : IStructureAssignedIdContentStr
         }
 
         ContentEntryRecord? removedRecord = null;
-        if (_records.Count == Capacity)
+        if (OverflowPolicy.Kind == ContentOverflowPolicyKind.DropOldest && _records.Count == OverflowPolicy.Capacity)
         {
             removedRecord = _records[0];
             _records.RemoveAt(0);
@@ -120,9 +116,9 @@ public sealed class BoundedFifoContentStructure : IStructureAssignedIdContentStr
     }
 
     /// <summary>
-    /// Attempts to get a retained record by its FIFO-assigned numeric ID.
+    /// Attempts to get a retained record by its structure-assigned numeric ID.
     /// </summary>
-    /// <param name="id">The FIFO-assigned numeric entry ID.</param>
+    /// <param name="id">The structure-assigned numeric entry ID.</param>
     /// <param name="record">The retained record when found; otherwise <see langword="null"/>.</param>
     /// <param name="failure">The structured failure when the record cannot be found; otherwise <see langword="null"/>.</param>
     /// <returns><see langword="true"/> when a retained record is found.</returns>
@@ -143,9 +139,9 @@ public sealed class BoundedFifoContentStructure : IStructureAssignedIdContentStr
     }
 
     /// <summary>
-    /// Gets a retained record by its FIFO-assigned numeric ID.
+    /// Gets a retained record by its structure-assigned numeric ID.
     /// </summary>
-    /// <param name="id">The FIFO-assigned numeric entry ID.</param>
+    /// <param name="id">The structure-assigned numeric entry ID.</param>
     /// <returns>The retained record.</returns>
     /// <exception cref="ContentOperationException">Thrown when the record cannot be found.</exception>
     public ContentEntryRecord Get(long id)
@@ -165,10 +161,21 @@ public sealed class BoundedFifoContentStructure : IStructureAssignedIdContentStr
     {
         if (id <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(id), id, "FIFO entry IDs must be greater than zero.");
+            throw new ArgumentOutOfRangeException(nameof(id), id, "Content sequence entry IDs must be greater than zero.");
         }
 
         return new ContentEntryId(id.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private IReadOnlyList<ContentEntryRecord> CreateReadSnapshot()
+    {
+        ContentEntryRecord[] snapshot = _records.ToArray();
+        if (ReadOrder == ContentSequenceReadOrder.NewestFirst)
+        {
+            Array.Reverse(snapshot);
+        }
+
+        return snapshot;
     }
 
     private void OnChanged(ContentChangedEventArgs args)

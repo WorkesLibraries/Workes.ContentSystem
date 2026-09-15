@@ -28,39 +28,49 @@ Manager workflows follow the same split:
 
 See [Content Managers](CONTENT_MANAGERS.md) for manager usage.
 
-## First Structure
+## Sequence Structure
 
-The first implementation is `BoundedFifoContentStructure`.
+The first structure is `ContentSequenceStructure`.
 
 Expected behavior:
 
 - entries are appended chronologically with `Add`;
-- retained records are read oldest to newest;
-- capacity is configurable and must be greater than zero;
-- when capacity is exceeded, the oldest retained record is dropped;
+- retention is configured through `ContentOverflowPolicy`;
+- `ContentOverflowPolicy.None` retains all records;
+- `ContentOverflowPolicy.DropOldest(capacity)` drops the oldest retained record when the configured capacity is exceeded;
+- retained records are read oldest to newest by default;
+- `ContentSequenceReadOrder.NewestFirst` can expose retained records newest to oldest;
 - entry IDs are assigned internally as increasing decimal strings.
 - successful adds raise `Changed` after the new record is retained.
 
 This covers console history, simple logs, chat scrollback, notification feeds, and other common streams.
 
-The 1.0 direction is to reframe this FIFO-specific type into configurable bounded structure behavior. FIFO should remain available as a supported placement and overflow configuration, but bounded retention should not permanently mean only FIFO.
+FIFO-style history is now expressed as `ContentSequenceStructure` plus `ContentOverflowPolicy.DropOldest(capacity)` rather than as a separate type.
 
-`BoundedFifoContentStructure` implements `IStructureAssignedIdContentStructure`, so it can be used directly or through `ContentManager`:
+`ContentSequenceStructure` implements `IStructureAssignedIdContentStructure`, so it can be used directly or through `ContentManager`:
 
 ```csharp
-var content = new ContentManager(new BoundedFifoContentStructure());
+var content = new ContentManager(
+    new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
 ```
 
-FIFO lookup only finds retained records. A record that was dropped by capacity overflow is treated as not found.
-
-When capacity overflow drops the oldest record, FIFO emits one change event containing both the removed oldest record and the added new record.
-
-Because FIFO IDs are sequential numbers, `BoundedFifoContentStructure` exposes numeric lookup:
+Unbounded usage is explicit:
 
 ```csharp
-ContentEntryRecord record = fifo.Get(1);
+var content = new ContentManager(
+    new ContentSequenceStructure(ContentOverflowPolicy.None));
+```
+
+Lookup only finds retained records. A record that was dropped by capacity overflow is treated as not found.
+
+When `DropOldest` overflow drops the oldest record, the structure emits one change event containing both the removed oldest record and the added new record.
+
+Because sequence-generated IDs are sequential numbers, `ContentSequenceStructure` exposes numeric lookup:
+
+```csharp
+ContentEntryRecord record = sequence.Get(1);
 ```
 
 The shared `ContentEntryId` lookup remains available for code that works through `IContentStructure`.
@@ -118,7 +128,6 @@ Successful keyed adds raise `Changed` with the added record. Duplicate IDs and i
 
 The abstraction should leave room for other useful structures:
 
-- unbounded in-memory sequence;
 - bounded keyed sequence;
 - grouped feed;
 - channel-based chat history;
@@ -128,7 +137,7 @@ The abstraction should leave room for other useful structures:
 - grid-like structure for forum or board-style UIs;
 - composite structures that mirror entries into more than one view.
 
-These should grow from the existing abstractions rather than making the first FIFO implementation complicated. Grouped and threaded structures should wait until capability metadata, manager-owned runtime mutation, and snapshot contracts are stable.
+These should grow from the existing abstractions rather than making the sequence implementation complicated. Grouped and threaded structures should wait until capability metadata, manager-owned runtime mutation, and snapshot contracts are stable.
 
 ## Capabilities
 

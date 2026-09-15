@@ -5,13 +5,13 @@ This package is a reusable content-entry backend. The first useful core supports
 ## Install
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.2.0
+dotnet add package Workes.ContentSystem --version 0.3.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.2.0" />
+<PackageReference Include="Workes.ContentSystem" Version="0.3.0" />
 ```
 
 ## Mental Model
@@ -22,14 +22,15 @@ A ContentSystem application has three core ideas:
 - A content structure owns how entries are stored, ordered, found, and retained.
 - A content manager is the normal root object that gives users a simple workflow over one chosen structure category.
 
-The common FIFO workflow uses a bounded FIFO structure where the structure assigns IDs. Keyed workflows use caller-provided typed IDs. Later structures may be threaded, indexed, grouped, snapshot-aware, grid-like, or forum-like.
+The common sequence workflow uses a `ContentSequenceStructure` where the structure assigns IDs. Retention is explicit: use `ContentOverflowPolicy.None` to retain everything or `ContentOverflowPolicy.DropOldest(capacity)` for bounded history. Keyed workflows use caller-provided typed IDs. Later structures may be threaded, indexed, grouped, snapshot-aware, grid-like, or forum-like.
 
-## Default FIFO Workflow
+## Sequence Workflow
 
 Use `ContentManager` when the structure assigns IDs for added entries:
 
 ```csharp
-var content = new ContentManager(new BoundedFifoContentStructure());
+var content = new ContentManager(
+    new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
 content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "User submitted a command."));
@@ -43,7 +44,8 @@ foreach (ContentEntryRecord record in content.Records)
 You can still provide a different structure-assigned-ID structure:
 
 ```csharp
-var content = new ContentManager(new BoundedFifoContentStructure(capacity: 200));
+var content = new ContentManager(
+    new ContentSequenceStructure(ContentOverflowPolicy.None));
 
 content.Add(new ChatContentEntry(channel: "global", text: "Hello!"));
 content.Add(new CollapsibleStackTraceEntry(exception));

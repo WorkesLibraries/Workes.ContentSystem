@@ -24,7 +24,7 @@ Runtime mutation should be manager-owned for normal callers. Structures may expo
 
 Represent shared read and lookup behavior through `IContentStructure`.
 
-Avoid baking FIFO assumptions into the whole package. FIFO is the first implementation, not the whole model. The 1.0 direction is configurable bounded behavior where placement and overflow policy can vary.
+Avoid baking FIFO assumptions into the whole package. `ContentSequenceStructure` provides the first sequence behavior, with unbounded retention and bounded drop-oldest retention expressed through `ContentOverflowPolicy`.
 
 A structure should own:
 
@@ -37,7 +37,7 @@ A structure should own:
 
 Do not force one append method into the base structure abstraction. Structure-assigned-ID structures and caller-provided-ID structures should expose their own write workflows through focused interfaces.
 
-Concrete structures should expose natural lookup overloads for their ID model. For example, FIFO can support `Get(1)` while generic code can continue using `IContentStructure.Get(ContentEntryId)`.
+Concrete structures should expose natural lookup overloads for their ID model. For example, sequence generated-ID structures can support `Get(1)` while generic code can continue using `IContentStructure.Get(ContentEntryId)`.
 
 ID strategies should validate and normalize typed caller-provided IDs. Built-in default strategy resolution is acceptable for explicitly supported ID types such as `string`, `long`, `Guid`, and `ContentEntryId`; custom ID types require custom strategies. Do not add generation behavior to that abstraction until a concrete structure needs configurable generated IDs.
 

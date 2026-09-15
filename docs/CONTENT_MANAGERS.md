@@ -13,13 +13,14 @@ The shared read and lookup behavior is common across managers, but adding entrie
 Use `ContentManager` for structure-assigned-ID workflows.
 
 ```csharp
-var content = new ContentManager(new BoundedFifoContentStructure());
+var content = new ContentManager(
+    new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 ContentEntryRecord record = content.Add(
     new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
 ```
 
-`BoundedFifoContentStructure` assigns increasing numeric IDs stored as `ContentEntryId` values. The structure is passed explicitly so the manager never hides which storage policy is active.
+`ContentSequenceStructure` assigns increasing numeric IDs stored as `ContentEntryId` values. The structure is passed explicitly so the manager never hides which storage or retention policy is active.
 
 Use `KeyedContentManager<TId>` for caller-provided typed IDs.
 
@@ -64,7 +65,8 @@ Most application code should construct `ContentManager` or `KeyedContentManager<
 `ContentManagerBase.Changed` forwards events from the active structure when that structure implements `IContentChangeSource`.
 
 ```csharp
-ContentManagerBase content = new ContentManager(new BoundedFifoContentStructure());
+ContentManagerBase content = new ContentManager(
+    new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 content.Changed += (_, args) =>
 {

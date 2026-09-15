@@ -10,7 +10,7 @@ Trello remains the task-state source of truth. This document records the archite
 
 ### Stage 10: Refactor bounded structure configuration
 
-Reframe the FIFO-specific bounded structure into a configurable bounded content structure. FIFO should become a placement and overflow configuration rather than the entire type identity.
+Reframe the FIFO-specific bounded structure into a configurable content sequence. Completed implementation uses `ContentSequenceStructure` with explicit `ContentOverflowPolicy.None` or `ContentOverflowPolicy.DropOldest(capacity)`.
 
 ### Stage 11: Add structure capability metadata
 
