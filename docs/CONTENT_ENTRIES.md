@@ -63,6 +63,8 @@ It is intended for simple content streams and tests. It does not include author,
 
 This keeps the core package from baking in assumptions about chat, logs, forums, notifications, or UI rendering.
 
+`PlainContentEntry` supports entry snapshot round trips out of the box through `ContentEntrySnapshots` and `PlainContentEntry.Factory`.
+
 ## Custom Entries
 
 Custom entries should be the normal way to support domain-specific content.
@@ -73,4 +75,4 @@ This keeps ContentSystem focused on storing meaning rather than owning visual re
 
 Custom entries implement `IContentEntry` directly. They do not need to inherit from a package base class.
 
-Custom entries that need future snapshot support are expected to opt into snapshot round-trip contracts. See [Content Snapshots](CONTENT_SNAPSHOTS.md) for the planned direction.
+Custom entries that need snapshot support can opt into `IContentEntrySnapshotSerializable` and provide an `IContentEntrySnapshotFactory` for restore. See [Content Snapshots](CONTENT_SNAPSHOTS.md) for the implemented entry snapshot layer and the planned record/structure layers.

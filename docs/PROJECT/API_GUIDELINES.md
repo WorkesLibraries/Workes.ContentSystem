@@ -60,7 +60,7 @@ Document first-class public concepts in focused guides:
 - structures in `docs/CONTENT_STRUCTURES.md`;
 - managers in `docs/CONTENT_MANAGERS.md`;
 - change hooks in `docs/CONTENT_CHANGES.md`;
-- planned snapshots in `docs/CONTENT_SNAPSHOTS.md`;
+- snapshots in `docs/CONTENT_SNAPSHOTS.md`;
 - failures in `docs/FAILURES.md`;
 - future attachments in `docs/EXPORT_AND_ATTACHMENTS.md`.
 
@@ -93,7 +93,7 @@ The simple use case should stay small: create a manager, add entries, read entri
 
 Change hooks should use ordinary synchronous .NET events. Raise them only after a mutation has committed, and do not emit events for rejected or no-op operations. Include enough event metadata for UI code to distinguish adds, removals, clears, and configuration changes. Do not add thread marshaling, buffering, or async dispatch to the core hook contract.
 
-Snapshots should be serializer-friendly DTOs rather than direct file I/O. Unsupported custom entries or structures should fail snapshot capture or restore with structured failures unless they opt in.
+Snapshots should be serializer-friendly DTOs rather than direct file I/O. Entry snapshot capture should be opt-in on the entry instance, while restore should use an explicit factory object. Unsupported custom entries or structures should fail snapshot capture or restore with structured failures unless they opt in.
 
 ## Documentation Expectations
 

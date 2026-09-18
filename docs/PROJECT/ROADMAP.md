@@ -22,7 +22,7 @@ Add manager-owned mutation workflows, with structures opting into focused mutati
 
 ### Stage 13: Add entry snapshot round-trip contracts
 
-Define entry-level snapshot support for portable entry payloads. `PlainContentEntry` should round-trip out of the box. Custom entries should opt in explicitly.
+Define entry-level snapshot support for portable entry payloads. Completed implementation uses Inventory-style snapshot value DTOs, `IContentEntrySnapshotSerializable`, explicit restore factories, and `PlainContentEntry` round trips.
 
 ### Stage 14: Add record and structure snapshot DTOs
 

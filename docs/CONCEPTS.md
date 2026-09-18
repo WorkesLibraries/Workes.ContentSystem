@@ -44,9 +44,9 @@ Built-in structures raise synchronous `Changed` events after successful mutation
 
 See [Content Changes](CONTENT_CHANGES.md) for event payloads and hook semantics.
 
-## Attachments
+## Snapshots And Attachments
 
-Portable snapshots are planned as the serialization foundation. Snapshot objects should be easy for applications to serialize, save, and load with their own tools.
+Portable snapshots are the serialization foundation. Entry snapshots are implemented for `PlainContentEntry` and custom opt-in entries. Record and structure snapshots are planned next so retained IDs and structure state can round-trip too.
 
 Export, file appenders, log bridges, and platform integrations should be optional. The core package should make those capabilities possible without forcing every structure or every user to support them.
 

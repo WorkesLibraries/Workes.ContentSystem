@@ -61,6 +61,31 @@ public static class ContentFailureCodes
     public const string StructureUnsupportedOperation = PackagePrefix + "structure.unsupported_operation";
 
     /// <summary>
+    /// Snapshot operation rejection.
+    /// </summary>
+    public const string SnapshotRejected = PackagePrefix + "snapshot.rejected";
+
+    /// <summary>
+    /// Snapshot capture is not supported by the active entry or component.
+    /// </summary>
+    public const string SnapshotUnsupportedEntry = PackagePrefix + "snapshot.entry.unsupported";
+
+    /// <summary>
+    /// Snapshot data is missing, malformed, or inconsistent.
+    /// </summary>
+    public const string SnapshotMalformed = PackagePrefix + "snapshot.malformed";
+
+    /// <summary>
+    /// Snapshot data uses an unsupported format or data version.
+    /// </summary>
+    public const string SnapshotUnsupportedVersion = PackagePrefix + "snapshot.unsupported_version";
+
+    /// <summary>
+    /// Snapshot codec rejected the encoded value.
+    /// </summary>
+    public const string SnapshotCodecRejected = PackagePrefix + "snapshot.codec.rejected";
+
+    /// <summary>
     /// Export operation rejection.
     /// </summary>
     public const string ExportRejected = PackagePrefix + "export.rejected";

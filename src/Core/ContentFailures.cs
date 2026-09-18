@@ -52,6 +52,31 @@ internal static class ContentFailures
         return Create(ContentFailureKind.Structure, ContentFailureCodes.StructureUnsupportedOperation, message);
     }
 
+    public static ContentFailure Snapshot(string? message = null)
+    {
+        return Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotRejected, message);
+    }
+
+    public static ContentFailure SnapshotUnsupportedEntry(string? message = null, string? source = null)
+    {
+        return Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotUnsupportedEntry, message, source: source);
+    }
+
+    public static ContentFailure SnapshotMalformed(string? message = null, string? source = null)
+    {
+        return Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotMalformed, message, source: source);
+    }
+
+    public static ContentFailure SnapshotUnsupportedVersion(string? message = null, string? source = null)
+    {
+        return Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotUnsupportedVersion, message, source: source);
+    }
+
+    public static ContentFailure SnapshotCodecRejected(string? message = null, string? source = null)
+    {
+        return Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotCodecRejected, message, source: source);
+    }
+
     public static ContentFailure Export(string? message = null)
     {
         return Create(ContentFailureKind.Export, ContentFailureCodes.ExportRejected, message);

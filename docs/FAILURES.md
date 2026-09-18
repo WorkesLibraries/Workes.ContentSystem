@@ -36,6 +36,7 @@ Built-in failure kinds are:
 - `Configuration`;
 - `Entry`;
 - `Structure`;
+- `Snapshot`;
 - `Export`;
 - `Attachment`;
 - `Persistence`;
@@ -53,6 +54,8 @@ Expected-success APIs should throw package-owned exceptions that carry the same 
 `ContentSystemException` is the base exception for package-owned expected-success failures. `ContentOperationException` is the standard operation-level exception for expected content operation rejection.
 
 Programmer misuse, such as null arguments or invalid setup values, should use standard .NET exceptions.
+
+Snapshot capture and restore use `ContentFailureKind.Snapshot` for expected rejection such as unsupported entries, malformed snapshot payloads, unsupported snapshot versions, or codec rejection.
 
 ## Why This Matters
 

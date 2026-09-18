@@ -515,3 +515,25 @@ This mirrors InventorySystem's manager-owned mutation direction while keeping `I
 #### Consequences
 
 Try-style unsupported mutations return `StructureUnsupportedOperation`. Expected-success mutation APIs throw `ContentOperationException` carrying the same failure. Successful mutations emit synchronous committed-change events when the structure is observable; rejected and no-op mutations emit no events.
+
+### D-025: Entry Snapshots Use Capture Contracts And Explicit Restore Factories
+
+#### Context
+
+ContentSystem needs a serialization foundation before record and structure snapshots can preserve retained content state. Entries are the smallest snapshot layer, but custom entries may carry arbitrary domain data and cannot be restored safely by guessing constructor shapes.
+
+#### Decision
+
+Entry snapshot capture is opt-in through `IContentEntrySnapshotSerializable`. Restore uses an explicit `IContentEntrySnapshotFactory`, such as `PlainContentEntry.Factory`.
+
+Entry snapshot payloads use Inventory-style serializer-friendly DTOs: `ContentSnapshotEncodedValue`, `ContentSnapshotValue`, `ContentSnapshotNamedValue`, and built-in scalar codecs. `PlainContentEntry` supports snapshot round trips out of the box with stable kind `workes.content.entry.plain` and data version `1`.
+
+There is no process-wide factory registry in this stage.
+
+#### Reasoning
+
+This keeps capture close to the entry instance while making restore deliberate. It avoids silently flattening unsupported custom entries and avoids requiring disk I/O or a specific serializer in core.
+
+#### Consequences
+
+Unsupported entries fail capture with `SnapshotUnsupportedEntry`. Malformed data, unsupported versions, and codec rejection use `ContentFailureKind.Snapshot`. Record snapshots, structure snapshots, factory registries, and manager-level snapshot APIs remain future work.

@@ -31,6 +31,11 @@ public enum ContentFailureKind
     Structure,
 
     /// <summary>
+    /// Snapshot capture, validation, codec decoding, or restoration rejected the request.
+    /// </summary>
+    Snapshot,
+
+    /// <summary>
     /// Export behavior rejected or failed the request.
     /// </summary>
     Export,

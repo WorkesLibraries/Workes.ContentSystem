@@ -7,8 +7,8 @@
     <LangVersion>10.0</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Workes.ContentSystem</PackageId>
-    <Version>0.4.0</Version>
-    <PackageReleaseNotes>Add structure capability contracts and manager-owned runtime mutation.</PackageReleaseNotes>
+    <Version>0.4.1</Version>
+    <PackageReleaseNotes>Adds entry snapshot round-tripping.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Workes</Authors>
     <Company>Workes</Company>

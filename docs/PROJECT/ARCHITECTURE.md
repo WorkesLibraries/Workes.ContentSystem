@@ -15,6 +15,8 @@ The package should be engine-neutral and centered on manager workflows that own 
 ## Main Concepts
 
 - `IContentEntry` is the core content payload abstraction.
+- `IContentEntrySnapshotSerializable` is the optional entry payload snapshot capture contract.
+- `IContentEntrySnapshotFactory` restores entries from explicit entry snapshot factories.
 - `ContentEntryRecord` pairs a stored entry with the active structure's ID.
 - `ContentEntryId` is the shared stored-record identity representation.
 - `IContentEntryIdStrategy<TId>` validates and normalizes caller-provided IDs for keyed structures.
@@ -35,7 +37,7 @@ The package should be engine-neutral and centered on manager workflows that own 
 - The first structure is a configurable sequence structure.
 - `KeyedContentStructure<TId>` provides configurable typed-ID validation for caller-keyed records.
 - A shared failure model should represent expected content-system rejection.
-- Portable snapshots are the planned serialization foundation.
+- Entry snapshots are the implemented first serialization layer; record and structure snapshots remain planned.
 - Optional attachments should support export, bridges, and platform adapters without making those features mandatory.
 
 ## Intended Data Flow
@@ -85,6 +87,8 @@ Entries should be extensible content payloads. `PlainContentEntry` is the only p
 
 ContentSystem should not include a built-in user/role model. If a host needs users, authors, permissions, channels, moderation data, or ownership, it can represent those through custom entries, custom structures, or higher-level packages.
 
+Entry snapshot capture is opt-in through `IContentEntrySnapshotSerializable`. Restore is explicit through an `IContentEntrySnapshotFactory`, such as `PlainContentEntry.Factory`; there is no process-wide factory registry.
+
 ## Failure Model
 
 The package should mirror the error style used in Workes.InventorySystem and Workes.ConsoleSystem:
@@ -96,7 +100,7 @@ The package should mirror the error style used in Workes.InventorySystem and Wor
 
 ## Attachments
 
-Portable snapshots are planned as the core serialization foundation. Snapshot capture should produce serializer-friendly objects; applications choose how to serialize and store them.
+Portable snapshots are the core serialization foundation. Entry snapshots are implemented with serializer-friendly value DTOs; record and structure snapshots are planned next. Applications choose how to serialize and store snapshot objects.
 
 Attachments are planned optional capabilities around the core model.
 

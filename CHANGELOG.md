@@ -2,7 +2,11 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
-## Unreleased
+## 0.4.1 - 2026-09-18
+
+Added:
+
+- Added entry snapshot round-trip contracts, snapshot value DTOs, built-in scalar snapshot codecs, and `PlainContentEntry` snapshot support.
 
 ## 0.4.0 - 2026-09-15
 
