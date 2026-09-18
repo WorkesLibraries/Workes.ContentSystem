@@ -2,13 +2,19 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
-## 0.4.1 - 2026-09-18
+## 0.4.2 - 18-09-2026
+
+Added:
+
+- Added record and structure snapshot DTOs for retained IDs, entry snapshots, retained records, and structure-owned snapshot state.
+
+## 0.4.1 - 18-09-2026
 
 Added:
 
 - Added entry snapshot round-trip contracts, snapshot value DTOs, built-in scalar snapshot codecs, and `PlainContentEntry` snapshot support.
 
-## 0.4.0 - 2026-09-15
+## 0.4.0 - 15-09-2026
 
 Added:
 
@@ -23,7 +29,7 @@ Documentation:
 - Reframed structure capabilities as focused opt-in contracts instead of broad metadata.
 - Documented manager-owned mutation and richer event semantics.
 
-## 0.3.0 - 2026-09-15
+## 0.3.0 - 15-09-2026
 
 Changed:
 
@@ -36,7 +42,7 @@ Documentation:
 - Reconciled the 1.0 architecture roadmap and documented the planned built-in surface.
 - Added roadmap and snapshot planning docs.
 
-## 0.2.0 - 2026-09-15
+## 0.2.0 - 15-09-2026
 
 Added:
 
@@ -50,7 +56,7 @@ Documentation:
 - Refreshed documentation links so each major public system has a dedicated guide.
 - Clarified that `ContentManager` requires explicit structure selection and `ContentManagerBase` is for shared processing of existing managers.
 
-## 0.1.0 - 2026-09-14
+## 0.1.0 - 14-09-2026
 
 Initial package release.
 

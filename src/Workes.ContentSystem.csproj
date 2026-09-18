@@ -7,8 +7,8 @@
     <LangVersion>10.0</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Workes.ContentSystem</PackageId>
-    <Version>0.4.1</Version>
-    <PackageReleaseNotes>Adds entry snapshot round-tripping.</PackageReleaseNotes>
+    <Version>0.4.2</Version>
+    <PackageReleaseNotes>Adds DTOs for record and structure snapshots.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Workes</Authors>
     <Company>Workes</Company>

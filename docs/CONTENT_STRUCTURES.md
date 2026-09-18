@@ -168,10 +168,10 @@ Additional behavior should be exposed through focused opt-in contracts, mirrorin
 
 `ContentSequenceStructure` implements the retention policy, read-order, natural long-ID lookup/removal, clear, remove, and parameterized structure contracts. Its first parameter is `ContentSequenceStructure.OverflowPolicyParameterId`. `KeyedContentStructure<TId>` implements keyed add/lookup, clear, typed keyed removal, normalized removal, and change-source contracts.
 
-Future contracts can cover snapshots, sorting, searching, or export only where a structure genuinely supports that behavior.
+Future contracts can cover snapshot capture/restore, sorting, searching, or export only where a structure genuinely supports that behavior.
 
 Runtime mutation should be manager-owned for normal callers, with structures opting into the underlying contracts that managers coordinate.
 
-Built-in structures that support future snapshots should capture their own state, including retained records and structure-owned configuration.
+`ContentStructureSnapshot` is the portable DTO shape for retained records plus structure-owned data. Built-in structures that support future snapshot workflows should capture their own state into that DTO, including retained records and structure-owned configuration.
 
 This mirrors the strategy used in other Workes packages: keep the central abstraction small, then add focused optional contracts where they are genuinely needed. Avoid a broad capability metadata object unless a future stage finds a concrete use case that opt-in contracts cannot solve cleanly.

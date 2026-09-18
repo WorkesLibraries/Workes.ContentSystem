@@ -101,6 +101,6 @@ Events are raised synchronously after a mutation is committed. Rejected operatio
 - [Content Structures](CONTENT_STRUCTURES.md) explains the storage abstraction.
 - [Content Managers](CONTENT_MANAGERS.md) explains the manager workflow split.
 - [Content Changes](CONTENT_CHANGES.md) explains optional committed-change hooks.
-- [Content Snapshots](CONTENT_SNAPSHOTS.md) explains the planned portable snapshot direction.
+- [Content Snapshots](CONTENT_SNAPSHOTS.md) explains entry snapshots and the portable record/structure snapshot DTOs.
 - [Failures](FAILURES.md) explains expected failures and exceptions.
 - [Export And Attachments](EXPORT_AND_ATTACHMENTS.md) explains optional bridge and export ideas.

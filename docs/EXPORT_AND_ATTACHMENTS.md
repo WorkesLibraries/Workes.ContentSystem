@@ -2,7 +2,7 @@
 
 Export and bridges should be optional extensions around the core content model.
 
-Portable snapshots are the planned serialization and state-transfer foundation. See [Content Snapshots](CONTENT_SNAPSHOTS.md).
+Portable snapshots are the serialization and state-transfer foundation. See [Content Snapshots](CONTENT_SNAPSHOTS.md).
 
 ## Purpose
 

@@ -2,7 +2,7 @@
 
 Content snapshots are the serialization foundation for Workes.ContentSystem.
 
-Entry snapshot round trips are implemented. Record snapshots and whole-structure snapshots are planned for later stages.
+Entry snapshot round trips are implemented. Record and structure snapshot DTOs are implemented. Whole-structure capture and restore workflows are planned for later stages.
 
 ## Purpose
 
@@ -44,17 +44,29 @@ IContentEntry restored = ContentEntrySnapshots.Restore(
 
 Custom entries that do not implement `IContentEntrySnapshotSerializable` fail capture with `ContentFailureCodes.SnapshotUnsupportedEntry`. Custom entries that do support snapshots should provide an explicit factory for restore.
 
-## Planned Record Snapshots
+## Record Snapshots
 
-A record snapshot will represent a stored record.
+A record snapshot represents a stored record.
 
-It should pair the stored `ContentEntryId` with an entry snapshot. Record snapshots are useful when the caller wants to preserve the stored identity of retained records, not just the entry payload.
+`ContentRecordSnapshot` pairs the stored record ID with an entry snapshot:
 
-Record snapshots are not implemented yet.
+- `EntryId`, stored as a serializer-friendly string;
+- `Entry`, stored as a `ContentEntrySnapshot`.
 
-## Planned Structure Snapshots
+Record snapshots are useful when the caller wants to preserve the stored identity of retained records, not just the entry payload.
 
-A structure snapshot will represent whole-structure state.
+Stage 14 only defines the DTO. Record snapshot capture and restore workflows are planned for later stages.
+
+## Structure Snapshots
+
+A structure snapshot represents whole-structure state.
+
+`ContentStructureSnapshot` contains:
+
+- `Kind`, the stable structure snapshot kind;
+- `DataVersion`, the structure snapshot data version;
+- `Records`, retained `ContentRecordSnapshot` values;
+- `Data`, a `ContentSnapshotValue` envelope for structure-owned state.
 
 For built-in structures, a structure snapshot should preserve retained records and structure-owned state such as:
 
@@ -65,7 +77,7 @@ For built-in structures, a structure snapshot should preserve retained records a
 
 Custom structures should opt into structure snapshots. Unsupported structures should fail capture or restore with structured failures.
 
-Structure snapshots are not implemented yet.
+Stage 14 only defines the DTO. Structure snapshot capture, validation, and restore workflows are planned for later stages.
 
 ## Restore Expectations
 

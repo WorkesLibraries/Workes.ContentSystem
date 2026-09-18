@@ -26,7 +26,7 @@ Define entry-level snapshot support for portable entry payloads. Completed imple
 
 ### Stage 14: Add record and structure snapshot DTOs
 
-Define serializer-friendly DTOs for stored records and whole structures without adding disk I/O or serializer ownership to core.
+Define serializer-friendly DTOs for stored records and whole structures without adding disk I/O or serializer ownership to core. Completed implementation adds `ContentRecordSnapshot` and `ContentStructureSnapshot`; capture and restore remain Stage 15 work.
 
 ### Stage 15: Add snapshot capture and restore for built-in structures
 

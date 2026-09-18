@@ -537,3 +537,25 @@ This keeps capture close to the entry instance while making restore deliberate. 
 #### Consequences
 
 Unsupported entries fail capture with `SnapshotUnsupportedEntry`. Malformed data, unsupported versions, and codec rejection use `ContentFailureKind.Snapshot`. Record snapshots, structure snapshots, factory registries, and manager-level snapshot APIs remain future work.
+
+### D-026: Record And Structure Snapshots Are Serializer-Friendly DTOs
+
+#### Context
+
+After entry snapshots, ContentSystem needs a portable shape for retained records and whole structures before built-in structures can implement exact capture and restore.
+
+#### Decision
+
+`ContentRecordSnapshot` stores the retained record ID as a plain string and stores the entry payload as a `ContentEntrySnapshot`.
+
+`ContentStructureSnapshot` stores a stable structure kind, data version, retained `ContentRecordSnapshot` values, and a `ContentSnapshotValue` envelope for structure-owned state.
+
+Stage 14 only defines DTOs. It does not add validation helpers, capture/restore contracts, manager APIs, or built-in structure snapshot workflows.
+
+#### Reasoning
+
+Plain string IDs are serializer-friendly and avoid making DTO consumers understand `ContentEntryId`. Restore can validate and wrap IDs later. A `ContentSnapshotValue` structure data envelope matches the entry snapshot value model while leaving each structure free to own its exact state schema.
+
+#### Consequences
+
+Stage 15 can implement built-in structure capture and restore against stable DTO shapes. Custom structures still need explicit opt-in contracts before they can participate in snapshot workflows.

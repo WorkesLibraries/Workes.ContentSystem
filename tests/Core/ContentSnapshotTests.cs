@@ -132,6 +132,99 @@ public sealed class ContentSnapshotTests
     }
 
     [Test]
+    public void ContentRecordSnapshot_DefaultValuesAreSerializerFriendly()
+    {
+        var snapshot = new ContentRecordSnapshot();
+
+        Assert.That(snapshot.EntryId, Is.EqualTo(string.Empty));
+        Assert.That(snapshot.Entry, Is.Not.Null);
+        Assert.That(snapshot.Entry.Kind, Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void ContentRecordSnapshot_StoresEntryIdAndEntrySnapshot()
+    {
+        ContentEntrySnapshot entry = new PlainContentEntry(
+            new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero),
+            "Stored").CaptureSnapshot();
+
+        var snapshot = new ContentRecordSnapshot
+        {
+            EntryId = "record-1",
+            Entry = entry
+        };
+
+        Assert.That(snapshot.EntryId, Is.EqualTo("record-1"));
+        Assert.That(snapshot.Entry, Is.SameAs(entry));
+    }
+
+    [Test]
+    public void ContentStructureSnapshot_DefaultValuesAreSerializerFriendly()
+    {
+        var snapshot = new ContentStructureSnapshot();
+
+        Assert.That(snapshot.Kind, Is.EqualTo(string.Empty));
+        Assert.That(snapshot.DataVersion, Is.EqualTo(0));
+        Assert.That(snapshot.Records, Is.Not.Null);
+        Assert.That(snapshot.Records, Is.Empty);
+        Assert.That(snapshot.Data.Kind, Is.EqualTo(ContentSnapshotValueKind.Null));
+    }
+
+    [Test]
+    public void ContentStructureSnapshot_StoresKindVersionRecordsAndData()
+    {
+        var record = new ContentRecordSnapshot
+        {
+            EntryId = "1",
+            Entry = new PlainContentEntry(
+                new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero),
+                "Stored").CaptureSnapshot()
+        };
+        ContentSnapshotValue data = ContentSnapshotValue.Object(new[]
+        {
+            new ContentSnapshotNamedValue
+            {
+                Name = "nextId",
+                Value = ContentSnapshotCodecs.Encode(2L)
+            }
+        });
+
+        var snapshot = new ContentStructureSnapshot
+        {
+            Kind = "workes.content.structure.sequence",
+            DataVersion = 1,
+            Records = new List<ContentRecordSnapshot> { record },
+            Data = data
+        };
+
+        Assert.That(snapshot.Kind, Is.EqualTo("workes.content.structure.sequence"));
+        Assert.That(snapshot.DataVersion, Is.EqualTo(1));
+        Assert.That(snapshot.Records, Is.EquivalentTo(new[] { record }));
+        Assert.That(snapshot.Data, Is.SameAs(data));
+    }
+
+    [Test]
+    public void SnapshotDtos_AreMutableSerializerFriendlyClasses()
+    {
+        var record = new ContentRecordSnapshot();
+        record.EntryId = "changed";
+        record.Entry = new ContentEntrySnapshot { Kind = "entry-kind", DataVersion = 3 };
+
+        var structure = new ContentStructureSnapshot();
+        structure.Kind = "structure-kind";
+        structure.DataVersion = 4;
+        structure.Records.Add(record);
+        structure.Data = ContentSnapshotValue.String("data");
+
+        Assert.That(record.EntryId, Is.EqualTo("changed"));
+        Assert.That(record.Entry.Kind, Is.EqualTo("entry-kind"));
+        Assert.That(structure.Kind, Is.EqualTo("structure-kind"));
+        Assert.That(structure.DataVersion, Is.EqualTo(4));
+        Assert.That(structure.Records, Has.Count.EqualTo(1));
+        Assert.That(structure.Data.StringValue, Is.EqualTo("data"));
+    }
+
+    [Test]
     public void PlainContentEntry_CapturesSnapshot()
     {
         DateTimeOffset timestamp = new DateTimeOffset(2026, 9, 18, 10, 15, 30, TimeSpan.Zero);
