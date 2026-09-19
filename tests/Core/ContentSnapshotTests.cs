@@ -373,8 +373,267 @@ public sealed class ContentSnapshotTests
         Assert.That(restoreException.Failure.Code, Is.EqualTo(ContentFailureCodes.SnapshotUnsupportedVersion));
     }
 
+    [Test]
+    public void ContentStructureSnapshots_CaptureRejectsUnsupportedCustomStructure()
+    {
+        bool captured = ContentStructureSnapshots.TryCapture(
+            new UnsupportedStructure(),
+            out ContentStructureSnapshot? snapshot,
+            out ContentFailure? failure);
+
+        Assert.That(captured, Is.False);
+        Assert.That(snapshot, Is.Null);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.SnapshotUnsupportedStructure));
+    }
+
+    [Test]
+    public void EntryFactoryRegistry_ContainsPlainEntryFactoryByDefault()
+    {
+        ContentEntrySnapshot snapshot = new PlainContentEntry(DateTimeOffset.UtcNow, "Entry").CaptureSnapshot();
+
+        bool found = ContentEntrySnapshotFactories.TryGet(snapshot.Kind, out IContentEntrySnapshotFactory? factory);
+
+        Assert.That(found, Is.True);
+        Assert.That(factory, Is.SameAs(PlainContentEntry.Factory));
+    }
+
+    [Test]
+    public void EntryFactoryRegistry_RepeatedSameFactoryRegistrationIsSafe()
+    {
+        bool registered = ContentEntrySnapshotFactories.TryRegister(PlainContentEntry.Factory, out ContentFailure? failure);
+
+        Assert.That(registered, Is.True);
+        Assert.That(failure, Is.Null);
+    }
+
+    [Test]
+    public void EntryFactoryRegistry_ConflictingFactoryRegistrationReturnsFailure()
+    {
+        var conflictingFactory = new ConflictingPlainEntryFactory();
+
+        bool registered = ContentEntrySnapshotFactories.TryRegister(conflictingFactory, out ContentFailure? failure);
+
+        Assert.That(registered, Is.False);
+        Assert.That(failure, Is.Not.Null);
+        Assert.That(failure!.Code, Is.EqualTo(ContentFailureCodes.SnapshotFactoryDuplicate));
+    }
+
+    [Test]
+    public void ContentSequenceStructure_CapturesAndRestoresExactState()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(3), ContentSequenceReadOrder.NewestFirst);
+        structure.Add(Entry("One"));
+        ContentEntryRecord second = structure.Add(Entry("Two"));
+        ContentEntryRecord third = structure.Add(Entry("Three"));
+
+        ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
+        var restored = (ContentSequenceStructure)ContentStructureSnapshots.Restore(snapshot, ContentSequenceStructure.Factory);
+        ContentEntryRecord next = restored.Add(Entry("Four"));
+
+        Assert.That(snapshot.Kind, Is.EqualTo(ContentSequenceStructure.SnapshotKind));
+        Assert.That(snapshot.DataVersion, Is.EqualTo(ContentSequenceStructure.SnapshotDataVersion));
+        Assert.That(restored.OverflowPolicy, Is.EqualTo(ContentOverflowPolicy.DropOldest(3)));
+        Assert.That(restored.ReadOrder, Is.EqualTo(ContentSequenceReadOrder.NewestFirst));
+        Assert.That(restored.Records.Select(record => record.Id.Value), Is.EqualTo(new[] { "4", "3", "2" }));
+        Assert.That(restored.Records.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "Four", "Three", "Two" }));
+        Assert.That(next.Id.Value, Is.EqualTo("4"));
+        Assert.That(restored.TryGet(second.Id, out ContentEntryRecord? restoredSecond, out _), Is.True);
+        Assert.That(restoredSecond!.Entry.PlainText, Is.EqualTo(second.Entry.PlainText));
+        Assert.That(restored.TryGet(third.Id, out ContentEntryRecord? restoredThird, out _), Is.True);
+        Assert.That(restoredThird!.Entry.PlainText, Is.EqualTo(third.Entry.PlainText));
+    }
+
+    [Test]
+    public void KeyedContentStructure_CapturesAndRestoresStringState()
+    {
+        var structure = new KeyedContentStructure<string>();
+        structure.Add("entry-1", Entry("One"));
+        structure.Add("entry-2", Entry("Two"));
+
+        ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
+        var restored = (KeyedContentStructure<string>)ContentStructureSnapshots.Restore(
+            snapshot,
+            KeyedContentStructure<string>.CreateSnapshotFactory());
+
+        restored.Add("entry-3", Entry("Three"));
+
+        Assert.That(snapshot.Kind, Is.EqualTo(KeyedContentStructure<string>.SnapshotKind));
+        Assert.That(restored.Records.Select(record => record.Id.Value), Is.EqualTo(new[] { "entry-1", "entry-2", "entry-3" }));
+        Assert.That(restored.Get("entry-1").Entry.PlainText, Is.EqualTo("One"));
+        Assert.Throws<ContentOperationException>(() => restored.Add("entry-1", Entry("Duplicate")));
+    }
+
+    [Test]
+    public void KeyedContentStructure_CapturesAndRestoresLongState()
+    {
+        var structure = new KeyedContentStructure<long>();
+        structure.Add(10, Entry("Ten"));
+        structure.Add(20, Entry("Twenty"));
+
+        ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
+        var restored = (KeyedContentStructure<long>)ContentStructureSnapshots.Restore(
+            snapshot,
+            KeyedContentStructure<long>.CreateSnapshotFactory());
+
+        restored.Add(30, Entry("Thirty"));
+
+        Assert.That(restored.Records.Select(record => record.Id.Value), Is.EqualTo(new[] { "10", "20", "30" }));
+        Assert.That(restored.Get(20).Entry.PlainText, Is.EqualTo("Twenty"));
+    }
+
+    [Test]
+    public void StructureRestore_ReturnsMissingFactoryFailureForCustomEntry()
+    {
+        var structure = new KeyedContentStructure<string>();
+        structure.Add("custom", new UnregisteredSerializableCustomEntry("Custom"));
+        ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
+
+        bool restored = ContentStructureSnapshots.TryRestore(
+            snapshot,
+            KeyedContentStructure<string>.CreateSnapshotFactory(),
+            out IContentStructure? restoredStructure,
+            out ContentFailure? failure);
+
+        Assert.That(restored, Is.False);
+        Assert.That(restoredStructure, Is.Null);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.SnapshotFactoryMissing));
+    }
+
+    [Test]
+    public void StructureRestore_UsesCustomEntryFactoryFromRegistry()
+    {
+        var structure = new KeyedContentStructure<string>();
+        structure.Add("custom", new SerializableCustomEntry("Custom"));
+        ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
+        ContentEntrySnapshotFactories.Register(SerializableCustomEntry.Factory);
+
+        var restored = (KeyedContentStructure<string>)ContentStructureSnapshots.Restore(
+            snapshot,
+            KeyedContentStructure<string>.CreateSnapshotFactory());
+
+        Assert.That(restored.Get("custom").Entry, Is.TypeOf<SerializableCustomEntry>());
+        Assert.That(restored.Get("custom").Entry.PlainText, Is.EqualTo("Custom"));
+    }
+
+    [Test]
+    public void KeyedRestore_RejectsLongSnapshotIdOutsideConfiguredStrategy()
+    {
+        var structure = new KeyedContentStructure<long>();
+        structure.Add(1, Entry("One"));
+        ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
+        snapshot.Records[0].EntryId = "abc";
+
+        bool restored = ContentStructureSnapshots.TryRestore(
+            snapshot,
+            KeyedContentStructure<long>.CreateSnapshotFactory(),
+            out IContentStructure? restoredStructure,
+            out ContentFailure? failure);
+
+        Assert.That(restored, Is.False);
+        Assert.That(restoredStructure, Is.Null);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.EntryIdInvalid));
+    }
+
+    [Test]
+    public void KeyedRestore_UsesCustomStrategyNormalizedValidation()
+    {
+        var structure = new KeyedContentStructure<CustomSnapshotId>(new PrefixIdStrategy());
+        structure.Add(new CustomSnapshotId("good"), Entry("Good"));
+        ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
+        snapshot.Records[0].EntryId = "bad";
+
+        bool restored = ContentStructureSnapshots.TryRestore(
+            snapshot,
+            KeyedContentStructure<CustomSnapshotId>.CreateSnapshotFactory(new PrefixIdStrategy()),
+            out IContentStructure? restoredStructure,
+            out ContentFailure? failure);
+
+        Assert.That(restored, Is.False);
+        Assert.That(restoredStructure, Is.Null);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.EntryIdInvalid));
+    }
+
+    [Test]
+    public void StructureRestore_RejectsMalformedSequenceData()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+        structure.Add(Entry("Entry"));
+        ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
+        snapshot.DataVersion = 99;
+
+        bool restored = ContentStructureSnapshots.TryRestore(
+            snapshot,
+            ContentSequenceStructure.Factory,
+            out IContentStructure? restoredStructure,
+            out ContentFailure? failure);
+
+        Assert.That(restored, Is.False);
+        Assert.That(restoredStructure, Is.Null);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.SnapshotUnsupportedVersion));
+    }
+
+    [Test]
+    public void StructureRestore_RejectsDuplicateRecordIds()
+    {
+        var structure = new KeyedContentStructure<string>();
+        structure.Add("entry-1", Entry("One"));
+        structure.Add("entry-2", Entry("Two"));
+        ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
+        snapshot.Records[1].EntryId = "entry-1";
+
+        bool restored = ContentStructureSnapshots.TryRestore(
+            snapshot,
+            KeyedContentStructure<string>.CreateSnapshotFactory(),
+            out IContentStructure? restoredStructure,
+            out ContentFailure? failure);
+
+        Assert.That(restored, Is.False);
+        Assert.That(restoredStructure, Is.Null);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.SnapshotMalformed));
+    }
+
+    [Test]
+    public void StructureRestore_RejectsInvalidSequenceIds()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+        structure.Add(Entry("Entry"));
+        ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
+        snapshot.Records[0].EntryId = "not-numeric";
+
+        bool restored = ContentStructureSnapshots.TryRestore(
+            snapshot,
+            ContentSequenceStructure.Factory,
+            out IContentStructure? restoredStructure,
+            out ContentFailure? failure);
+
+        Assert.That(restored, Is.False);
+        Assert.That(restoredStructure, Is.Null);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.SnapshotMalformed));
+    }
+
+    [Test]
+    public void StructureRestore_ThrowingApisCarryStructuredFailure()
+    {
+        var snapshot = new ContentStructureSnapshot
+        {
+            Kind = ContentSequenceStructure.SnapshotKind,
+            DataVersion = 99,
+            Data = ContentSnapshotValue.Object()
+        };
+
+        ContentOperationException exception = Assert.Throws<ContentOperationException>(
+            () => ContentStructureSnapshots.Restore(snapshot, ContentSequenceStructure.Factory))!;
+
+        Assert.That(exception.Failure.Code, Is.EqualTo(ContentFailureCodes.SnapshotUnsupportedVersion));
+    }
+
     private sealed class UnsupportedPayload
     {
+    }
+
+    private static PlainContentEntry Entry(string text)
+    {
+        return new PlainContentEntry(DateTimeOffset.UtcNow, text);
     }
 
     private sealed class CustomEntry : IContentEntry
@@ -411,5 +670,233 @@ public sealed class ContentSnapshotTests
                     ContentFailureCodes.SnapshotRejected,
                     "Snapshot restore failed."));
         }
+    }
+
+    private sealed class ConflictingPlainEntryFactory : IContentEntrySnapshotFactory
+    {
+        public string Kind => PlainContentEntry.SnapshotKind;
+
+        public bool TryRestore(ContentEntrySnapshot snapshot, out IContentEntry? entry, out ContentFailure? failure)
+        {
+            entry = null;
+            failure = ContentFailure.Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotRejected, "Conflicting factory.");
+            return false;
+        }
+
+        public IContentEntry Restore(ContentEntrySnapshot snapshot)
+        {
+            throw new ContentOperationException(
+                ContentFailure.Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotRejected, "Conflicting factory."));
+        }
+    }
+
+    private sealed class UnsupportedStructure : IContentStructure
+    {
+        public IReadOnlyList<ContentEntryRecord> Records => Array.Empty<ContentEntryRecord>();
+
+        public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
+        {
+            record = null;
+            failure = ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing.");
+            return false;
+        }
+
+        public ContentEntryRecord Get(ContentEntryId id)
+        {
+            throw new ContentOperationException(ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing."));
+        }
+    }
+
+    private sealed class SerializableCustomEntry : IContentEntry, IContentEntrySnapshotSerializable
+    {
+        public const string SnapshotKind = "test.entry.custom";
+
+        public static IContentEntrySnapshotFactory Factory { get; } = new SerializableCustomEntryFactory();
+
+        public SerializableCustomEntry(string plainText)
+        {
+            PlainText = plainText;
+        }
+
+        public DateTimeOffset Timestamp => DateTimeOffset.UnixEpoch;
+
+        public string PlainText { get; }
+
+        public bool TryCaptureSnapshot(out ContentEntrySnapshot? snapshot, out ContentFailure? failure)
+        {
+            snapshot = new ContentEntrySnapshot
+            {
+                Kind = SnapshotKind,
+                DataVersion = 1,
+                Data = ContentSnapshotValue.Object(new[]
+                {
+                    Named("plainText", ContentSnapshotCodecs.Encode(PlainText))
+                })
+            };
+            failure = null;
+            return true;
+        }
+
+        public ContentEntrySnapshot CaptureSnapshot()
+        {
+            return new ContentEntrySnapshot
+            {
+                Kind = SnapshotKind,
+                DataVersion = 1,
+                Data = ContentSnapshotValue.Object(new[]
+                {
+                    Named("plainText", ContentSnapshotCodecs.Encode(PlainText))
+                })
+            };
+        }
+    }
+
+    private sealed class SerializableCustomEntryFactory : IContentEntrySnapshotFactory
+    {
+        public string Kind => SerializableCustomEntry.SnapshotKind;
+
+        public bool TryRestore(ContentEntrySnapshot snapshot, out IContentEntry? entry, out ContentFailure? failure)
+        {
+            entry = null;
+            failure = null;
+            if (!TryGetRequired(snapshot.Data, "plainText", out ContentSnapshotEncodedValue? plainTextValue, out failure))
+            {
+                return false;
+            }
+
+            if (!ContentSnapshotCodecs.TryDecode(plainTextValue!, out string plainText, out failure))
+            {
+                return false;
+            }
+
+            entry = new SerializableCustomEntry(plainText);
+            return true;
+        }
+
+        public IContentEntry Restore(ContentEntrySnapshot snapshot)
+        {
+            if (TryRestore(snapshot, out IContentEntry? entry, out ContentFailure? failure) && entry is not null)
+            {
+                return entry;
+            }
+
+            throw new ContentOperationException(
+                failure ?? ContentFailure.Create(
+                    ContentFailureKind.Snapshot,
+                    ContentFailureCodes.SnapshotRejected,
+                    "Snapshot restore failed."));
+        }
+    }
+
+    private sealed class UnregisteredSerializableCustomEntry : IContentEntry, IContentEntrySnapshotSerializable
+    {
+        public const string SnapshotKind = "test.entry.unregistered";
+
+        public UnregisteredSerializableCustomEntry(string plainText)
+        {
+            PlainText = plainText;
+        }
+
+        public DateTimeOffset Timestamp => DateTimeOffset.UnixEpoch;
+
+        public string PlainText { get; }
+
+        public bool TryCaptureSnapshot(out ContentEntrySnapshot? snapshot, out ContentFailure? failure)
+        {
+            snapshot = new ContentEntrySnapshot
+            {
+                Kind = SnapshotKind,
+                DataVersion = 1,
+                Data = ContentSnapshotValue.Object(new[]
+                {
+                    Named("plainText", ContentSnapshotCodecs.Encode(PlainText))
+                })
+            };
+            failure = null;
+            return true;
+        }
+
+        public ContentEntrySnapshot CaptureSnapshot()
+        {
+            if (TryCaptureSnapshot(out ContentEntrySnapshot? snapshot, out ContentFailure? failure) && snapshot is not null)
+            {
+                return snapshot;
+            }
+
+            throw new ContentOperationException(
+                failure ?? ContentFailure.Create(
+                    ContentFailureKind.Snapshot,
+                    ContentFailureCodes.SnapshotRejected,
+                    "Snapshot capture failed."));
+        }
+    }
+
+    private readonly struct CustomSnapshotId
+    {
+        public CustomSnapshotId(string value)
+        {
+            Value = value;
+        }
+
+        public string Value { get; }
+    }
+
+    private sealed class PrefixIdStrategy : IContentEntryIdStrategy<CustomSnapshotId>
+    {
+        public bool TryNormalize(CustomSnapshotId id, out ContentEntryId normalizedId, out ContentFailure? failure)
+        {
+            if (string.IsNullOrWhiteSpace(id.Value))
+            {
+                normalizedId = default;
+                failure = ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryIdInvalid, "Invalid ID.");
+                return false;
+            }
+
+            normalizedId = new ContentEntryId("custom:" + id.Value);
+            failure = null;
+            return true;
+        }
+
+        public bool TryValidateNormalized(ContentEntryId id, out ContentFailure? failure)
+        {
+            if (!id.Value.StartsWith("custom:", StringComparison.Ordinal))
+            {
+                failure = ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryIdInvalid, "Invalid restored ID.");
+                return false;
+            }
+
+            failure = null;
+            return true;
+        }
+    }
+
+    private static ContentSnapshotNamedValue Named(string name, ContentSnapshotEncodedValue value)
+    {
+        return new ContentSnapshotNamedValue { Name = name, Value = value };
+    }
+
+    private static bool TryGetRequired(
+        ContentSnapshotValue data,
+        string name,
+        out ContentSnapshotEncodedValue? value,
+        out ContentFailure? failure)
+    {
+        value = null;
+        if (data.Kind != ContentSnapshotValueKind.Object)
+        {
+            failure = ContentFailure.Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotMalformed, "Malformed.");
+            return false;
+        }
+
+        ContentSnapshotNamedValue? property = data.Properties.FirstOrDefault(candidate => candidate.Name == name);
+        if (property is null)
+        {
+            failure = ContentFailure.Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotMalformed, "Missing.");
+            return false;
+        }
+
+        value = property.Value;
+        failure = null;
+        return true;
     }
 }

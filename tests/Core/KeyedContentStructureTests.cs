@@ -344,5 +344,20 @@ public sealed class KeyedContentStructureTests
             failure = null;
             return true;
         }
+
+        public bool TryValidateNormalized(ContentEntryId id, out ContentFailure? failure)
+        {
+            if (string.IsNullOrWhiteSpace(id.Value))
+            {
+                failure = ContentFailure.Create(
+                    ContentFailureKind.Entry,
+                    ContentFailureCodes.EntryIdInvalid,
+                    "Custom ID cannot be empty.");
+                return false;
+            }
+
+            failure = null;
+            return true;
+        }
     }
 }

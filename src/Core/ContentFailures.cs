@@ -62,6 +62,21 @@ internal static class ContentFailures
         return Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotUnsupportedEntry, message, source: source);
     }
 
+    public static ContentFailure SnapshotUnsupportedStructure(string? message = null, string? source = null)
+    {
+        return Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotUnsupportedStructure, message, source: source);
+    }
+
+    public static ContentFailure SnapshotFactoryMissing(string? message = null, string? source = null)
+    {
+        return Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotFactoryMissing, message, source: source);
+    }
+
+    public static ContentFailure SnapshotFactoryDuplicate(string? message = null, string? source = null)
+    {
+        return Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotFactoryDuplicate, message, source: source);
+    }
+
     public static ContentFailure SnapshotMalformed(string? message = null, string? source = null)
     {
         return Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotMalformed, message, source: source);

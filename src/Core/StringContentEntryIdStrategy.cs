@@ -19,4 +19,17 @@ public sealed class StringContentEntryIdStrategy : IContentEntryIdStrategy<strin
         failure = null;
         return true;
     }
+
+    /// <inheritdoc />
+    public bool TryValidateNormalized(ContentEntryId id, out ContentFailure? failure)
+    {
+        if (string.IsNullOrWhiteSpace(id.Value))
+        {
+            failure = ContentFailures.EntryIdInvalid("Entry ID cannot be empty.");
+            return false;
+        }
+
+        failure = null;
+        return true;
+    }
 }

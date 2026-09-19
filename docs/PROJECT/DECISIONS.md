@@ -261,7 +261,7 @@ Keyed structures need caller-provided IDs, but different hosts may prefer string
 
 #### Decision
 
-ContentSystem uses `IContentEntryIdStrategy<TId>` to validate and normalize typed caller-provided IDs. The first built-in strategies are `StringContentEntryIdStrategy` and `IntegerContentEntryIdStrategy`.
+ContentSystem uses `IContentEntryIdStrategy<TId>` to validate and normalize typed caller-provided IDs and to validate normalized stored IDs restored from snapshots. The first built-in strategies are `StringContentEntryIdStrategy` and `IntegerContentEntryIdStrategy`.
 
 `KeyedContentStructure<TId>` is the first strategy-backed structure. It requires callers to provide IDs and rejects invalid or duplicate IDs through structured failures.
 
@@ -528,7 +528,7 @@ Entry snapshot capture is opt-in through `IContentEntrySnapshotSerializable`. Re
 
 Entry snapshot payloads use Inventory-style serializer-friendly DTOs: `ContentSnapshotEncodedValue`, `ContentSnapshotValue`, `ContentSnapshotNamedValue`, and built-in scalar codecs. `PlainContentEntry` supports snapshot round trips out of the box with stable kind `workes.content.entry.plain` and data version `1`.
 
-There is no process-wide factory registry in this stage.
+This entry-only stage does not add structure-level restore discovery. D-027 later adds package-wide entry factory registration for whole-structure restore.
 
 #### Reasoning
 
@@ -550,7 +550,7 @@ After entry snapshots, ContentSystem needs a portable shape for retained records
 
 `ContentStructureSnapshot` stores a stable structure kind, data version, retained `ContentRecordSnapshot` values, and a `ContentSnapshotValue` envelope for structure-owned state.
 
-Stage 14 only defines DTOs. It does not add validation helpers, capture/restore contracts, manager APIs, or built-in structure snapshot workflows.
+Stage 14 defined DTOs only. Validation helpers, capture/restore contracts, manager APIs, and built-in structure snapshot workflows were added in later stages.
 
 #### Reasoning
 
@@ -558,4 +558,26 @@ Plain string IDs are serializer-friendly and avoid making DTO consumers understa
 
 #### Consequences
 
-Stage 15 can implement built-in structure capture and restore against stable DTO shapes. Custom structures still need explicit opt-in contracts before they can participate in snapshot workflows.
+The DTO shapes gave later structure snapshot workflows a stable wire shape. Custom structures still need explicit opt-in contracts before they can participate in snapshot workflows.
+
+### D-027: Structure Snapshot Restore Uses Explicit Factories And Registered Entry Factories
+
+#### Context
+
+Whole-structure snapshots need to restore retained records, entry payloads, and structure-owned state without requiring ContentSystem to own disk I/O, serializer configuration, or global type registration.
+
+#### Decision
+
+Structure snapshot capture is opt-in through `IContentStructureSnapshotSerializable`. Structure restore uses an explicit `IContentStructureSnapshotFactory`.
+
+Entry payload restore during structure restore uses `ContentEntrySnapshotFactories`, a package-owned static registry. The registry includes package built-ins such as `PlainContentEntry.Factory`; custom entry factories must be registered by the application before restoring snapshots that contain those entry kinds.
+
+Managers own the normal restore workflow. `ContentManagerBase` restores a new structure first, verifies that the concrete manager can accept it, swaps the active structure atomically, and emits one `ContentChangeKind.SnapshotRestored` event with `RequiresFullRefresh = true` after commit.
+
+#### Reasoning
+
+Explicit factories keep restore deliberate. A package-owned registry makes custom entry restore low-friction after one-time application setup and avoids repeated load-site plumbing. Manager-owned restore preserves the runtime mutation pattern and keeps compatibility checks, event resubscription, and full-refresh signaling in one place.
+
+#### Consequences
+
+Unsupported custom structures fail with `SnapshotUnsupportedStructure`. Missing entry factories fail with `SnapshotFactoryMissing`; conflicting factory registration fails with `SnapshotFactoryDuplicate`. Failed restore leaves the active manager state unchanged and emits no event. Built-in sequence and keyed structures can round-trip exact retained state while applications remain responsible for choosing how snapshots are serialized or stored.

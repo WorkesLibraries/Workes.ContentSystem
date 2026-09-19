@@ -2,7 +2,7 @@
 
 Content snapshots are the serialization foundation for Workes.ContentSystem.
 
-Entry snapshot round trips are implemented. Record and structure snapshot DTOs are implemented. Whole-structure capture and restore workflows are planned for later stages.
+Entry snapshot round trips are implemented. Record and structure snapshot DTOs are implemented. Built-in structure snapshot capture and restore are implemented for the sequence and keyed structures.
 
 ## Purpose
 
@@ -42,7 +42,13 @@ IContentEntry restored = ContentEntrySnapshots.Restore(
 
 `PlainContentEntry` supports entry snapshot round trips out of the box. It uses stable snapshot kind `workes.content.entry.plain` and data version `1`.
 
-Custom entries that do not implement `IContentEntrySnapshotSerializable` fail capture with `ContentFailureCodes.SnapshotUnsupportedEntry`. Custom entries that do support snapshots should provide an explicit factory for restore.
+Custom entries that do not implement `IContentEntrySnapshotSerializable` fail capture with `ContentFailureCodes.SnapshotUnsupportedEntry`. Custom entries that do support snapshots should provide one static factory and register it once before restore:
+
+```csharp
+ContentEntrySnapshotFactories.Register(MyEntry.Factory);
+```
+
+Capture does not require registration because the entry instance owns capture. Restore does require registration because a loaded snapshot only contains the entry snapshot kind, not a live entry instance.
 
 ## Record Snapshots
 
@@ -55,7 +61,7 @@ A record snapshot represents a stored record.
 
 Record snapshots are useful when the caller wants to preserve the stored identity of retained records, not just the entry payload.
 
-Stage 14 only defines the DTO. Record snapshot capture and restore workflows are planned for later stages.
+Record snapshots are captured and restored as part of built-in structure snapshots. Core does not expose record-only restore as a normal manager workflow because record identity belongs to the active structure.
 
 ## Structure Snapshots
 
@@ -75,17 +81,60 @@ For built-in structures, a structure snapshot should preserve retained records a
 - capacity, bounds, placement, ordering, and overflow settings;
 - keyed or grouped state where applicable.
 
-Custom structures should opt into structure snapshots. Unsupported structures should fail capture or restore with structured failures.
+Custom structures opt into structure snapshots with `IContentStructureSnapshotSerializable` and restore with an explicit `IContentStructureSnapshotFactory`. Unsupported structures fail capture with `ContentFailureCodes.SnapshotUnsupportedStructure`.
 
-Stage 14 only defines the DTO. Structure snapshot capture, validation, and restore workflows are planned for later stages.
+Built-in structure snapshot kinds are stable package-prefixed strings:
+
+- `ContentSequenceStructure.SnapshotKind`, `workes.content.structure.sequence`;
+- `KeyedContentStructure<TId>.SnapshotKind`, `workes.content.structure.keyed`.
+
+Both currently use data version `1`.
+
+```csharp
+var content = ContentManager.For(
+    new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
+
+content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
+
+ContentStructureSnapshot snapshot = content.CaptureSnapshot();
+
+var restored = ContentManager.For(
+    new ContentSequenceStructure(ContentOverflowPolicy.None));
+
+restored.RestoreSnapshot(snapshot, ContentSequenceStructure.Factory);
+```
+
+Keyed structure restore uses a typed factory so the restored structure keeps the right caller-facing ID workflow:
+
+```csharp
+var content = new KeyedContentManager<string>();
+content.Add("server-started", new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
+
+ContentStructureSnapshot snapshot = content.CaptureSnapshot();
+
+var restored = new KeyedContentManager<string>();
+restored.RestoreSnapshot(
+    snapshot,
+    KeyedContentStructure<string>.CreateSnapshotFactory());
+```
+
+Restore uses the package-wide entry factory registry. `PlainContentEntry.Factory` is registered by the package. Custom entries register their factories during application setup:
+
+```csharp
+ContentEntrySnapshotFactories.Register(MyEntry.Factory);
+
+content.RestoreSnapshot(snapshot, MyStructure.Factory);
+```
 
 ## Restore Expectations
 
 Entry restore recreates an entry payload.
 
-Record restore should preserve stored record identity only when the target workflow supports it.
+Record restore preserves stored record identity as part of a structure restore.
 
-Whole-structure restore should be atomic. A failed restore should leave the active structure unchanged and emit no change event. A successful restore should emit coherent change information after the restored state is committed.
+Whole-structure restore through managers is atomic. A failed restore leaves the active structure unchanged and emits no change event. A successful restore replaces the active structure, resubscribes manager event forwarding, and emits `ContentChangeKind.SnapshotRestored` with `RequiresFullRefresh = true`.
+
+For keyed structures, restore validates stored snapshot IDs through the configured `IContentEntryIdStrategy<TId>`. Custom strategies must ensure restored normalized IDs describe the same ID language as caller-provided IDs.
 
 ## Relationship To Export And Attachments
 

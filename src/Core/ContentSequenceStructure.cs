@@ -16,12 +16,28 @@ public sealed class ContentSequenceStructure :
     IContentClearableStructure,
     IContentNaturalIdRemovalStructure<long>,
     IContentRecordRemovalStructure,
+    IContentStructureSnapshotSerializable,
     IContentChangeSource
 {
+    /// <summary>
+    /// Stable structure snapshot kind for <see cref="ContentSequenceStructure"/>.
+    /// </summary>
+    public const string SnapshotKind = ContentFailureCodes.PackagePrefix + "structure.sequence";
+
+    /// <summary>
+    /// Current sequence structure snapshot data version.
+    /// </summary>
+    public const int SnapshotDataVersion = 1;
+
     /// <summary>
     /// Stable parameter ID for the sequence overflow policy.
     /// </summary>
     public const string OverflowPolicyParameterId = "overflowPolicy";
+
+    /// <summary>
+    /// Gets the snapshot factory for <see cref="ContentSequenceStructure"/>.
+    /// </summary>
+    public static IContentStructureSnapshotFactory Factory { get; } = new ContentSequenceStructureSnapshotFactory();
 
     private static readonly IReadOnlyCollection<ContentParameterDefinition> s_parameters =
         new[]
@@ -316,6 +332,53 @@ public sealed class ContentSequenceStructure :
         return true;
     }
 
+    /// <inheritdoc />
+    public bool TryCaptureSnapshot(out ContentStructureSnapshot? snapshot, out ContentFailure? failure)
+    {
+        var records = new List<ContentRecordSnapshot>(_records.Count);
+        foreach (ContentEntryRecord record in _records)
+        {
+            if (!ContentEntrySnapshots.TryCapture(record.Entry, out ContentEntrySnapshot? entrySnapshot, out failure))
+            {
+                snapshot = null;
+                return false;
+            }
+
+            records.Add(new ContentRecordSnapshot
+            {
+                EntryId = record.Id.Value,
+                Entry = entrySnapshot!
+            });
+        }
+
+        snapshot = new ContentStructureSnapshot
+        {
+            Kind = SnapshotKind,
+            DataVersion = SnapshotDataVersion,
+            Records = records,
+            Data = ContentSnapshotValue.Object(new[]
+            {
+                ContentSnapshotProperties.Named("nextId", ContentSnapshotCodecs.Encode(_nextId)),
+                ContentSnapshotProperties.Named("readOrder", ContentSnapshotCodecs.Encode(ReadOrder.ToString())),
+                ContentSnapshotProperties.Named("overflowKind", ContentSnapshotCodecs.Encode(OverflowPolicy.Kind.ToString())),
+                ContentSnapshotProperties.Named("overflowCapacity", ContentSnapshotCodecs.Encode(OverflowPolicy.Capacity ?? 0))
+            })
+        };
+        failure = null;
+        return true;
+    }
+
+    /// <inheritdoc />
+    public ContentStructureSnapshot CaptureSnapshot()
+    {
+        if (TryCaptureSnapshot(out ContentStructureSnapshot? snapshot, out ContentFailure? failure) && snapshot is not null)
+        {
+            return snapshot;
+        }
+
+        throw new ContentOperationException(failure ?? ContentFailures.Snapshot());
+    }
+
     private static void EnsureValidId(ContentEntryId id)
     {
         if (string.IsNullOrWhiteSpace(id.Value))
@@ -363,5 +426,167 @@ public sealed class ContentSequenceStructure :
     private void OnChanged(ContentChangedEventArgs args)
     {
         Changed?.Invoke(this, args);
+    }
+
+    private sealed class ContentSequenceStructureSnapshotFactory : IContentStructureSnapshotFactory
+    {
+        public string Kind => SnapshotKind;
+
+        public bool TryRestore(
+            ContentStructureSnapshot snapshot,
+            out IContentStructure? structure,
+            out ContentFailure? failure)
+        {
+            if (snapshot is null)
+            {
+                throw new ArgumentNullException(nameof(snapshot));
+            }
+
+            structure = null;
+            failure = null;
+
+            if (snapshot.Kind != SnapshotKind)
+            {
+                failure = ContentFailures.SnapshotMalformed(
+                    $"Sequence structure snapshot kind must be '{SnapshotKind}'.");
+                return false;
+            }
+
+            if (snapshot.DataVersion != SnapshotDataVersion)
+            {
+                failure = ContentFailures.SnapshotUnsupportedVersion(
+                    $"Sequence structure snapshot version {snapshot.DataVersion} is not supported.");
+                return false;
+            }
+
+            if (!ContentSnapshotRecordRestorer.TryRestoreRecords(snapshot.Records, out ContentEntryRecord[] records, out failure))
+            {
+                return false;
+            }
+
+            if (!ContentSnapshotRecordRestorer.TryGetMaximumPositiveNumericId(records, out long maximumId, out failure))
+            {
+                return false;
+            }
+
+            if (!TryRestoreData(snapshot, out long nextId, out ContentSequenceReadOrder readOrder, out ContentOverflowPolicy overflowPolicy, out failure))
+            {
+                return false;
+            }
+
+            if (nextId <= maximumId)
+            {
+                failure = ContentFailures.SnapshotMalformed("Sequence structure snapshot next ID must be greater than retained record IDs.");
+                return false;
+            }
+
+            if (overflowPolicy.Kind == ContentOverflowPolicyKind.DropOldest && records.Length > overflowPolicy.Capacity!.Value)
+            {
+                failure = ContentFailures.SnapshotMalformed("Sequence structure snapshot retains more records than its overflow policy allows.");
+                return false;
+            }
+
+            structure = new ContentSequenceStructure(overflowPolicy, readOrder, records, nextId);
+            return true;
+        }
+
+        public IContentStructure Restore(ContentStructureSnapshot snapshot)
+        {
+            if (TryRestore(snapshot, out IContentStructure? structure, out ContentFailure? failure) && structure is not null)
+            {
+                return structure;
+            }
+
+            throw new ContentOperationException(failure ?? ContentFailures.Snapshot());
+        }
+
+        private static bool TryRestoreData(
+            ContentStructureSnapshot snapshot,
+            out long nextId,
+            out ContentSequenceReadOrder readOrder,
+            out ContentOverflowPolicy overflowPolicy,
+            out ContentFailure? failure)
+        {
+            nextId = 0;
+            readOrder = ContentSequenceReadOrder.OldestFirst;
+            overflowPolicy = ContentOverflowPolicy.None;
+            failure = null;
+
+            if (snapshot.Data is null || snapshot.Data.Kind != ContentSnapshotValueKind.Object)
+            {
+                failure = ContentFailures.SnapshotMalformed("Sequence structure snapshot data must be an object.");
+                return false;
+            }
+
+            if (!ContentSnapshotProperties.TryGetRequired(snapshot.Data, "nextId", out ContentSnapshotEncodedValue? nextIdValue, out failure)
+                || !ContentSnapshotCodecs.TryDecode(nextIdValue!, out nextId, out failure))
+            {
+                return false;
+            }
+
+            if (nextId <= 0)
+            {
+                failure = ContentFailures.SnapshotMalformed("Sequence structure snapshot next ID must be greater than zero.");
+                return false;
+            }
+
+            if (!ContentSnapshotProperties.TryGetRequired(snapshot.Data, "readOrder", out ContentSnapshotEncodedValue? readOrderValue, out failure)
+                || !ContentSnapshotCodecs.TryDecode(readOrderValue!, out string readOrderText, out failure))
+            {
+                return false;
+            }
+
+            if (!Enum.TryParse(readOrderText, out readOrder) || !Enum.IsDefined(typeof(ContentSequenceReadOrder), readOrder))
+            {
+                failure = ContentFailures.SnapshotMalformed($"Sequence structure snapshot read order '{readOrderText}' is not supported.");
+                return false;
+            }
+
+            if (!ContentSnapshotProperties.TryGetRequired(snapshot.Data, "overflowKind", out ContentSnapshotEncodedValue? overflowKindValue, out failure)
+                || !ContentSnapshotCodecs.TryDecode(overflowKindValue!, out string overflowKindText, out failure))
+            {
+                return false;
+            }
+
+            if (!Enum.TryParse(overflowKindText, out ContentOverflowPolicyKind overflowKind)
+                || !Enum.IsDefined(typeof(ContentOverflowPolicyKind), overflowKind))
+            {
+                failure = ContentFailures.SnapshotMalformed($"Sequence structure snapshot overflow kind '{overflowKindText}' is not supported.");
+                return false;
+            }
+
+            if (!ContentSnapshotProperties.TryGetRequired(snapshot.Data, "overflowCapacity", out ContentSnapshotEncodedValue? overflowCapacityValue, out failure)
+                || !ContentSnapshotCodecs.TryDecode(overflowCapacityValue!, out int overflowCapacity, out failure))
+            {
+                return false;
+            }
+
+            if (overflowKind == ContentOverflowPolicyKind.None)
+            {
+                if (overflowCapacity != 0)
+                {
+                    failure = ContentFailures.SnapshotMalformed("Unbounded sequence snapshots must use overflow capacity 0.");
+                    return false;
+                }
+
+                overflowPolicy = ContentOverflowPolicy.None;
+                return true;
+            }
+
+            if (overflowKind == ContentOverflowPolicyKind.DropOldest)
+            {
+                if (overflowCapacity <= 0)
+                {
+                    failure = ContentFailures.SnapshotMalformed("DropOldest sequence snapshots must use a positive overflow capacity.");
+                    return false;
+                }
+
+                overflowPolicy = ContentOverflowPolicy.DropOldest(overflowCapacity);
+                return true;
+            }
+
+            failure = ContentFailures.SnapshotMalformed($"Sequence structure snapshot overflow kind '{overflowKind}' is not supported.");
+            return false;
+        }
     }
 }

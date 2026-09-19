@@ -7,8 +7,8 @@
     <LangVersion>10.0</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Workes.ContentSystem</PackageId>
-    <Version>0.4.2</Version>
-    <PackageReleaseNotes>Adds DTOs for record and structure snapshots.</PackageReleaseNotes>
+    <Version>0.4.3</Version>
+    <PackageReleaseNotes>Adds snapshot capture and restore for built-in structures.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Workes</Authors>
     <Company>Workes</Company>

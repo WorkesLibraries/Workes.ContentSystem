@@ -26,55 +26,57 @@ Define entry-level snapshot support for portable entry payloads. Completed imple
 
 ### Stage 14: Add record and structure snapshot DTOs
 
-Define serializer-friendly DTOs for stored records and whole structures without adding disk I/O or serializer ownership to core. Completed implementation adds `ContentRecordSnapshot` and `ContentStructureSnapshot`; capture and restore remain Stage 15 work.
+Define serializer-friendly DTOs for stored records and whole structures without adding disk I/O or serializer ownership to core. Completed implementation adds `ContentRecordSnapshot` and `ContentStructureSnapshot`; Stage 15 builds capture and restore on top of these DTOs.
 
 ### Stage 15: Add snapshot capture and restore for built-in structures
 
-Implement exact snapshot capture and restore for built-in structures that opt into structure snapshots.
+Completed implementation adds exact snapshot capture and restore for built-in sequence and keyed structures, with explicit structure factories, package-wide entry factory registration, keyed restore ID validation, and manager-owned atomic restore.
 
-### Stage 16: Add selected remaining built-in structures
+### Stage 16: Add structure extension authoring support
+
+Make custom structures practical to implement in the same capacity as built-ins, scoped to the extension systems that already exist. Add a dedicated extension-author guide, structure snapshot/factory helpers where useful, validation helpers for custom structure snapshot data, example custom structures with full snapshot support, and pitfalls/invariants documentation around ID ownership, ordering, atomic restore, failures, events, mutation opt-ins, and versioning.
+
+Later stages should expand the extension guide as new extension systems land.
+
+### Stage 17: Add selected remaining built-in structures
 
 Add selected built-in structures after configuration, opt-in contracts, mutation, and snapshot contracts are stable.
 
-### Stage 17: Add optional grouped content structure
-
-Add grouped content if the manager-owned workflow remains clean and domain-neutral.
-
-### Stage 18: Evaluate threaded/forum-like content structure
-
-Decide whether threaded content belongs in core, needs custom managers, or should be deferred to examples or companion packages.
-
-### Stage 19: Add additional built-in ID strategies
+### Stage 18: Add additional built-in ID strategies
 
 Add selected low-assumption ID strategies after core structure and snapshot contracts are stable.
 
-### Stage 20: Add bulk operations and mutation helper APIs
-
-Add high-value helper operations such as range workflows and predicate-based removal while preserving atomicity and event semantics.
-
-### Stage 21: Add validation and preflight APIs
+### Stage 19: Add validation and preflight APIs
 
 Add preflight APIs for mutation and snapshot workflows. Preflight should not mutate state or emit events, and final commit should still revalidate.
 
-### Stage 22: Add manager read-query helpers
+### Stage 20: Add manager read-query helpers
 
 Add manager-side helpers for materialized filtered and sorted record views without mutating the active structure.
 
-### Stage 23: Add optional structure sorting support
+### Stage 21: Add bulk operations and mutation helper APIs
+
+Add high-value helper operations such as range workflows and predicate-based removal while preserving atomicity and event semantics.
+
+### Stage 22: Add optional structure sorting support
 
 Add opt-in structure-owned sorting only for structures where reordering retained records is meaningful.
 
-### Stage 24: Add export helpers and attachment abstractions
+### Stage 23: Add export helpers and attachment abstractions
 
 Add optional export helpers and attachment abstractions after portable snapshots exist. Export and attachments should not become the serialization foundation.
 
-### Stage 25: Add example tests and usage docs
+### Stage 24: Evaluate threaded/forum-like content structure
+
+Decide whether threaded content belongs in core, needs custom managers, or should be deferred to examples or companion packages.
+
+### Stage 25: Add optional grouped content structure
+
+Add grouped content if the manager-owned workflow remains clean and domain-neutral.
+
+### Stage 26: Add example tests and usage docs
 
 Add examples and focused usage docs for the implemented 1.0 feature set.
-
-### Stage 26: Add extension author documentation
-
-Document custom entries, custom structures, snapshot opt-ins, focused structure contracts, mutation opt-ins, sorting opt-ins, failures, events, and compatibility expectations.
 
 ### Stage 27: Prepare 1.0.0 release
 

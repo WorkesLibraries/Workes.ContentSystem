@@ -21,4 +21,23 @@ public sealed class IntegerContentEntryIdStrategy : IContentEntryIdStrategy<long
         failure = null;
         return true;
     }
+
+    /// <inheritdoc />
+    public bool TryValidateNormalized(ContentEntryId id, out ContentFailure? failure)
+    {
+        if (!long.TryParse(id.Value, NumberStyles.None, CultureInfo.InvariantCulture, out long parsed) || parsed <= 0)
+        {
+            failure = ContentFailures.EntryIdInvalid($"Entry ID '{id}' must be a positive integer.", id.ToString());
+            return false;
+        }
+
+        if (parsed.ToString(CultureInfo.InvariantCulture) != id.Value)
+        {
+            failure = ContentFailures.EntryIdInvalid($"Entry ID '{id}' must be an invariant decimal integer.", id.ToString());
+            return false;
+        }
+
+        failure = null;
+        return true;
+    }
 }

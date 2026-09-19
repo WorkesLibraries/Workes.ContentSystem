@@ -16,7 +16,7 @@ Use `ContentManager.For(...)` when a structure-assigned-ID structure exposes a n
 
 Use `KeyedContentManager<TId>` for structures where caller-provided IDs are first-class. Do not make one manager expose write methods that only work for some structures.
 
-`ContentManagerBase` is public shared read/lookup plumbing for code that can work with already-created managers from either workflow. It is abstract and should stay small rather than becoming a catch-all capability surface.
+`ContentManagerBase` is public shared read/lookup plumbing for code that can work with already-created managers from either workflow. It also owns shared manager workflows such as runtime mutation and structure snapshot restore when the active structure opts in. It is abstract and should stay small rather than becoming a catch-all capability surface.
 
 Advanced behavior should be opt-in through options, focused structure contracts, snapshots, or attachments.
 
@@ -43,7 +43,7 @@ Do not force one append method into the base structure abstraction. Structure-as
 
 Concrete structures should expose natural lookup and removal overloads for their ID model when removal is supported. For example, sequence generated-ID structures can support `Get(1)` and `Remove(1)` while generic code can continue using `ContentEntryId`. Keyed structures that support typed removal should opt into `IKeyedContentRecordRemovalStructure<TId>`.
 
-ID strategies should validate and normalize typed caller-provided IDs. Built-in default strategy resolution is acceptable for explicitly supported ID types such as `string`, `long`, `Guid`, and `ContentEntryId`; custom ID types require custom strategies. Do not add generation behavior to that abstraction until a concrete structure needs configurable generated IDs.
+ID strategies should validate and normalize typed caller-provided IDs and validate normalized stored IDs restored from snapshots. Built-in default strategy resolution is acceptable for explicitly supported ID types such as `string`, `long`, `Guid`, and `ContentEntryId`; custom ID types require custom strategies. Do not add generation behavior to that abstraction until a concrete structure needs configurable generated IDs.
 
 ## Entries
 
@@ -93,7 +93,7 @@ The simple use case should stay small: create a manager, add entries, read entri
 
 Change hooks should use ordinary synchronous .NET events. Raise them only after a mutation has committed, and do not emit events for rejected or no-op operations. Include enough event metadata for UI code to distinguish adds, removals, clears, and configuration changes. Do not add thread marshaling, buffering, or async dispatch to the core hook contract.
 
-Snapshots should be serializer-friendly DTOs rather than direct file I/O. Entry snapshot capture should be opt-in on the entry instance, while restore should use an explicit factory object. Record and structure snapshots should keep stored IDs and structure data in serializer-friendly forms. Unsupported custom entries or structures should fail snapshot capture or restore with structured failures unless they opt in.
+Snapshots should be serializer-friendly DTOs rather than direct file I/O. Entry snapshot capture should be opt-in on the entry instance, while restore should use an explicit factory object registered in `ContentEntrySnapshotFactories`. Structure snapshot capture should be opt-in on the structure, while restore should use an explicit structure factory. Record and structure snapshots should keep stored IDs and structure data in serializer-friendly forms. Unsupported custom entries or structures should fail snapshot capture or restore with structured failures unless they opt in.
 
 ## Documentation Expectations
 

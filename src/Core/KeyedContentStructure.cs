@@ -10,8 +10,19 @@ namespace Workes.ContentSystem.Core;
 public sealed class KeyedContentStructure<TId> :
     IKeyedContentRecordRemovalStructure<TId>,
     IContentClearableStructure,
+    IContentStructureSnapshotSerializable,
     IContentChangeSource
 {
+    /// <summary>
+    /// Stable structure snapshot kind for <see cref="KeyedContentStructure{TId}"/>.
+    /// </summary>
+    public const string SnapshotKind = ContentFailureCodes.PackagePrefix + "structure.keyed";
+
+    /// <summary>
+    /// Current keyed structure snapshot data version.
+    /// </summary>
+    public const int SnapshotDataVersion = 1;
+
     private readonly Dictionary<ContentEntryId, ContentEntryRecord> _recordsById = new Dictionary<ContentEntryId, ContentEntryRecord>();
     private readonly List<ContentEntryRecord> _records = new List<ContentEntryRecord>();
 
@@ -30,6 +41,37 @@ public sealed class KeyedContentStructure<TId> :
     public KeyedContentStructure(IContentEntryIdStrategy<TId> idStrategy)
     {
         IdStrategy = idStrategy ?? throw new ArgumentNullException(nameof(idStrategy));
+    }
+
+    private KeyedContentStructure(
+        IContentEntryIdStrategy<TId> idStrategy,
+        IEnumerable<ContentEntryRecord> records)
+        : this(idStrategy)
+    {
+        foreach (ContentEntryRecord record in records)
+        {
+            _recordsById.Add(record.Id, record);
+            _records.Add(record);
+        }
+    }
+
+    /// <summary>
+    /// Creates a snapshot factory for <see cref="KeyedContentStructure{TId}"/> using the default ID strategy for <typeparamref name="TId"/>.
+    /// </summary>
+    /// <returns>The created snapshot factory.</returns>
+    public static IContentStructureSnapshotFactory CreateSnapshotFactory()
+    {
+        return CreateSnapshotFactory(ContentEntryIdStrategies.GetDefault<TId>());
+    }
+
+    /// <summary>
+    /// Creates a snapshot factory for <see cref="KeyedContentStructure{TId}"/>.
+    /// </summary>
+    /// <param name="idStrategy">The ID strategy to use for future operations on restored structures.</param>
+    /// <returns>The created snapshot factory.</returns>
+    public static IContentStructureSnapshotFactory CreateSnapshotFactory(IContentEntryIdStrategy<TId> idStrategy)
+    {
+        return new KeyedContentStructureSnapshotFactory(idStrategy);
     }
 
     /// <summary>
@@ -266,6 +308,47 @@ public sealed class KeyedContentStructure<TId> :
         throw new ContentOperationException(failure!);
     }
 
+    /// <inheritdoc />
+    public bool TryCaptureSnapshot(out ContentStructureSnapshot? snapshot, out ContentFailure? failure)
+    {
+        var records = new List<ContentRecordSnapshot>(_records.Count);
+        foreach (ContentEntryRecord record in _records)
+        {
+            if (!ContentEntrySnapshots.TryCapture(record.Entry, out ContentEntrySnapshot? entrySnapshot, out failure))
+            {
+                snapshot = null;
+                return false;
+            }
+
+            records.Add(new ContentRecordSnapshot
+            {
+                EntryId = record.Id.Value,
+                Entry = entrySnapshot!
+            });
+        }
+
+        snapshot = new ContentStructureSnapshot
+        {
+            Kind = SnapshotKind,
+            DataVersion = SnapshotDataVersion,
+            Records = records,
+            Data = ContentSnapshotValue.Object()
+        };
+        failure = null;
+        return true;
+    }
+
+    /// <inheritdoc />
+    public ContentStructureSnapshot CaptureSnapshot()
+    {
+        if (TryCaptureSnapshot(out ContentStructureSnapshot? snapshot, out ContentFailure? failure) && snapshot is not null)
+        {
+            return snapshot;
+        }
+
+        throw new ContentOperationException(failure ?? ContentFailures.Snapshot());
+    }
+
     private bool TryNormalize(TId id, out ContentEntryId normalizedId, out ContentFailure? failure)
     {
         return IdStrategy.TryNormalize(id, out normalizedId, out failure);
@@ -282,5 +365,100 @@ public sealed class KeyedContentStructure<TId> :
     private void OnChanged(ContentChangedEventArgs args)
     {
         Changed?.Invoke(this, args);
+    }
+
+    private sealed class KeyedContentStructureSnapshotFactory : IContentStructureSnapshotFactory
+    {
+        private readonly IContentEntryIdStrategy<TId> _idStrategy;
+
+        public KeyedContentStructureSnapshotFactory(IContentEntryIdStrategy<TId> idStrategy)
+        {
+            _idStrategy = idStrategy ?? throw new ArgumentNullException(nameof(idStrategy));
+        }
+
+        public string Kind => SnapshotKind;
+
+        public bool TryRestore(
+            ContentStructureSnapshot snapshot,
+            out IContentStructure? structure,
+            out ContentFailure? failure)
+        {
+            if (snapshot is null)
+            {
+                throw new ArgumentNullException(nameof(snapshot));
+            }
+
+            structure = null;
+            failure = null;
+
+            if (snapshot.Kind != SnapshotKind)
+            {
+                failure = ContentFailures.SnapshotMalformed(
+                    $"Keyed structure snapshot kind must be '{SnapshotKind}'.");
+                return false;
+            }
+
+            if (snapshot.DataVersion != SnapshotDataVersion)
+            {
+                failure = ContentFailures.SnapshotUnsupportedVersion(
+                    $"Keyed structure snapshot version {snapshot.DataVersion} is not supported.");
+                return false;
+            }
+
+            if (snapshot.Data is null || snapshot.Data.Kind != ContentSnapshotValueKind.Object)
+            {
+                failure = ContentFailures.SnapshotMalformed("Keyed structure snapshot data must be an object.");
+                return false;
+            }
+
+            if (!ContentSnapshotRecordRestorer.TryRestoreRecords(snapshot.Records, out ContentEntryRecord[] records, out failure))
+            {
+                return false;
+            }
+
+            foreach (ContentEntryRecord record in records)
+            {
+                if (!_idStrategy.TryValidateNormalized(record.Id, out failure))
+                {
+                    return false;
+                }
+            }
+
+            if (!TryValidateStoredIds(records, out failure))
+            {
+                return false;
+            }
+
+            structure = new KeyedContentStructure<TId>(_idStrategy, records);
+            return true;
+        }
+
+        public IContentStructure Restore(ContentStructureSnapshot snapshot)
+        {
+            if (TryRestore(snapshot, out IContentStructure? structure, out ContentFailure? failure) && structure is not null)
+            {
+                return structure;
+            }
+
+            throw new ContentOperationException(failure ?? ContentFailures.Snapshot());
+        }
+
+        private static bool TryValidateStoredIds(
+            IEnumerable<ContentEntryRecord> records,
+            out ContentFailure? failure)
+        {
+            var seen = new HashSet<ContentEntryId>();
+            foreach (ContentEntryRecord record in records)
+            {
+                if (!seen.Add(record.Id))
+                {
+                    failure = ContentFailures.SnapshotMalformed($"Keyed structure snapshot contains duplicate entry ID '{record.Id}'.");
+                    return false;
+                }
+            }
+
+            failure = null;
+            return true;
+        }
     }
 }

@@ -61,6 +61,74 @@ public abstract class ContentManagerBase
     }
 
     /// <summary>
+    /// Attempts to capture the active structure snapshot when supported.
+    /// </summary>
+    /// <param name="snapshot">The captured snapshot.</param>
+    /// <param name="failure">The structured failure when capture is rejected or unsupported.</param>
+    /// <returns><see langword="true"/> when the snapshot was captured.</returns>
+    public bool TryCaptureSnapshot(out ContentStructureSnapshot? snapshot, out ContentFailure? failure)
+    {
+        return ContentStructureSnapshots.TryCapture(Structure, out snapshot, out failure);
+    }
+
+    /// <summary>
+    /// Captures the active structure snapshot when supported.
+    /// </summary>
+    /// <returns>The captured snapshot.</returns>
+    /// <exception cref="ContentOperationException">Thrown when capture is rejected or unsupported.</exception>
+    public ContentStructureSnapshot CaptureSnapshot()
+    {
+        return ContentStructureSnapshots.Capture(Structure);
+    }
+
+    /// <summary>
+    /// Attempts to restore and replace the active structure using registered entry snapshot factories.
+    /// </summary>
+    /// <param name="snapshot">The structure snapshot.</param>
+    /// <param name="factory">The structure snapshot factory.</param>
+    /// <param name="failure">The structured failure when restore is rejected.</param>
+    /// <returns><see langword="true"/> when restore commits.</returns>
+    public bool TryRestoreSnapshot(
+        ContentStructureSnapshot snapshot,
+        IContentStructureSnapshotFactory factory,
+        out ContentFailure? failure)
+    {
+        IReadOnlyList<ContentEntryRecord> previousRecords = Records;
+        if (!ContentStructureSnapshots.TryRestore(snapshot, factory, out IContentStructure? replacement, out failure))
+        {
+            return false;
+        }
+
+        if (!TryAcceptStructureReplacement(replacement!, out failure))
+        {
+            return false;
+        }
+
+        ReplaceStructure(replacement!);
+        Changed?.Invoke(this, new ContentChangedEventArgs(
+            addedRecords: replacement!.Records,
+            removedRecords: previousRecords,
+            kind: ContentChangeKind.SnapshotRestored,
+            requiresFullRefresh: true));
+        failure = null;
+        return true;
+    }
+
+    /// <summary>
+    /// Restores and replaces the active structure using registered entry snapshot factories.
+    /// </summary>
+    /// <param name="snapshot">The structure snapshot.</param>
+    /// <param name="factory">The structure snapshot factory.</param>
+    /// <exception cref="ContentOperationException">Thrown when restore is rejected.</exception>
+    public void RestoreSnapshot(ContentStructureSnapshot snapshot, IContentStructureSnapshotFactory factory)
+    {
+        if (!TryRestoreSnapshot(snapshot, factory, out ContentFailure? failure))
+        {
+            throw new ContentOperationException(failure!);
+        }
+    }
+
+    /// <summary>
     /// Attempts to clear retained records when the active structure supports clearing.
     /// </summary>
     /// <param name="removedRecords">The records removed by the clear operation.</param>

@@ -19,7 +19,7 @@ The package should be engine-neutral and centered on manager workflows that own 
 - `IContentEntrySnapshotFactory` restores entries from explicit entry snapshot factories.
 - `ContentEntryRecord` pairs a stored entry with the active structure's ID.
 - `ContentEntryId` is the shared stored-record identity representation.
-- `IContentEntryIdStrategy<TId>` validates and normalizes caller-provided IDs for keyed structures.
+- `IContentEntryIdStrategy<TId>` validates and normalizes caller-provided IDs for keyed structures and validates normalized IDs restored from snapshots.
 - `IContentStructure` is the read/lookup storage abstraction.
 - `IContentChangeSource` is the optional committed-change notification abstraction.
 - `IContentRetentionPolicyStructure` is the optional retention-policy inspection contract.
@@ -37,7 +37,7 @@ The package should be engine-neutral and centered on manager workflows that own 
 - The first structure is a configurable sequence structure.
 - `KeyedContentStructure<TId>` provides configurable typed-ID validation for caller-keyed records.
 - A shared failure model should represent expected content-system rejection.
-- Entry snapshots are the implemented first serialization layer; record and structure snapshot DTOs are implemented for later capture/restore workflows.
+- Entry snapshots are implemented. Record and structure snapshot DTOs are implemented. Built-in sequence and keyed structures support exact snapshot capture and restore through explicit structure factories.
 - Optional attachments should support export, bridges, and platform adapters without making those features mandatory.
 
 ## Intended Data Flow
@@ -87,7 +87,7 @@ Entries should be extensible content payloads. `PlainContentEntry` is the only p
 
 ContentSystem should not include a built-in user/role model. If a host needs users, authors, permissions, channels, moderation data, or ownership, it can represent those through custom entries, custom structures, or higher-level packages.
 
-Entry snapshot capture is opt-in through `IContentEntrySnapshotSerializable`. Restore is explicit through an `IContentEntrySnapshotFactory`, such as `PlainContentEntry.Factory`; there is no process-wide factory registry.
+Entry snapshot capture is opt-in through `IContentEntrySnapshotSerializable`. Restore is explicit through an `IContentEntrySnapshotFactory`, such as `PlainContentEntry.Factory`. Structure restore resolves entry factories through `ContentEntrySnapshotFactories`, a package-owned static registry seeded with built-ins and extended by applications during setup.
 
 ## Failure Model
 
@@ -100,7 +100,7 @@ The package should mirror the error style used in Workes.InventorySystem and Wor
 
 ## Attachments
 
-Portable snapshots are the core serialization foundation. Entry snapshots are implemented with serializer-friendly value DTOs; record and structure snapshot DTOs are implemented for retained IDs, retained entries, and structure-owned state. Applications choose how to serialize and store snapshot objects.
+Portable snapshots are the core serialization foundation. Entry snapshots are implemented with serializer-friendly value DTOs; record and structure snapshots preserve retained IDs, retained entries, and structure-owned state for built-in structures. Applications choose how to serialize and store snapshot objects.
 
 Attachments are planned optional capabilities around the core model.
 

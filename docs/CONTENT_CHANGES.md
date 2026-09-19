@@ -48,6 +48,8 @@ For clear, `Kind` is `ContentChangeKind.Cleared`, `Cleared` is true, `RemovedRec
 
 For runtime structure parameter changes, `Kind` is `ContentChangeKind.ConfigurationChanged`, `ConfigurationChanged` contains a `ContentConfigurationChanged` entry with `ContentConfigurationChangeKind.StructureParameter`, and `RequiresFullRefresh` is true. The configuration change reports the parameter ID, committed value, previous component, and current component. If the committed parameter change removes retained records, those records also appear in `RemovedRecords`.
 
+For manager-owned structure snapshot restore, `Kind` is `ContentChangeKind.SnapshotRestored`, `RequiresFullRefresh` is true, `RemovedRecords` contains the records from the previous active structure, and `AddedRecords` contains the restored records.
+
 ## Subscribing Through A Manager
 
 Managers forward structure events through `ContentManagerBase.Changed` when the active structure implements `IContentChangeSource`:
@@ -91,6 +93,7 @@ For example:
 - removing a missing record returns `EntryNotFound` and emits no event;
 - clearing an already-empty structure succeeds and emits no event;
 - setting a structure parameter to the already-committed value succeeds and emits no event;
+- a failed snapshot restore leaves the active structure unchanged and emits no event;
 - null entry misuse throws a standard .NET exception before any event is emitted.
 
 ## Event Semantics

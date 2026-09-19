@@ -69,6 +69,8 @@ It exposes:
 - `TryClear(...)` and `Clear()`;
 - `TryRemove(ContentEntryId, ...)` and `Remove(ContentEntryId)`;
 - `TrySetStructureParameter(...)` and `SetStructureParameter(...)`;
+- `TryCaptureSnapshot(...)` and `CaptureSnapshot()`;
+- `TryRestoreSnapshot(...)` and `RestoreSnapshot(...)`;
 - `Changed`.
 
 This is useful when code receives `ContentManager`, `ContentManager<TId>`, or `KeyedContentManager<TId>` and only needs to read records or look up records by the normalized `ContentEntryId`:
@@ -144,6 +146,28 @@ Forwarded events use the manager as `sender` and preserve the structure's `Conte
 Structures that do not implement `IContentChangeSource` remain valid. Managers over those structures simply have no structure events to forward.
 
 See [Content Changes](CONTENT_CHANGES.md) for event payload and timing details.
+
+## Snapshots
+
+Managers own the normal whole-structure restore workflow.
+
+`ContentManagerBase.CaptureSnapshot()` captures the active structure when it implements `IContentStructureSnapshotSerializable`. `RestoreSnapshot(...)` restores through an explicit structure factory, verifies that the restored structure is compatible with the concrete manager, replaces the active structure atomically, and emits one full-refresh snapshot-restored event after commit.
+
+```csharp
+ContentStructureSnapshot snapshot = content.CaptureSnapshot();
+
+content.RestoreSnapshot(snapshot, ContentSequenceStructure.Factory);
+```
+
+Register custom entry snapshot factories once before restoring structure snapshots that contain those entry kinds:
+
+```csharp
+ContentEntrySnapshotFactories.Register(MyEntry.Factory);
+
+content.RestoreSnapshot(snapshot, MyStructure.Factory);
+```
+
+The package registers built-ins such as `PlainContentEntry.Factory` automatically. Custom entry registration is application composition state; capture does not require registration, but restore does.
 
 ## Try And Expected-Success APIs
 

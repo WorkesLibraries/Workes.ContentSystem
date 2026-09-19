@@ -71,6 +71,21 @@ public static class ContentFailureCodes
     public const string SnapshotUnsupportedEntry = PackagePrefix + "snapshot.entry.unsupported";
 
     /// <summary>
+    /// Snapshot capture is not supported by the active structure or component.
+    /// </summary>
+    public const string SnapshotUnsupportedStructure = PackagePrefix + "snapshot.structure.unsupported";
+
+    /// <summary>
+    /// Snapshot restore could not find a required factory.
+    /// </summary>
+    public const string SnapshotFactoryMissing = PackagePrefix + "snapshot.factory.missing";
+
+    /// <summary>
+    /// Snapshot restore factory registration conflicts with an existing factory.
+    /// </summary>
+    public const string SnapshotFactoryDuplicate = PackagePrefix + "snapshot.factory.duplicate";
+
+    /// <summary>
     /// Snapshot data is missing, malformed, or inconsistent.
     /// </summary>
     public const string SnapshotMalformed = PackagePrefix + "snapshot.malformed";

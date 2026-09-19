@@ -14,22 +14,22 @@ It is intended to be useful anywhere an application needs an ordered or structur
 - Structure-assigned and caller-keyed manager workflows.
 - Structure-owned entry identity so different storage models can use the IDs that fit them.
 - Optional change hooks for observing committed mutations.
-- Entry snapshot round trips for portable entry serialization.
+- Entry, record, and built-in structure snapshots for portable serialization.
 - A shared failure and exception model matching the style used in other Workes packages.
-- Planned record and structure snapshots for fuller state transfer, plus optional attachment points for export, bridges, and platform-specific integration.
+- Planned optional attachment points for export, bridges, and platform-specific integration.
 
 ## Installation
 
 Install the package from [NuGet](https://www.nuget.org/packages/Workes.ContentSystem):
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.4.2
+dotnet add package Workes.ContentSystem --version 0.4.3
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.4.2" />
+<PackageReference Include="Workes.ContentSystem" Version="0.4.3" />
 ```
 
 The package targets .NET Standard 2.1.
@@ -79,7 +79,6 @@ Focused guides:
 - [Content Structures](docs/CONTENT_STRUCTURES.md)
 - [Content Managers](docs/CONTENT_MANAGERS.md)
 - [Content Changes](docs/CONTENT_CHANGES.md)
-- [Content Snapshots](docs/CONTENT_SNAPSHOTS.md)
 - [Content Snapshots](docs/CONTENT_SNAPSHOTS.md)
 - [Failures](docs/FAILURES.md)
 - [Export And Attachments](docs/EXPORT_AND_ATTACHMENTS.md)

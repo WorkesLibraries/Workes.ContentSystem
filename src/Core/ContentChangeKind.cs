@@ -28,5 +28,10 @@ public enum ContentChangeKind
     /// <summary>
     /// Runtime content configuration changed.
     /// </summary>
-    ConfigurationChanged
+    ConfigurationChanged,
+
+    /// <summary>
+    /// The active content source was restored from a snapshot.
+    /// </summary>
+    SnapshotRestored
 }

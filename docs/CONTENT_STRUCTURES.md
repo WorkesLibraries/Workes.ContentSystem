@@ -86,7 +86,7 @@ The shared `ContentEntryId` lookup remains available for code that works through
 
 `KeyedContentStructure<TId>` stores records using caller-provided IDs.
 
-It uses an `IContentEntryIdStrategy<TId>` to validate and normalize typed IDs before records are stored or fetched. ID strategies validate caller-provided IDs only; they do not generate IDs.
+It uses an `IContentEntryIdStrategy<TId>` to validate and normalize typed IDs before records are stored or fetched. ID strategies also validate normalized stored IDs during keyed snapshot restore. They do not generate IDs.
 
 Built-in strategies include:
 
@@ -115,7 +115,7 @@ keyed.Add(8, new PlainContentEntry(DateTimeOffset.UtcNow, "Eighth entry."));
 ContentEntryRecord record = keyed.Get(8);
 ```
 
-Custom ID types are supported by passing a custom `IContentEntryIdStrategy<TId>` to the constructor.
+Custom ID types are supported by passing a custom `IContentEntryIdStrategy<TId>` to the constructor. Custom strategies must implement both caller-facing normalization and restored normalized-ID validation.
 
 See [Content Identity](CONTENT_IDENTITY.md) for the identity model and strategy guidance.
 
@@ -165,13 +165,14 @@ Additional behavior should be exposed through focused opt-in contracts, mirrorin
 - `IContentRecordRemovalStructure`;
 - `IKeyedContentRecordRemovalStructure<TId>`;
 - `IParameterizedContentStructure`.
+- `IContentStructureSnapshotSerializable`.
 
 `ContentSequenceStructure` implements the retention policy, read-order, natural long-ID lookup/removal, clear, remove, and parameterized structure contracts. Its first parameter is `ContentSequenceStructure.OverflowPolicyParameterId`. `KeyedContentStructure<TId>` implements keyed add/lookup, clear, typed keyed removal, normalized removal, and change-source contracts.
 
-Future contracts can cover snapshot capture/restore, sorting, searching, or export only where a structure genuinely supports that behavior.
+Future contracts can cover sorting, searching, or export only where a structure genuinely supports that behavior.
 
 Runtime mutation should be manager-owned for normal callers, with structures opting into the underlying contracts that managers coordinate.
 
-`ContentStructureSnapshot` is the portable DTO shape for retained records plus structure-owned data. Built-in structures that support future snapshot workflows should capture their own state into that DTO, including retained records and structure-owned configuration.
+`ContentStructureSnapshot` is the portable DTO shape for retained records plus structure-owned data. Built-in sequence and keyed structures capture their own state into that DTO, including retained records and structure-owned configuration. Restore uses explicit `IContentStructureSnapshotFactory` instances so custom structures can own their state schema.
 
 This mirrors the strategy used in other Workes packages: keep the central abstraction small, then add focused optional contracts where they are genuinely needed. Avoid a broad capability metadata object unless a future stage finds a concrete use case that opt-in contracts cannot solve cleanly.

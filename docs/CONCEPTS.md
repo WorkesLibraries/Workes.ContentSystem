@@ -46,7 +46,7 @@ See [Content Changes](CONTENT_CHANGES.md) for event payloads and hook semantics.
 
 ## Snapshots And Attachments
 
-Portable snapshots are the serialization foundation. Entry snapshots are implemented for `PlainContentEntry` and custom opt-in entries. Record and structure snapshot DTOs now describe retained IDs, entry payload snapshots, and structure-owned state; capture and restore workflows are planned next.
+Portable snapshots are the serialization foundation. Entry snapshots are implemented for `PlainContentEntry` and custom opt-in entries. Record and structure snapshot DTOs describe retained IDs, entry payload snapshots, and structure-owned state. Built-in sequence and keyed structures can capture and restore whole-structure snapshots through explicit factories.
 
 Export, file appenders, log bridges, and platform integrations should be optional. The core package should make those capabilities possible without forcing every structure or every user to support them.
 

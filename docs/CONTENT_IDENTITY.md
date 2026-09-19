@@ -44,7 +44,7 @@ The stored record still exposes a `ContentEntryId` in both cases.
 
 ## ID Strategies
 
-`IContentEntryIdStrategy<TId>` validates and normalizes caller-provided IDs for keyed structures.
+`IContentEntryIdStrategy<TId>` validates and normalizes caller-provided IDs for keyed structures. It also validates normalized stored IDs restored from snapshots.
 
 Built-in strategies are:
 
@@ -67,7 +67,9 @@ var structure = new KeyedContentStructure<MyEntryId>(new MyEntryIdStrategy());
 var content = new KeyedContentManager<MyEntryId>(structure);
 ```
 
-ID strategies validate caller-provided IDs. They do not generate IDs.
+ID strategies validate caller-provided IDs through `TryNormalize(...)`. They validate restored stored IDs through `TryValidateNormalized(...)`. Both methods must describe the same stored ID language so snapshots cannot restore IDs that the typed keyed API can never address.
+
+ID strategies do not generate IDs.
 
 ## Lookup
 

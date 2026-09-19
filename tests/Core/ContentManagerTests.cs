@@ -246,6 +246,141 @@ public sealed class ContentManagerTests
         Assert.That(changedArgs.RequiresFullRefresh, Is.True);
     }
 
+    [Test]
+    public void BaseManager_CapturesActiveStructureSnapshot()
+    {
+        ContentManagerBase manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        ((ContentManager)manager).Add(Entry("Stored"));
+
+        bool captured = manager.TryCaptureSnapshot(out ContentStructureSnapshot? snapshot, out ContentFailure? failure);
+
+        Assert.That(captured, Is.True);
+        Assert.That(snapshot, Is.Not.Null);
+        Assert.That(snapshot!.Kind, Is.EqualTo(ContentSequenceStructure.SnapshotKind));
+        Assert.That(snapshot.Records, Has.Count.EqualTo(1));
+        Assert.That(failure, Is.Null);
+    }
+
+    [Test]
+    public void BaseManager_RestoreSnapshot_ReplacesStructureAtomicallyAndEmitsFullRefresh()
+    {
+        var source = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(5)));
+        source.Add(Entry("One"));
+        source.Add(Entry("Two"));
+        ContentStructureSnapshot snapshot = source.CaptureSnapshot();
+
+        var target = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        ContentEntryRecord oldRecord = target.Add(Entry("Old"));
+        var changes = new List<ContentChangedEventArgs>();
+        object? sender = null;
+        target.Changed += (eventSender, args) =>
+        {
+            sender = eventSender;
+            changes.Add(args);
+        };
+
+        bool restored = target.TryRestoreSnapshot(snapshot, ContentSequenceStructure.Factory, out ContentFailure? failure);
+        ContentEntryRecord next = target.Add(Entry("Three"));
+
+        Assert.That(restored, Is.True);
+        Assert.That(failure, Is.Null);
+        Assert.That(target.Structure, Is.TypeOf<ContentSequenceStructure>());
+        Assert.That(target.Records.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "One", "Two", "Three" }));
+        Assert.That(next.Id.Value, Is.EqualTo("3"));
+        Assert.That(sender, Is.SameAs(target));
+        ContentChangedEventArgs changedArgs = changes[0];
+        Assert.That(changedArgs!.Kind, Is.EqualTo(ContentChangeKind.SnapshotRestored));
+        Assert.That(changedArgs.RequiresFullRefresh, Is.True);
+        Assert.That(changedArgs.RemovedRecords, Is.EqualTo(new[] { oldRecord }));
+        Assert.That(changedArgs.AddedRecords.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "One", "Two" }));
+    }
+
+    [Test]
+    public void BaseManager_RestoreSnapshot_RejectsIncompatibleStructureWithoutChangingState()
+    {
+        var keyed = new KeyedContentStructure<string>();
+        keyed.Add("entry-1", Entry("Keyed"));
+        ContentStructureSnapshot keyedSnapshot = keyed.CaptureSnapshot();
+
+        var manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        ContentEntryRecord original = manager.Add(Entry("Original"));
+        int eventCount = 0;
+        manager.Changed += (_, _) => eventCount++;
+
+        bool restored = manager.TryRestoreSnapshot(
+            keyedSnapshot,
+            KeyedContentStructure<string>.CreateSnapshotFactory(),
+            out ContentFailure? failure);
+
+        Assert.That(restored, Is.False);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.StructureUnsupportedOperation));
+        Assert.That(manager.Structure, Is.TypeOf<ContentSequenceStructure>());
+        Assert.That(manager.Records, Is.EqualTo(new[] { original }));
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void BaseManager_RestoreSnapshot_RejectedRestoreEmitsNoEvent()
+    {
+        var manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        ContentEntryRecord original = manager.Add(Entry("Original"));
+        int eventCount = 0;
+        manager.Changed += (_, _) => eventCount++;
+
+        var snapshot = new ContentStructureSnapshot
+        {
+            Kind = ContentSequenceStructure.SnapshotKind,
+            DataVersion = 99,
+            Data = ContentSnapshotValue.Object()
+        };
+
+        bool restored = manager.TryRestoreSnapshot(snapshot, ContentSequenceStructure.Factory, out ContentFailure? failure);
+
+        Assert.That(restored, Is.False);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.SnapshotUnsupportedVersion));
+        Assert.That(manager.Records, Is.EqualTo(new[] { original }));
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void KeyedContentManager_RestoreSnapshot_PreservesTypedWorkflow()
+    {
+        var source = new KeyedContentManager<string>();
+        source.Add("entry-1", Entry("One"));
+        ContentStructureSnapshot snapshot = source.CaptureSnapshot();
+
+        var target = new KeyedContentManager<string>();
+        target.RestoreSnapshot(snapshot, KeyedContentStructure<string>.CreateSnapshotFactory());
+        target.Add("entry-2", Entry("Two"));
+
+        Assert.That(target.Get("entry-1").Entry.PlainText, Is.EqualTo("One"));
+        Assert.That(target.Get("entry-2").Entry.PlainText, Is.EqualTo("Two"));
+    }
+
+    [Test]
+    public void KeyedContentManager_RestoreSnapshot_InvalidStoredIdLeavesStateUnchangedAndEmitsNoEvent()
+    {
+        var source = new KeyedContentManager<long>();
+        source.Add(1, Entry("One"));
+        ContentStructureSnapshot snapshot = source.CaptureSnapshot();
+        snapshot.Records[0].EntryId = "abc";
+
+        var target = new KeyedContentManager<long>();
+        ContentEntryRecord original = target.Add(2, Entry("Original"));
+        int eventCount = 0;
+        target.Changed += (_, _) => eventCount++;
+
+        bool restored = target.TryRestoreSnapshot(
+            snapshot,
+            KeyedContentStructure<long>.CreateSnapshotFactory(),
+            out ContentFailure? failure);
+
+        Assert.That(restored, Is.False);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.EntryIdInvalid));
+        Assert.That(target.Records, Is.EqualTo(new[] { original }));
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
     private static PlainContentEntry Entry(string text)
     {
         return new PlainContentEntry(DateTimeOffset.UtcNow, text);
