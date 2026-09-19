@@ -2,6 +2,14 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
+## 0.5.1 - 20-09-2026
+
+Documentation:
+
+- Clarified that normal structure snapshot restore uses the active round-trippable structure's `SnapshotFactory`.
+- Added a serializer save/load example for manager-owned structure snapshots.
+- Clarified why custom entry factories still need package-wide registration before restoring serialized structure snapshots.
+
 ## 0.5.0 - 20-09-2026
 
 Added:

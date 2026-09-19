@@ -37,7 +37,7 @@ The package should be engine-neutral and centered on manager workflows that own 
 - The first structure is a configurable sequence structure.
 - `KeyedContentStructure<TId>` provides configurable typed-ID validation for caller-keyed records.
 - A shared failure model should represent expected content-system rejection.
-- Entry snapshots are implemented. Record and structure snapshot DTOs are implemented. Built-in sequence and keyed structures support exact snapshot capture and restore through explicit structure factories.
+- Entry snapshots are implemented. Record and structure snapshot DTOs are implemented. Built-in sequence and keyed structures support exact snapshot capture and normal manager-owned restore through their round-trippable `SnapshotFactory`.
 - Optional attachments should support export, bridges, and platform adapters without making those features mandatory.
 
 ## Intended Data Flow
@@ -88,6 +88,8 @@ Entries should be extensible content payloads. `PlainContentEntry` is the only p
 ContentSystem should not include a built-in user/role model. If a host needs users, authors, permissions, channels, moderation data, or ownership, it can represent those through custom entries, custom structures, or higher-level packages.
 
 Entry snapshot capture is opt-in through `IContentEntrySnapshotSerializable`. Restore uses an `IContentEntrySnapshotFactory`, such as `PlainContentEntry.Factory`. Structure restore resolves entry factories through `ContentEntrySnapshotFactories`, a package-owned static registry seeded with built-ins and extended by applications during setup.
+
+The entry factory registry is still needed even though entries own their capture behavior: after a structure snapshot has been serialized and loaded, there is no live entry instance to ask for a factory. The loaded snapshot only carries the entry kind string, so restore needs a package-level map from kind to factory.
 
 Structure snapshot round trips are opt-in through `IContentStructureSnapshotRoundTrippable`. Normal manager restore uses the active structure's `SnapshotFactory`; explicit structure factories remain available for migrations and advanced restore targets.
 

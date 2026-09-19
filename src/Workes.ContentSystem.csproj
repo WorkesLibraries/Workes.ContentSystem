@@ -7,8 +7,8 @@
     <LangVersion>10.0</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Workes.ContentSystem</PackageId>
-    <Version>0.5.0</Version>
-    <PackageReleaseNotes>Adds structure extension-authoring helpers, round-trippable structure snapshots, and factory-less manager snapshot restore.</PackageReleaseNotes>
+    <Version>0.5.1</Version>
+    <PackageReleaseNotes>Clarifies snapshot restore documentation and adds a serializer save/load example.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Workes</Authors>
     <Company>Workes</Company>

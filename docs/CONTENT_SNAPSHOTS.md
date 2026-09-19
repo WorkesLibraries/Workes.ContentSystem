@@ -42,13 +42,13 @@ IContentEntry restored = ContentEntrySnapshots.Restore(
 
 `PlainContentEntry` supports entry snapshot round trips out of the box. It uses stable snapshot kind `workes.content.entry.plain` and data version `1`.
 
-Custom entries that do not implement `IContentEntrySnapshotSerializable` fail capture with `ContentFailureCodes.SnapshotUnsupportedEntry`. Custom entries that do support snapshots should provide one static factory and register it once before restore:
+Custom entries that do not implement `IContentEntrySnapshotSerializable` fail capture with `ContentFailureCodes.SnapshotUnsupportedEntry`. Custom entries that do support snapshots should provide one static factory and register it once before restoring serialized structure snapshots:
 
 ```csharp
 ContentEntrySnapshotFactories.Register(MyEntry.Factory);
 ```
 
-Capture does not require registration because the entry instance owns capture. Restore does require registration because a loaded snapshot only contains the entry snapshot kind, not a live entry instance.
+Capture does not require registration because the entry instance owns capture. Restore does require registration because a loaded snapshot only contains the entry snapshot kind, not a live entry instance that can expose its factory.
 
 ## Record Snapshots
 
@@ -128,6 +128,38 @@ Explicit structure factories remain available for migration and advanced restore
 
 ```csharp
 content.RestoreSnapshot(snapshot, MyStructureV2.Factory);
+```
+
+## Saving And Loading
+
+ContentSystem does not choose a serializer or write to disk. The normal workflow is to capture a serializer-friendly snapshot, save it with the application serializer, load it later, then restore it into a manager with a compatible round-trippable structure.
+
+```csharp
+using System.Text.Json;
+
+var content = ContentManager.For(
+    new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
+
+content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
+
+ContentStructureSnapshot snapshot = content.CaptureSnapshot();
+string json = JsonSerializer.Serialize(snapshot);
+
+ContentStructureSnapshot loaded = JsonSerializer.Deserialize<ContentStructureSnapshot>(json)!;
+
+var restored = ContentManager.For(
+    new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
+
+restored.RestoreSnapshot(loaded);
+```
+
+Custom entries must register their factories before restore:
+
+```csharp
+ContentEntrySnapshotFactories.Register(QuestEntry.Factory);
+
+ContentStructureSnapshot loaded = LoadSnapshot();
+content.RestoreSnapshot(loaded);
 ```
 
 ## Restore Expectations
