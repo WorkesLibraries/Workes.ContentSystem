@@ -5,13 +5,13 @@ This package is a reusable content-entry backend. The first useful core supports
 ## Install
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.4.0
+dotnet add package Workes.ContentSystem --version 0.5.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.4.0" />
+<PackageReference Include="Workes.ContentSystem" Version="0.5.0" />
 ```
 
 ## Mental Model
@@ -101,6 +101,7 @@ Events are raised synchronously after a mutation is committed. Rejected operatio
 - [Content Structures](CONTENT_STRUCTURES.md) explains the storage abstraction.
 - [Content Managers](CONTENT_MANAGERS.md) explains the manager workflow split.
 - [Content Changes](CONTENT_CHANGES.md) explains optional committed-change hooks.
-- [Content Snapshots](CONTENT_SNAPSHOTS.md) explains entry snapshots and the portable record/structure snapshot DTOs.
+- [Content Snapshots](CONTENT_SNAPSHOTS.md) explains entry, record, and built-in structure snapshot round trips.
+- [Extension Authoring](EXTENSION_AUTHORING.md) explains how custom structures participate in the implemented contracts.
 - [Failures](FAILURES.md) explains expected failures and exceptions.
 - [Export And Attachments](EXPORT_AND_ATTACHMENTS.md) explains optional bridge and export ideas.

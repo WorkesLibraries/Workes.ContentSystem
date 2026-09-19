@@ -23,13 +23,13 @@ It is intended to be useful anywhere an application needs an ordered or structur
 Install the package from [NuGet](https://www.nuget.org/packages/Workes.ContentSystem):
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.4.3
+dotnet add package Workes.ContentSystem --version 0.5.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.4.3" />
+<PackageReference Include="Workes.ContentSystem" Version="0.5.0" />
 ```
 
 The package targets .NET Standard 2.1.
@@ -80,6 +80,7 @@ Focused guides:
 - [Content Managers](docs/CONTENT_MANAGERS.md)
 - [Content Changes](docs/CONTENT_CHANGES.md)
 - [Content Snapshots](docs/CONTENT_SNAPSHOTS.md)
+- [Extension Authoring](docs/EXTENSION_AUTHORING.md)
 - [Failures](docs/FAILURES.md)
 - [Export And Attachments](docs/EXPORT_AND_ATTACHMENTS.md)
 

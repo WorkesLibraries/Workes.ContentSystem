@@ -1,10 +1,15 @@
 namespace Workes.ContentSystem.Core;
 
 /// <summary>
-/// Represents a content structure that can capture its retained state as a portable snapshot.
+/// Represents a content structure that can capture and restore its retained state through portable snapshots.
 /// </summary>
-public interface IContentStructureSnapshotSerializable : IContentStructure
+public interface IContentStructureSnapshotRoundTrippable : IContentStructure
 {
+    /// <summary>
+    /// Gets the snapshot factory used for normal restore of this structure kind.
+    /// </summary>
+    IContentStructureSnapshotFactory SnapshotFactory { get; }
+
     /// <summary>
     /// Attempts to capture the structure snapshot.
     /// </summary>

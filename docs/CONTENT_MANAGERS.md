@@ -151,12 +151,12 @@ See [Content Changes](CONTENT_CHANGES.md) for event payload and timing details.
 
 Managers own the normal whole-structure restore workflow.
 
-`ContentManagerBase.CaptureSnapshot()` captures the active structure when it implements `IContentStructureSnapshotSerializable`. `RestoreSnapshot(...)` restores through an explicit structure factory, verifies that the restored structure is compatible with the concrete manager, replaces the active structure atomically, and emits one full-refresh snapshot-restored event after commit.
+`ContentManagerBase.CaptureSnapshot()` captures the active structure when it implements `IContentStructureSnapshotRoundTrippable`. `RestoreSnapshot(snapshot)` uses that same active structure's `SnapshotFactory`, verifies that the restored structure is compatible with the concrete manager, replaces the active structure atomically, and emits one full-refresh snapshot-restored event after commit.
 
 ```csharp
 ContentStructureSnapshot snapshot = content.CaptureSnapshot();
 
-content.RestoreSnapshot(snapshot, ContentSequenceStructure.Factory);
+content.RestoreSnapshot(snapshot);
 ```
 
 Register custom entry snapshot factories once before restoring structure snapshots that contain those entry kinds:
@@ -164,10 +164,16 @@ Register custom entry snapshot factories once before restoring structure snapsho
 ```csharp
 ContentEntrySnapshotFactories.Register(MyEntry.Factory);
 
-content.RestoreSnapshot(snapshot, MyStructure.Factory);
+content.RestoreSnapshot(snapshot);
 ```
 
 The package registers built-ins such as `PlainContentEntry.Factory` automatically. Custom entry registration is application composition state; capture does not require registration, but restore does.
+
+Explicit structure factories remain available for migration and advanced restore scenarios where the active structure's factory is intentionally not the target:
+
+```csharp
+content.RestoreSnapshot(snapshot, NewStructureVersion.Factory);
+```
 
 ## Try And Expected-Success APIs
 

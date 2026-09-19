@@ -30,11 +30,11 @@ Define serializer-friendly DTOs for stored records and whole structures without 
 
 ### Stage 15: Add snapshot capture and restore for built-in structures
 
-Completed implementation adds exact snapshot capture and restore for built-in sequence and keyed structures, with explicit structure factories, package-wide entry factory registration, keyed restore ID validation, and manager-owned atomic restore.
+Completed implementation adds exact snapshot capture and restore for built-in sequence and keyed structures, package-wide entry factory registration, keyed restore ID validation, and manager-owned atomic restore. Stage 16 refines the normal restore path so round-trippable structures expose their own restore factory.
 
 ### Stage 16: Add structure extension authoring support
 
-Make custom structures practical to implement in the same capacity as built-ins, scoped to the extension systems that already exist. Add a dedicated extension-author guide, structure snapshot/factory helpers where useful, validation helpers for custom structure snapshot data, example custom structures with full snapshot support, and pitfalls/invariants documentation around ID ownership, ordering, atomic restore, failures, events, mutation opt-ins, and versioning.
+Completed implementation makes custom structures practical to implement in the same capacity as built-ins, scoped to the extension systems that already exist. It adds a dedicated extension-author guide, structure snapshot/factory helpers, validation helpers for custom structure snapshot data, `IContentStructureSnapshotRoundTrippable`, factory-less manager restore, example custom structures with full snapshot support, and pitfalls/invariants documentation around ID ownership, ordering, atomic restore, failures, events, mutation opt-ins, and versioning.
 
 Later stages should expand the extension guide as new extension systems land.
 

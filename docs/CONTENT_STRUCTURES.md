@@ -165,7 +165,7 @@ Additional behavior should be exposed through focused opt-in contracts, mirrorin
 - `IContentRecordRemovalStructure`;
 - `IKeyedContentRecordRemovalStructure<TId>`;
 - `IParameterizedContentStructure`.
-- `IContentStructureSnapshotSerializable`.
+- `IContentStructureSnapshotRoundTrippable`.
 
 `ContentSequenceStructure` implements the retention policy, read-order, natural long-ID lookup/removal, clear, remove, and parameterized structure contracts. Its first parameter is `ContentSequenceStructure.OverflowPolicyParameterId`. `KeyedContentStructure<TId>` implements keyed add/lookup, clear, typed keyed removal, normalized removal, and change-source contracts.
 
@@ -173,6 +173,8 @@ Future contracts can cover sorting, searching, or export only where a structure 
 
 Runtime mutation should be manager-owned for normal callers, with structures opting into the underlying contracts that managers coordinate.
 
-`ContentStructureSnapshot` is the portable DTO shape for retained records plus structure-owned data. Built-in sequence and keyed structures capture their own state into that DTO, including retained records and structure-owned configuration. Restore uses explicit `IContentStructureSnapshotFactory` instances so custom structures can own their state schema.
+`ContentStructureSnapshot` is the portable DTO shape for retained records plus structure-owned data. Built-in sequence and keyed structures capture their own state into that DTO, including retained records and structure-owned configuration. Round-trippable structures expose a `SnapshotFactory` so normal manager restore can use `RestoreSnapshot(snapshot)` while still letting custom structures own their state schema.
+
+Custom structures can use `ContentStructureSnapshotFactoryBase<TStructure>`, `ContentSnapshotRecords`, and `ContentSnapshotProperties` to implement the same snapshot pattern without copying built-in structure internals. See [Extension Authoring](EXTENSION_AUTHORING.md).
 
 This mirrors the strategy used in other Workes packages: keep the central abstraction small, then add focused optional contracts where they are genuinely needed. Avoid a broad capability metadata object unless a future stage finds a concrete use case that opt-in contracts cannot solve cleanly.

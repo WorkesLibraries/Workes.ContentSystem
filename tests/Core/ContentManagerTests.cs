@@ -279,7 +279,7 @@ public sealed class ContentManagerTests
             changes.Add(args);
         };
 
-        bool restored = target.TryRestoreSnapshot(snapshot, ContentSequenceStructure.Factory, out ContentFailure? failure);
+        bool restored = target.TryRestoreSnapshot(snapshot, out ContentFailure? failure);
         ContentEntryRecord next = target.Add(Entry("Three"));
 
         Assert.That(restored, Is.True);
@@ -334,7 +334,7 @@ public sealed class ContentManagerTests
             Data = ContentSnapshotValue.Object()
         };
 
-        bool restored = manager.TryRestoreSnapshot(snapshot, ContentSequenceStructure.Factory, out ContentFailure? failure);
+        bool restored = manager.TryRestoreSnapshot(snapshot, out ContentFailure? failure);
 
         Assert.That(restored, Is.False);
         Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.SnapshotUnsupportedVersion));
@@ -350,7 +350,7 @@ public sealed class ContentManagerTests
         ContentStructureSnapshot snapshot = source.CaptureSnapshot();
 
         var target = new KeyedContentManager<string>();
-        target.RestoreSnapshot(snapshot, KeyedContentStructure<string>.CreateSnapshotFactory());
+        target.RestoreSnapshot(snapshot);
         target.Add("entry-2", Entry("Two"));
 
         Assert.That(target.Get("entry-1").Entry.PlainText, Is.EqualTo("One"));
@@ -370,15 +370,31 @@ public sealed class ContentManagerTests
         int eventCount = 0;
         target.Changed += (_, _) => eventCount++;
 
-        bool restored = target.TryRestoreSnapshot(
-            snapshot,
-            KeyedContentStructure<long>.CreateSnapshotFactory(),
-            out ContentFailure? failure);
+        bool restored = target.TryRestoreSnapshot(snapshot, out ContentFailure? failure);
 
         Assert.That(restored, Is.False);
         Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.EntryIdInvalid));
         Assert.That(target.Records, Is.EqualTo(new[] { original }));
         Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void BaseManager_RestoreSnapshot_WithoutFactoryRejectsUnsupportedActiveStructure()
+    {
+        ContentManagerBase manager = new UnsupportedSnapshotManager(new UnsupportedStructure());
+        var snapshot = new ContentStructureSnapshot
+        {
+            Kind = ContentSequenceStructure.SnapshotKind,
+            DataVersion = ContentSequenceStructure.SnapshotDataVersion,
+            Data = ContentSnapshotValue.Object()
+        };
+
+        bool restored = manager.TryRestoreSnapshot(snapshot, out ContentFailure? failure);
+        ContentOperationException exception = Assert.Throws<ContentOperationException>(() => manager.RestoreSnapshot(snapshot))!;
+
+        Assert.That(restored, Is.False);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.SnapshotUnsupportedStructure));
+        Assert.That(exception.Failure.Code, Is.EqualTo(ContentFailureCodes.SnapshotUnsupportedStructure));
     }
 
     private static PlainContentEntry Entry(string text)
@@ -466,6 +482,31 @@ public sealed class ContentManagerTests
 
             throw new ContentOperationException(failure!);
         }
+
+        public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
+        {
+            record = null;
+            failure = ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing.");
+            return false;
+        }
+
+        public ContentEntryRecord Get(ContentEntryId id)
+        {
+            throw new ContentOperationException(ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing."));
+        }
+    }
+
+    private sealed class UnsupportedSnapshotManager : ContentManagerBase
+    {
+        public UnsupportedSnapshotManager(IContentStructure structure)
+            : base(structure)
+        {
+        }
+    }
+
+    private sealed class UnsupportedStructure : IContentStructure
+    {
+        public IReadOnlyList<ContentEntryRecord> Records => Array.Empty<ContentEntryRecord>();
 
         public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
         {

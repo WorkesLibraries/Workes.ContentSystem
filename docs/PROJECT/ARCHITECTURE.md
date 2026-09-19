@@ -87,7 +87,11 @@ Entries should be extensible content payloads. `PlainContentEntry` is the only p
 
 ContentSystem should not include a built-in user/role model. If a host needs users, authors, permissions, channels, moderation data, or ownership, it can represent those through custom entries, custom structures, or higher-level packages.
 
-Entry snapshot capture is opt-in through `IContentEntrySnapshotSerializable`. Restore is explicit through an `IContentEntrySnapshotFactory`, such as `PlainContentEntry.Factory`. Structure restore resolves entry factories through `ContentEntrySnapshotFactories`, a package-owned static registry seeded with built-ins and extended by applications during setup.
+Entry snapshot capture is opt-in through `IContentEntrySnapshotSerializable`. Restore uses an `IContentEntrySnapshotFactory`, such as `PlainContentEntry.Factory`. Structure restore resolves entry factories through `ContentEntrySnapshotFactories`, a package-owned static registry seeded with built-ins and extended by applications during setup.
+
+Structure snapshot round trips are opt-in through `IContentStructureSnapshotRoundTrippable`. Normal manager restore uses the active structure's `SnapshotFactory`; explicit structure factories remain available for migrations and advanced restore targets.
+
+Structure extension authoring is supported through focused contracts plus helper APIs. `ContentStructureSnapshotFactoryBase<TStructure>` handles common restore validation, while `ContentSnapshotRecords` and `ContentSnapshotProperties` expose the same retained-record and structure-data helper patterns used by built-in structures.
 
 ## Failure Model
 

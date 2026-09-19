@@ -82,6 +82,26 @@ public abstract class ContentManagerBase
     }
 
     /// <summary>
+    /// Attempts to restore and replace the active structure using the active structure's snapshot factory.
+    /// </summary>
+    /// <param name="snapshot">The structure snapshot.</param>
+    /// <param name="failure">The structured failure when restore is rejected.</param>
+    /// <returns><see langword="true"/> when restore commits.</returns>
+    public bool TryRestoreSnapshot(
+        ContentStructureSnapshot snapshot,
+        out ContentFailure? failure)
+    {
+        if (Structure is not IContentStructureSnapshotRoundTrippable roundTrippable)
+        {
+            failure = ContentFailures.SnapshotUnsupportedStructure(
+                $"Structure type '{Structure.GetType().FullName}' does not expose a snapshot factory.");
+            return false;
+        }
+
+        return TryRestoreSnapshot(snapshot, roundTrippable.SnapshotFactory, out failure);
+    }
+
+    /// <summary>
     /// Attempts to restore and replace the active structure using registered entry snapshot factories.
     /// </summary>
     /// <param name="snapshot">The structure snapshot.</param>
@@ -123,6 +143,19 @@ public abstract class ContentManagerBase
     public void RestoreSnapshot(ContentStructureSnapshot snapshot, IContentStructureSnapshotFactory factory)
     {
         if (!TryRestoreSnapshot(snapshot, factory, out ContentFailure? failure))
+        {
+            throw new ContentOperationException(failure!);
+        }
+    }
+
+    /// <summary>
+    /// Restores and replaces the active structure using the active structure's snapshot factory.
+    /// </summary>
+    /// <param name="snapshot">The structure snapshot.</param>
+    /// <exception cref="ContentOperationException">Thrown when restore is rejected.</exception>
+    public void RestoreSnapshot(ContentStructureSnapshot snapshot)
+    {
+        if (!TryRestoreSnapshot(snapshot, out ContentFailure? failure))
         {
             throw new ContentOperationException(failure!);
         }

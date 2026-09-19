@@ -81,7 +81,7 @@ For built-in structures, a structure snapshot should preserve retained records a
 - capacity, bounds, placement, ordering, and overflow settings;
 - keyed or grouped state where applicable.
 
-Custom structures opt into structure snapshots with `IContentStructureSnapshotSerializable` and restore with an explicit `IContentStructureSnapshotFactory`. Unsupported structures fail capture with `ContentFailureCodes.SnapshotUnsupportedStructure`.
+Custom structures opt into structure snapshot round trips with `IContentStructureSnapshotRoundTrippable`. The structure exposes the `SnapshotFactory` used by normal manager restore. Unsupported structures fail capture or factory-less restore with `ContentFailureCodes.SnapshotUnsupportedStructure`.
 
 Built-in structure snapshot kinds are stable package-prefixed strings:
 
@@ -101,10 +101,10 @@ ContentStructureSnapshot snapshot = content.CaptureSnapshot();
 var restored = ContentManager.For(
     new ContentSequenceStructure(ContentOverflowPolicy.None));
 
-restored.RestoreSnapshot(snapshot, ContentSequenceStructure.Factory);
+restored.RestoreSnapshot(snapshot);
 ```
 
-Keyed structure restore uses a typed factory so the restored structure keeps the right caller-facing ID workflow:
+Keyed structure restore uses the active structure's typed factory so the restored structure keeps the right caller-facing ID workflow:
 
 ```csharp
 var content = new KeyedContentManager<string>();
@@ -113,9 +113,7 @@ content.Add("server-started", new PlainContentEntry(DateTimeOffset.UtcNow, "Serv
 ContentStructureSnapshot snapshot = content.CaptureSnapshot();
 
 var restored = new KeyedContentManager<string>();
-restored.RestoreSnapshot(
-    snapshot,
-    KeyedContentStructure<string>.CreateSnapshotFactory());
+restored.RestoreSnapshot(snapshot);
 ```
 
 Restore uses the package-wide entry factory registry. `PlainContentEntry.Factory` is registered by the package. Custom entries register their factories during application setup:
@@ -123,7 +121,13 @@ Restore uses the package-wide entry factory registry. `PlainContentEntry.Factory
 ```csharp
 ContentEntrySnapshotFactories.Register(MyEntry.Factory);
 
-content.RestoreSnapshot(snapshot, MyStructure.Factory);
+content.RestoreSnapshot(snapshot);
+```
+
+Explicit structure factories remain available for migration and advanced restore targets:
+
+```csharp
+content.RestoreSnapshot(snapshot, MyStructureV2.Factory);
 ```
 
 ## Restore Expectations
@@ -135,6 +139,8 @@ Record restore preserves stored record identity as part of a structure restore.
 Whole-structure restore through managers is atomic. A failed restore leaves the active structure unchanged and emits no change event. A successful restore replaces the active structure, resubscribes manager event forwarding, and emits `ContentChangeKind.SnapshotRestored` with `RequiresFullRefresh = true`.
 
 For keyed structures, restore validates stored snapshot IDs through the configured `IContentEntryIdStrategy<TId>`. Custom strategies must ensure restored normalized IDs describe the same ID language as caller-provided IDs.
+
+Custom structure authors can use `ContentStructureSnapshotFactoryBase<TStructure>` for common factory validation, `ContentSnapshotRecords` for retained record capture/restore, and `ContentSnapshotProperties` for structure-owned snapshot data. See [Extension Authoring](EXTENSION_AUTHORING.md).
 
 ## Relationship To Export And Attachments
 

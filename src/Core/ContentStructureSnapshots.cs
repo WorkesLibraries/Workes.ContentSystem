@@ -24,7 +24,7 @@ public static class ContentStructureSnapshots
             throw new ArgumentNullException(nameof(structure));
         }
 
-        if (structure is not IContentStructureSnapshotSerializable serializable)
+        if (structure is not IContentStructureSnapshotRoundTrippable roundTrippable)
         {
             snapshot = null;
             failure = ContentFailures.SnapshotUnsupportedStructure(
@@ -34,7 +34,7 @@ public static class ContentStructureSnapshots
 
         try
         {
-            if (serializable.TryCaptureSnapshot(out snapshot, out failure))
+            if (roundTrippable.TryCaptureSnapshot(out snapshot, out failure))
             {
                 if (snapshot is not null)
                 {

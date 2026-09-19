@@ -560,7 +560,7 @@ Plain string IDs are serializer-friendly and avoid making DTO consumers understa
 
 The DTO shapes gave later structure snapshot workflows a stable wire shape. Custom structures still need explicit opt-in contracts before they can participate in snapshot workflows.
 
-### D-027: Structure Snapshot Restore Uses Explicit Factories And Registered Entry Factories
+### D-027: Structure Snapshot Restore Uses Round-Trippable Structures And Registered Entry Factories
 
 #### Context
 
@@ -568,16 +568,42 @@ Whole-structure snapshots need to restore retained records, entry payloads, and 
 
 #### Decision
 
-Structure snapshot capture is opt-in through `IContentStructureSnapshotSerializable`. Structure restore uses an explicit `IContentStructureSnapshotFactory`.
+Structure snapshot round trips are opt-in through `IContentStructureSnapshotRoundTrippable`. A round-trippable structure captures itself and exposes the `IContentStructureSnapshotFactory` used by normal manager restore.
 
 Entry payload restore during structure restore uses `ContentEntrySnapshotFactories`, a package-owned static registry. The registry includes package built-ins such as `PlainContentEntry.Factory`; custom entry factories must be registered by the application before restoring snapshots that contain those entry kinds.
 
-Managers own the normal restore workflow. `ContentManagerBase` restores a new structure first, verifies that the concrete manager can accept it, swaps the active structure atomically, and emits one `ContentChangeKind.SnapshotRestored` event with `RequiresFullRefresh = true` after commit.
+Managers own the normal restore workflow. `ContentManagerBase.RestoreSnapshot(snapshot)` uses the active structure's `SnapshotFactory`, restores a new structure first, verifies that the concrete manager can accept it, swaps the active structure atomically, and emits one `ContentChangeKind.SnapshotRestored` event with `RequiresFullRefresh = true` after commit.
+
+Explicit restore factories remain available for migration and advanced restore scenarios where the active structure's factory is intentionally not the desired target.
 
 #### Reasoning
 
-Explicit factories keep restore deliberate. A package-owned registry makes custom entry restore low-friction after one-time application setup and avoids repeated load-site plumbing. Manager-owned restore preserves the runtime mutation pattern and keeps compatibility checks, event resubscription, and full-refresh signaling in one place.
+The active structure's factory keeps the normal restore path low-friction without hiding structure compatibility. Explicit factories keep migration restore deliberate. A package-owned registry makes custom entry restore low-friction after one-time application setup and avoids repeated load-site plumbing. Manager-owned restore preserves the runtime mutation pattern and keeps compatibility checks, event resubscription, and full-refresh signaling in one place.
 
 #### Consequences
 
 Unsupported custom structures fail with `SnapshotUnsupportedStructure`. Missing entry factories fail with `SnapshotFactoryMissing`; conflicting factory registration fails with `SnapshotFactoryDuplicate`. Failed restore leaves the active manager state unchanged and emits no event. Built-in sequence and keyed structures can round-trip exact retained state while applications remain responsible for choosing how snapshots are serialized or stored.
+
+### D-028: Structure Extension Authoring Uses Helpers Without Mandatory Inheritance
+
+#### Context
+
+After built-in structure snapshot restore was implemented, custom structure authors could technically implement the same contracts, but they had to duplicate common boilerplate for kind/version validation, retained record restore, entry factory lookup, and structure data decoding.
+
+#### Decision
+
+ContentSystem provides public helper APIs for structure extension authors:
+
+- `ContentStructureSnapshotFactoryBase<TStructure>` for common structure factory restore plumbing;
+- `ContentSnapshotRecords` for retained record capture, restore, duplicate ID validation, and positive numeric ID validation;
+- `ContentSnapshotProperties` for named structure-owned snapshot data and scalar decoding.
+
+These helpers are convenience APIs. Custom structures may still implement `IContentStructureSnapshotFactory` and related contracts directly.
+
+#### Reasoning
+
+This matches the package style used elsewhere: focused opt-in contracts remain the source of truth, while small helpers reduce repeated error-prone code. It keeps custom structures first-class without forcing a base class hierarchy.
+
+#### Consequences
+
+Built-in structures should use the public helper path where appropriate so the extension surface stays exercised by package code. Extension docs should grow as future extension systems such as sorting, batch operations, and export become implemented.

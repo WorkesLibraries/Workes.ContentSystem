@@ -2,6 +2,15 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
+## 0.5.0 - 20-09-2026
+
+Added:
+
+- Added structure extension-authoring helpers for snapshot factories, snapshot properties, and retained record snapshot capture/restore.
+- Added structure extension-authoring documentation focused on custom structures.
+- Added `IContentStructureSnapshotRoundTrippable` so snapshot-capable structures expose the factory needed for normal restore.
+- Added factory-less manager restore overloads that use the active structure's snapshot factory.
+
 ## 0.4.3 - 19-09-2026
 
 Added:

@@ -16,7 +16,7 @@ public sealed class ContentSequenceStructure :
     IContentClearableStructure,
     IContentNaturalIdRemovalStructure<long>,
     IContentRecordRemovalStructure,
-    IContentStructureSnapshotSerializable,
+    IContentStructureSnapshotRoundTrippable,
     IContentChangeSource
 {
     /// <summary>
@@ -99,6 +99,9 @@ public sealed class ContentSequenceStructure :
 
     /// <inheritdoc />
     public IReadOnlyCollection<ContentParameterDefinition> Parameters => s_parameters;
+
+    /// <inheritdoc />
+    public IContentStructureSnapshotFactory SnapshotFactory => Factory;
 
     /// <inheritdoc />
     public IReadOnlyList<ContentEntryRecord> Records => CreateReadSnapshot();
@@ -335,27 +338,17 @@ public sealed class ContentSequenceStructure :
     /// <inheritdoc />
     public bool TryCaptureSnapshot(out ContentStructureSnapshot? snapshot, out ContentFailure? failure)
     {
-        var records = new List<ContentRecordSnapshot>(_records.Count);
-        foreach (ContentEntryRecord record in _records)
+        if (!ContentSnapshotRecords.TryCapture(_records, out List<ContentRecordSnapshot>? records, out failure))
         {
-            if (!ContentEntrySnapshots.TryCapture(record.Entry, out ContentEntrySnapshot? entrySnapshot, out failure))
-            {
-                snapshot = null;
-                return false;
-            }
-
-            records.Add(new ContentRecordSnapshot
-            {
-                EntryId = record.Id.Value,
-                Entry = entrySnapshot!
-            });
+            snapshot = null;
+            return false;
         }
 
         snapshot = new ContentStructureSnapshot
         {
             Kind = SnapshotKind,
             DataVersion = SnapshotDataVersion,
-            Records = records,
+            Records = records!,
             Data = ContentSnapshotValue.Object(new[]
             {
                 ContentSnapshotProperties.Named("nextId", ContentSnapshotCodecs.Encode(_nextId)),
@@ -428,43 +421,27 @@ public sealed class ContentSequenceStructure :
         Changed?.Invoke(this, args);
     }
 
-    private sealed class ContentSequenceStructureSnapshotFactory : IContentStructureSnapshotFactory
+    private sealed class ContentSequenceStructureSnapshotFactory : ContentStructureSnapshotFactoryBase<ContentSequenceStructure>
     {
-        public string Kind => SnapshotKind;
+        public ContentSequenceStructureSnapshotFactory()
+            : base(SnapshotKind, SnapshotDataVersion)
+        {
+        }
 
-        public bool TryRestore(
+        protected override bool TryRestoreValidatedSnapshot(
             ContentStructureSnapshot snapshot,
-            out IContentStructure? structure,
+            out ContentSequenceStructure? structure,
             out ContentFailure? failure)
         {
-            if (snapshot is null)
-            {
-                throw new ArgumentNullException(nameof(snapshot));
-            }
-
             structure = null;
             failure = null;
 
-            if (snapshot.Kind != SnapshotKind)
-            {
-                failure = ContentFailures.SnapshotMalformed(
-                    $"Sequence structure snapshot kind must be '{SnapshotKind}'.");
-                return false;
-            }
-
-            if (snapshot.DataVersion != SnapshotDataVersion)
-            {
-                failure = ContentFailures.SnapshotUnsupportedVersion(
-                    $"Sequence structure snapshot version {snapshot.DataVersion} is not supported.");
-                return false;
-            }
-
-            if (!ContentSnapshotRecordRestorer.TryRestoreRecords(snapshot.Records, out ContentEntryRecord[] records, out failure))
+            if (!ContentSnapshotRecords.TryRestore(snapshot.Records, out ContentEntryRecord[] records, out failure))
             {
                 return false;
             }
 
-            if (!ContentSnapshotRecordRestorer.TryGetMaximumPositiveNumericId(records, out long maximumId, out failure))
+            if (!ContentSnapshotRecords.TryGetMaximumPositiveNumericId(records, out long maximumId, out failure))
             {
                 return false;
             }
@@ -490,16 +467,6 @@ public sealed class ContentSequenceStructure :
             return true;
         }
 
-        public IContentStructure Restore(ContentStructureSnapshot snapshot)
-        {
-            if (TryRestore(snapshot, out IContentStructure? structure, out ContentFailure? failure) && structure is not null)
-            {
-                return structure;
-            }
-
-            throw new ContentOperationException(failure ?? ContentFailures.Snapshot());
-        }
-
         private static bool TryRestoreData(
             ContentStructureSnapshot snapshot,
             out long nextId,
@@ -518,8 +485,7 @@ public sealed class ContentSequenceStructure :
                 return false;
             }
 
-            if (!ContentSnapshotProperties.TryGetRequired(snapshot.Data, "nextId", out ContentSnapshotEncodedValue? nextIdValue, out failure)
-                || !ContentSnapshotCodecs.TryDecode(nextIdValue!, out nextId, out failure))
+            if (!ContentSnapshotProperties.TryDecodeRequiredInt64(snapshot.Data, "nextId", out nextId, out failure))
             {
                 return false;
             }
@@ -530,8 +496,7 @@ public sealed class ContentSequenceStructure :
                 return false;
             }
 
-            if (!ContentSnapshotProperties.TryGetRequired(snapshot.Data, "readOrder", out ContentSnapshotEncodedValue? readOrderValue, out failure)
-                || !ContentSnapshotCodecs.TryDecode(readOrderValue!, out string readOrderText, out failure))
+            if (!ContentSnapshotProperties.TryDecodeRequiredString(snapshot.Data, "readOrder", out string readOrderText, out failure))
             {
                 return false;
             }
@@ -542,8 +507,7 @@ public sealed class ContentSequenceStructure :
                 return false;
             }
 
-            if (!ContentSnapshotProperties.TryGetRequired(snapshot.Data, "overflowKind", out ContentSnapshotEncodedValue? overflowKindValue, out failure)
-                || !ContentSnapshotCodecs.TryDecode(overflowKindValue!, out string overflowKindText, out failure))
+            if (!ContentSnapshotProperties.TryDecodeRequiredString(snapshot.Data, "overflowKind", out string overflowKindText, out failure))
             {
                 return false;
             }
@@ -555,8 +519,7 @@ public sealed class ContentSequenceStructure :
                 return false;
             }
 
-            if (!ContentSnapshotProperties.TryGetRequired(snapshot.Data, "overflowCapacity", out ContentSnapshotEncodedValue? overflowCapacityValue, out failure)
-                || !ContentSnapshotCodecs.TryDecode(overflowCapacityValue!, out int overflowCapacity, out failure))
+            if (!ContentSnapshotProperties.TryDecodeRequiredInt32(snapshot.Data, "overflowCapacity", out int overflowCapacity, out failure))
             {
                 return false;
             }

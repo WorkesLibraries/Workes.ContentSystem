@@ -75,4 +75,4 @@ This keeps ContentSystem focused on storing meaning rather than owning visual re
 
 Custom entries implement `IContentEntry` directly. They do not need to inherit from a package base class.
 
-Custom entries that need snapshot support can opt into `IContentEntrySnapshotSerializable` and provide an `IContentEntrySnapshotFactory` for restore. See [Content Snapshots](CONTENT_SNAPSHOTS.md) for the implemented entry snapshot layer and the planned record/structure layers.
+Custom entries that need snapshot support can opt into `IContentEntrySnapshotSerializable` and provide an `IContentEntrySnapshotFactory` for restore. See [Content Snapshots](CONTENT_SNAPSHOTS.md) for entry, record, and built-in structure snapshot workflows.
