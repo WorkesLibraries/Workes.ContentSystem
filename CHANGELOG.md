@@ -6,7 +6,7 @@ This file records notable user-facing changes to `Workes.ContentSystem`.
 
 Added:
 
-- Added structure snapshot capture and restore contracts, helpers, and local entry factory catalogs.
+- Added structure snapshot capture and restore contracts, helpers, and package-wide entry factory registration.
 - Added built-in structure snapshot round trips for `ContentSequenceStructure` and `KeyedContentStructure<TId>`.
 - Added manager-owned atomic structure snapshot restore and `ContentChangeKind.SnapshotRestored`.
 - Added snapshot failures for unsupported structures and missing restore factories.
