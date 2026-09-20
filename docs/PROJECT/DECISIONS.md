@@ -285,7 +285,7 @@ FIFO remains internally generated and strategy-free. Keyed structures get clean 
 
 ContentSystem exposes separate manager workflows for the two implemented write categories.
 
-`ContentManager` works with an explicitly provided `IStructureAssignedIdContentStructure`. `ContentManager.For(...)` creates `ContentManager<TId>` for structure-assigned-ID structures that expose a natural retained-record ID type. `KeyedContentManager<TId>` works with `IKeyedContentStructure<TId>` and can create a keyed structure with a built-in default ID strategy for supported ID types.
+The original Stage 6 shape exposed separate manager workflows for structure-assigned IDs and keyed IDs. D-029 later replaces the broad manager shape with structure-created tailored managers.
 
 `ContentManagerBase` is a public abstract base for shared read and lookup behavior across already-created managers.
 
@@ -295,7 +295,7 @@ This keeps write APIs honest and avoids a single manager with methods that only 
 
 #### Consequences
 
-Users choose between structure-assigned managers and `KeyedContentManager<TId>` when constructing the root workflow. Shared code can accept `ContentManagerBase` when it receives managers from either workflow and only needs records or lookup by `ContentEntryId`.
+Shared code can accept `ContentManagerBase` when it receives managers from any workflow and only needs records or lookup by `ContentEntryId`.
 
 ### D-014: 0.1.0 Is The First Useful Prerelease
 
@@ -504,7 +504,7 @@ After clear, remove, and runtime structure configuration were promoted into the 
 
 #### Decision
 
-`ContentManagerBase` owns the shared mutation APIs for clearing, removing by `ContentEntryId`, and setting structure parameters by stable ID. Those APIs delegate only when the active structure implements the relevant focused contract: `IContentClearableStructure`, `IContentRecordRemovalStructure`, or `IParameterizedContentStructure`.
+The original Stage 12 shape put shared mutation APIs for clearing, removing by `ContentEntryId`, and setting structure parameters on `ContentManagerBase`. D-029 later narrows this: retained-state mutations belong on tailored managers whose structure family guarantees or deliberately exposes those operations.
 
 Concrete managers can add natural typed overloads where the workflow owns a natural ID shape, such as sequence numeric IDs or keyed `TId` values. Typed keyed removal is itself opt-in through `IKeyedContentRecordRemovalStructure<TId>`, so custom keyed structures are not forced to support removal.
 
@@ -514,7 +514,9 @@ This mirrors InventorySystem's manager-owned mutation direction while keeping `I
 
 #### Consequences
 
-Try-style unsupported mutations return `StructureUnsupportedOperation`. Expected-success mutation APIs throw `ContentOperationException` carrying the same failure. Successful mutations emit synchronous committed-change events when the structure is observable; rejected and no-op mutations emit no events.
+Successful mutations emit synchronous committed-change events when the structure is observable; rejected and no-op mutations emit no events.
+
+D-030 clarifies the ownership boundary behind this decision: managers own the normal user workflow, but structures own retained content state. Manager-owned mutation language should not be read as manager-owned records.
 
 ### D-025: Entry Snapshots Use Capture Contracts And Explicit Restore Factories
 
@@ -608,30 +610,88 @@ This matches the package style used elsewhere: focused opt-in contracts remain t
 
 Built-in structures should use the public helper path where appropriate so the extension surface stays exercised by package code. Extension docs should grow as future extension systems such as sorting, batch operations, and export become implemented.
 
-### D-029: Structures Declare Their Manager Workflow
+### D-029: Structures Create Their Tailored Managers
 
 #### Context
 
-The package currently has separate manager classes for structure-assigned IDs, natural structure-assigned IDs, and caller-keyed IDs. That works for the first two structures, but planned structures such as single-entry, bounded keyed, stack-like, grouped, or threaded structures may need different manager surfaces. Asking users to pick from a growing list of manager types by hand would add friction and make extension managers feel second-class.
+The package needs manager surfaces that can be tailored to the structure family. A stack manager needs `Push`, `Peek`, and `Pop`; a sequence manager needs append, numeric lookup/removal, clear, and sequence parameter mutation; future grouped or threaded managers may need operations that do not fit a generic add/remove shape.
+
+An earlier Pre-17.2 design used `ContentStructureWorkflow` descriptors plus a global manager factory registry. That proved too indirect: the descriptor did not actually define the operations the manager could perform, and extension authors had to understand a registry even though each structure already knows which manager should wrap it.
 
 #### Decision
 
-Pre-17.2 will introduce a narrow workflow descriptor named `ContentStructureWorkflow`.
+Every `IContentStructure` creates its tailored manager through `CreateManager()`. This is an accepted prerelease breaking change.
 
-Every `IContentStructure` will declare the manager workflow it belongs to. This is an accepted prerelease breaking change. The workflow descriptor identifies manager resolution only; it does not describe operation support or replace focused structure contracts.
+The preferred normal construction path is `ContentManagers.ForStructure(structure)`, which calls `structure.CreateManager()`. A typed expected-manager path, `ContentManagers.ForStructure<TManager>(structure)`, exists for callers that want validation instead of manual casts.
 
-The preferred normal construction path will become `ContentManagers.ForStructure(structure)`. A typed expected-manager path such as `ContentManagers.ForStructure<TManager>(structure)` should also exist for callers that want validation instead of manual casts.
+Built-in structures create built-in managers directly: `ContentSequenceStructure` creates `ContentSequenceManager`, and `KeyedContentStructure<TId>` creates `KeyedContentManager<TId>`. Custom structures can return custom managers without global registry setup.
 
-Manager workflow factories will be registered through a package-owned static registry. Built-in workflows should register automatically. Extension authors can register custom workflow-to-manager factories. Re-registering the same mapping should be harmless; conflicting mappings should fail through structured ContentSystem failures.
-
-Direct manager constructors remain legal for explicit/manual use unless Pre-17.2 exposes a concrete conflict.
+Direct manager constructors remain legal for explicit/manual use.
 
 #### Reasoning
 
-The structure already owns ID meaning, retention, lookup, and focused operation contracts. Letting the structure also declare its manager workflow keeps the user path close to "create a structure, ask the package for the right manager" without coupling structures directly to manager construction.
+The structure already owns ID meaning, retention, lookup, and focused operation contracts. Letting the structure create its manager keeps the user path close to "create a structure, ask the package for the right manager" while making the coupling honest: a useful manager is tailored to the structure's operations.
 
-Keeping the descriptor narrow preserves the InventorySystem-style contract model. Actual behavior remains discoverable and usable through focused interfaces such as keyed add, structure-assigned add, change source, mutation, parameterization, and snapshots.
+This removes a separate factory registry and avoids a misleading middle layer. Actual optional behavior remains discoverable and usable through focused interfaces such as keyed add, structure-assigned add, change source, mutation, parameterization, and snapshots.
 
 #### Consequences
 
-Pre-17.2 will be a breaking API stage and is planned as `0.6.0`. Existing direct construction examples should remain valid but stop being the primary documented path after the resolver lands. Unsupported or unregistered workflows, typed manager mismatches, and conflicting registrations should use structured failures and expected-success exceptions instead of hidden nulls or invalid casts.
+Pre-17.2 was split into smaller prerelease stages after this decision. The rejected workflow descriptor and manager factory registry are removed in the `0.5.2` manager/structure foundation, while later Pre-17.2 stages finish snapshot layering and flexible ID strategy work before the broader `0.6.0` milestone. Existing direct construction remains valid, but `ContentManagers.ForStructure(...)` is the preferred documented path. Typed manager mismatches use structured failures and expected-success exceptions instead of hidden nulls or invalid casts.
+
+`ContentManagerBase` stays small: shared read/lookup, event forwarding, and snapshot lifecycle. Retained-state mutations move to concrete tailored managers such as `ContentSequenceManager` and `KeyedContentManager<TId>`.
+
+### D-030: Content Structures Own Retained Content State
+
+#### Context
+
+ContentSystem originally borrowed some language from InventorySystem, especially around manager-owned workflows and layout-like structure contracts. That comparison is useful for failure style, opt-in contracts, snapshots, and event discipline, but the ownership model is not the same.
+
+InventorySystem has a stable core shape: an inventory owns item instances, while layouts place those item instances. ContentSystem can become more varied. A sequence owns an ordered stream, a keyed structure owns keyed retained records, a stack owns stack order, and future grouped or threaded structures may own nested relationships such as groups, threads, replies, or other structure-specific content graphs.
+
+#### Decision
+
+Content structures own retained content state.
+
+Managers are the normal public workflow surface over one active structure. They coordinate calls, expected-success exceptions, events, snapshots, and user-friendly overloads, but they do not own a separate canonical record store.
+
+This is an intentional difference from InventorySystem. ContentSystem should not force every structure into a flat manager-owned storage model with structure-owned placement. Grouped and threaded content are allowed to be genuine structure-owned models rather than simulated layouts over a universal manager store.
+
+#### Reasoning
+
+A manager-owned content store would mirror InventorySystem more closely, but it would also make richer content structures awkward. A forum-like structure is not merely placing records; it owns thread and reply relationships. A grouped feed may own group state, per-group ordering, and group-specific retention. Forcing those relationships into a separate placement layer would add reconciliation complexity and make extension structures harder to reason about.
+
+Keeping content state structure-owned makes custom structures first-class. Each structure can define the retained records, IDs, indexes, nesting, ordering, and snapshot state that actually match its model.
+
+#### Consequences
+
+Shared helpers should not assume the manager can clear or mutate records directly. Shared manager code may coordinate common workflows only by delegating to focused structure contracts.
+
+Concrete managers should expose operations that make sense for their structure family. Optional contracts remain useful, but they should not imply that every manager must surface every optional operation.
+
+Documentation should describe InventorySystem as an inspiration for style and contracts, not as proof that ContentSystem shares InventorySystem's item/layout ownership split.
+
+### D-031: Structure Families Use Bases And Dedicated Concrete Managers
+
+#### Context
+
+The direct structure-created-manager model was cleaner than workflow descriptors, but it did not fully capture the intended instruction-set shape. A reusable family such as sequence, keyed, stack, or single-entry content needs shared structure and manager behavior, while concrete structures still need room to expose concrete capabilities without forcing those capabilities onto every family member.
+
+#### Decision
+
+ContentSystem uses structure-family bases and manager-family bases where a workflow family is reusable.
+
+For the implemented families, `ContentSequenceStructureBase` and `KeyedContentStructureBase<TId>` define the shared family structure surface. `ContentSequenceManagerBase` and `KeyedContentManagerBase<TId>` define shared manager behavior for those family surfaces.
+
+Concrete structures still create dedicated concrete managers. `ContentSequenceStructure` creates `ContentSequenceManager`, and `KeyedContentStructure<TId>` creates `KeyedContentManager<TId>`.
+
+#### Reasoning
+
+Family bases reduce repeated add/get/remove/clear plumbing without making the family manager the final user-facing ceiling. Concrete managers can expose structure-specific capabilities, such as sequence parameter mutation, while still inheriting common family behavior.
+
+This also keeps future opt-in features from becoming awkward. A concrete sortable sequence can expose sorting on its own manager without requiring every sequence-family structure to support sorting.
+
+#### Consequences
+
+Normal users still resolve concrete managers from concrete structures. Extension authors can choose between implementing only `IContentStructure`, inheriting a family base, or creating an entirely custom manager/structure pair.
+
+Snapshot layering and flexible generated ID sources remain separate follow-up stages.

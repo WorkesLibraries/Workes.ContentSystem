@@ -802,7 +802,7 @@ public sealed class ContentSnapshotTests
         structure.Add(Entry("Completed quest"));
 
         ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
-        var manager = new ContentManager<long>(new ExampleAssignedStructure("empty"));
+        var manager = new ExampleAssignedManager(new ExampleAssignedStructure("empty"));
         manager.RestoreSnapshot(snapshot);
         ContentEntryRecord next = manager.Add(Entry("Claimed reward"));
         var restored = (ExampleAssignedStructure)manager.Structure;
@@ -836,11 +836,11 @@ public sealed class ContentSnapshotTests
     public void CustomKeyedStructure_RestoresThroughManagerWithoutExplicitFactory()
     {
         var sourceStructure = new ExampleKeyedStructure(new PrefixIdStrategy());
-        var source = new KeyedContentManager<CustomSnapshotId>(sourceStructure);
+        var source = new ExampleKeyedManager(sourceStructure);
         source.Add(new CustomSnapshotId("quest"), Entry("Quest"));
         ContentStructureSnapshot snapshot = source.CaptureSnapshot();
 
-        var target = new KeyedContentManager<CustomSnapshotId>(new ExampleKeyedStructure(new PrefixIdStrategy()));
+        var target = new ExampleKeyedManager(new ExampleKeyedStructure(new PrefixIdStrategy()));
 
         target.RestoreSnapshot(snapshot);
 
@@ -914,6 +914,11 @@ public sealed class ContentSnapshotTests
     {
         public IReadOnlyList<ContentEntryRecord> Records => Array.Empty<ContentEntryRecord>();
 
+        public ContentManagerBase CreateManager()
+        {
+            return new UnsupportedManager(this);
+        }
+
         public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
         {
             record = null;
@@ -924,6 +929,14 @@ public sealed class ContentSnapshotTests
         public ContentEntryRecord Get(ContentEntryId id)
         {
             throw new ContentOperationException(ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing."));
+        }
+    }
+
+    private sealed class UnsupportedManager : ContentManagerBase
+    {
+        public UnsupportedManager(IContentStructure structure)
+            : base(structure)
+        {
         }
     }
 
@@ -1141,6 +1154,11 @@ public sealed class ContentSnapshotTests
 
         IContentStructureSnapshotFactory IContentStructureSnapshotRoundTrippable.SnapshotFactory => SnapshotFactory;
 
+        public ContentManagerBase CreateManager()
+        {
+            return new ExampleAssignedManager(this);
+        }
+
         public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
         {
             record = _records.FirstOrDefault(candidate => candidate.Id.Equals(id));
@@ -1260,6 +1278,38 @@ public sealed class ContentSnapshotTests
         }
     }
 
+    private sealed class ExampleAssignedManager : ContentManagerBase
+    {
+        public ExampleAssignedManager(ExampleAssignedStructure structure)
+            : base(structure)
+        {
+        }
+
+        private ExampleAssignedStructure Assigned => (ExampleAssignedStructure)Structure;
+
+        public ContentEntryRecord Add(IContentEntry entry)
+        {
+            return Assigned.Add(entry);
+        }
+
+        public ContentEntryRecord Get(long id)
+        {
+            return Assigned.Get(id);
+        }
+
+        protected override bool TryAcceptStructureReplacement(IContentStructure structure, out ContentFailure? failure)
+        {
+            if (structure is ExampleAssignedStructure)
+            {
+                failure = null;
+                return true;
+            }
+
+            failure = ContentFailure.Create(ContentFailureKind.Structure, ContentFailureCodes.StructureUnsupportedOperation, "Replacement structure is not an example assigned structure.");
+            return false;
+        }
+    }
+
     private sealed class ExampleKeyedStructure : IKeyedContentStructure<CustomSnapshotId>, IContentStructureSnapshotRoundTrippable
     {
         public const string SnapshotKind = "test.structure.keyed";
@@ -1283,6 +1333,11 @@ public sealed class ContentSnapshotTests
         public IReadOnlyList<ContentEntryRecord> Records => _records.ToArray();
 
         public IContentStructureSnapshotFactory SnapshotFactory => new Factory(_strategy);
+
+        public ContentManagerBase CreateManager()
+        {
+            return new ExampleKeyedManager(this);
+        }
 
         public bool TryAdd(CustomSnapshotId id, IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
         {
@@ -1425,6 +1480,38 @@ public sealed class ContentSnapshotTests
                 failure = null;
                 return true;
             }
+        }
+    }
+
+    private sealed class ExampleKeyedManager : ContentManagerBase
+    {
+        public ExampleKeyedManager(ExampleKeyedStructure structure)
+            : base(structure)
+        {
+        }
+
+        private ExampleKeyedStructure Keyed => (ExampleKeyedStructure)Structure;
+
+        public ContentEntryRecord Add(CustomSnapshotId id, IContentEntry entry)
+        {
+            return Keyed.Add(id, entry);
+        }
+
+        public ContentEntryRecord Get(CustomSnapshotId id)
+        {
+            return Keyed.Get(id);
+        }
+
+        protected override bool TryAcceptStructureReplacement(IContentStructure structure, out ContentFailure? failure)
+        {
+            if (structure is ExampleKeyedStructure)
+            {
+                failure = null;
+                return true;
+            }
+
+            failure = ContentFailure.Create(ContentFailureKind.Structure, ContentFailureCodes.StructureUnsupportedOperation, "Replacement structure is not an example keyed structure.");
+            return false;
         }
     }
 

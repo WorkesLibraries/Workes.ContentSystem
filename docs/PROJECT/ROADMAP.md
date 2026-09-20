@@ -16,9 +16,9 @@ Reframe the FIFO-specific bounded structure into a configurable content sequence
 
 Define focused opt-in contracts for structure behavior beyond the base `IContentStructure` contract. Avoid a separate capability metadata object unless a later concrete need appears.
 
-### Stage 12: Add manager-owned runtime mutation and richer change events
+### Stage 12: Add manager-coordinated runtime mutation and richer change events
 
-Add manager-owned mutation workflows, with structures opting into focused mutation contracts. Successful mutations should emit coherent events; rejected mutations should be atomic and quiet.
+Add manager-coordinated mutation workflows, with structures owning retained-state changes through focused mutation contracts. Successful mutations should emit coherent events; rejected mutations should be atomic and quiet.
 
 ### Stage 13: Add entry snapshot round-trip contracts
 
@@ -30,7 +30,7 @@ Define serializer-friendly DTOs for stored records and whole structures without 
 
 ### Stage 15: Add snapshot capture and restore for built-in structures
 
-Completed implementation adds exact snapshot capture and restore for built-in sequence and keyed structures, package-wide entry factory registration, keyed restore ID validation, and manager-owned atomic restore. Stage 16 refines the normal restore path so round-trippable structures expose their own restore factory.
+Completed implementation adds exact snapshot capture and restore for built-in sequence and keyed structures, package-wide entry factory registration, keyed restore ID validation, and manager-coordinated atomic restore. Stage 16 refines the normal restore path so round-trippable structures expose their own restore factory.
 
 ### Stage 16: Add structure extension authoring support
 
@@ -40,15 +40,23 @@ Later stages should expand the extension guide as new extension systems land.
 
 ### Pre-17.1: Reconcile manager workflow instruction sets
 
-Record the breaking manager-workflow direction before adding more built-in structures. The chosen direction is to use `ContentStructureWorkflow` as a narrow manager-resolution descriptor owned by `IContentStructure`, not as broad capability metadata. This stage is documentation and roadmap reconciliation only.
+Record the need for a breaking manager-workflow direction before adding more built-in structures. The original planned direction used workflow descriptors, but Pre-17.2 replaced that with direct structure-created managers after the design review found the descriptor layer too indirect.
 
-### Pre-17.2: Implement manager workflow resolution
+### Pre-17.2A: Add structure-family bases and dedicated manager bases
 
-Implement the `0.6.0` breaking workflow foundation. Structures will declare their workflow through `IContentStructure`, built-in workflows will register automatically, custom workflow/manager pairs will register through package-owned manager resolution, and `ContentManagers.ForStructure(...)` will become the preferred structure-driven manager creation path.
+Completed implementation adds the first manager/structure family foundation. Structures still create their tailored concrete manager through `IContentStructure.CreateManager()`, but sequence and keyed workflows now share structure-family bases and manager-family bases so future related structures can reduce redundancy without losing dedicated managers.
 
-### Pre-17.3: Reconcile documentation after manager workflow resolution
+### Pre-17.2B: Reconcile snapshots with structure-family bases
 
-Sweep all user-facing and project-control documentation after the Pre-17.2 breaking workflow change. Update examples to use the preferred resolver path and remove stale direct-manager-first wording before Stage 17 adds more structures.
+Rework snapshot behavior for the new structure-family and dedicated-manager architecture while keeping the normal user API minimal: `CaptureSnapshot()` and `RestoreSnapshot(snapshot)`.
+
+### Pre-17.2C: Add flexible ID strategies and generated ID sources
+
+Implement the flexible ID direction: natural defaults for normal users, optional custom typed ID strategy/source support for advanced users, and generated-ID behavior owned by ID strategies/sources where families or concrete structures opt into automatic IDs.
+
+### Pre-17.3: Reconcile documentation after manager/structure redo
+
+Sweep all user-facing and project-control documentation after Pre-17.2A through Pre-17.2C are complete. Update examples to use the final preferred structure, manager, snapshot, and ID paths before Stage 17 adds more structures.
 
 ### Stage 17: Add selected remaining built-in structures
 
@@ -84,7 +92,7 @@ Decide whether threaded content belongs in core, needs custom managers, or shoul
 
 ### Stage 25: Add optional grouped content structure
 
-Add grouped content if the manager-owned workflow remains clean and domain-neutral.
+Add grouped content if the structure-owned content model and manager workflow remain clean and domain-neutral.
 
 ### Stage 26: Add example tests and usage docs
 

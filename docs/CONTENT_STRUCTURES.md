@@ -4,11 +4,9 @@ Content structures define how entries are stored, ordered, found, and retained.
 
 ## Purpose
 
-`IContentStructure` is the shared abstraction for reading retained content records and looking them up by ID.
+`IContentStructure` is the shared abstraction for reading retained content records, looking them up by ID, and creating the structure's tailored manager.
 
-Pre-17.2 will extend this base abstraction so every structure also declares a narrow `ContentStructureWorkflow` descriptor. That planned descriptor is for manager resolution only; it is not implemented yet and should not be confused with operation support.
-
-The structure owns the rules. The manager should provide a convenient root workflow, but the structure decides what operations are supported and what entry IDs mean.
+The structure owns retained content state and rules. The manager should provide a convenient root workflow, but the structure decides what operations are supported, what entry IDs mean, and how records are retained or organized.
 
 The common abstraction exposes:
 
@@ -22,11 +20,11 @@ Write workflows are structure-specific. This lets structure-assigned-ID structur
 
 Prefer a concrete structure's natural lookup overload when working with that structure directly. Use `ContentEntryId` lookup through `IContentStructure` when writing structure-agnostic code.
 
-Manager workflows follow the same split:
+Manager resolution follows the same split:
 
-- `ContentManager` works with `IStructureAssignedIdContentStructure`;
-- `ContentManager.For(...)` creates a typed manager when the structure exposes a natural ID type;
-- `KeyedContentManager<TId>` works with `IKeyedContentStructure<TId>`;
+- `ContentManagers.ForStructure(...)` asks a structure to create its tailored manager;
+- `ContentSequenceManager` works with `ContentSequenceStructure`;
+- `KeyedContentManager<TId>` works with the built-in keyed structure;
 - `ContentManagerBase` provides shared read and lookup behavior for manager-agnostic code.
 
 See [Content Managers](CONTENT_MANAGERS.md) for manager usage.
@@ -53,10 +51,10 @@ This covers console history, simple logs, chat scrollback, notification feeds, a
 
 FIFO-style history is now expressed as `ContentSequenceStructure` plus `ContentOverflowPolicy.DropOldest(capacity)` rather than as a separate type.
 
-`ContentSequenceStructure` implements `IStructureAssignedIdContentStructure<long>`, so it can be used directly or through a typed manager inferred by `ContentManager.For(...)`:
+`ContentSequenceStructure` implements `IStructureAssignedIdContentStructure<long>` and creates `ContentSequenceManager`:
 
 ```csharp
-var content = ContentManager.For(
+var content = ContentManagers.ForStructure<ContentSequenceManager>(
     new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
@@ -66,7 +64,7 @@ ContentEntryRecord record = content.Get(1);
 Unbounded usage is explicit:
 
 ```csharp
-var content = ContentManager.For(
+var content = ContentManagers.ForStructure<ContentSequenceManager>(
     new ContentSequenceStructure(ContentOverflowPolicy.None));
 ```
 
@@ -74,7 +72,7 @@ Lookup only finds retained records. A record that was dropped by capacity overfl
 
 When `DropOldest` overflow drops the oldest record, the structure emits one change event containing both the removed oldest record and the added new record.
 
-Changing the sequence `overflowPolicy` parameter through `ContentManagerBase.SetStructureParameter` may trim oldest records immediately. Changing from `DropOldest` to `None` stops future overflow without resetting generated IDs.
+Changing the sequence `overflowPolicy` parameter through `ContentSequenceManager.SetStructureParameter` may trim oldest records immediately. Changing from `DropOldest` to `None` stops future overflow without resetting generated IDs.
 
 Because sequence-generated IDs are sequential numbers, `ContentSequenceStructure` exposes numeric lookup:
 
@@ -124,7 +122,8 @@ See [Content Identity](CONTENT_IDENTITY.md) for the identity model and strategy 
 `KeyedContentStructure<TId>` implements `IKeyedContentStructure<TId>`, so it can also be used through `KeyedContentManager<TId>`:
 
 ```csharp
-var content = new KeyedContentManager<string>();
+var content = ContentManagers.ForStructure<KeyedContentManager<string>>(
+    new KeyedContentStructure<string>());
 
 content.Add("thread-main", new PlainContentEntry(DateTimeOffset.UtcNow, "First post."));
 ```
@@ -146,13 +145,15 @@ The abstraction should leave room for other useful structures:
 - grid-like structure for forum or board-style UIs;
 - composite structures that mirror entries into more than one view.
 
-These should grow from the existing abstractions rather than making the sequence implementation complicated. Grouped and threaded structures should wait until focused structure contracts, manager-owned runtime mutation, and snapshot contracts are stable.
+These should grow from the existing abstractions rather than making the sequence implementation complicated. Grouped and threaded structures should wait until focused structure contracts, manager-coordinated runtime mutation, and snapshot contracts are stable.
 
 ## Structure Contracts
 
 Not every structure should support every operation.
 
 `IContentStructure` is the base minimum useful contract. It covers retained records and lookup.
+
+Reusable structure families can use abstract bases when the workflow is shared by more than one likely structure. `ContentSequenceStructureBase` defines the current sequence-family instruction set, while `KeyedContentStructureBase<TId>` defines the keyed-family instruction set. Concrete structures still create dedicated managers.
 
 Additional behavior should be exposed through focused opt-in contracts, mirroring the InventorySystem style already used by:
 
@@ -173,9 +174,9 @@ Additional behavior should be exposed through focused opt-in contracts, mirrorin
 
 Future contracts can cover sorting, searching, or export only where a structure genuinely supports that behavior.
 
-Runtime mutation should be manager-owned for normal callers, with structures opting into the underlying contracts that managers coordinate.
+Runtime mutation should be manager-coordinated for normal callers, with structures owning the actual retained-state mutation through focused opt-in contracts.
 
-Manager workflow resolution is the next planned exception to the historically minimal base shape: every structure will declare which manager workflow should wrap it. Actual supported operations will still be expressed through the focused contracts listed above.
+Manager resolution is part of the base shape: every structure creates the manager that knows how to operate it. Actual supported operations are still expressed through the focused contracts listed above.
 
 `ContentStructureSnapshot` is the portable DTO shape for retained records plus structure-owned data. Built-in sequence and keyed structures capture their own state into that DTO, including retained records and structure-owned configuration. Round-trippable structures expose a `SnapshotFactory` so normal manager restore can use `RestoreSnapshot(snapshot)` while still letting custom structures own their state schema.
 
@@ -183,4 +184,4 @@ Custom structures can use `ContentStructureSnapshotFactoryBase<TStructure>`, `Co
 
 This mirrors the strategy used in other Workes packages: keep the central abstraction small, then add focused optional contracts where they are genuinely needed. Avoid a broad capability metadata object unless a future stage finds a concrete use case that opt-in contracts cannot solve cleanly.
 
-The planned workflow descriptor is intentionally not broad capability metadata. It exists because manager selection itself has become a base structure concern before more built-ins such as single-entry, bounded keyed, or stack-like structures are added.
+Manager creation is intentionally not broad capability metadata. It exists because manager selection itself is a base structure concern before more built-ins such as single-entry, bounded keyed, or stack-like structures are added.

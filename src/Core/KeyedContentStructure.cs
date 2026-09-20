@@ -8,8 +8,7 @@ namespace Workes.ContentSystem.Core;
 /// </summary>
 /// <typeparam name="TId">The caller-facing ID type.</typeparam>
 public sealed class KeyedContentStructure<TId> :
-    IKeyedContentRecordRemovalStructure<TId>,
-    IContentClearableStructure,
+    KeyedContentStructureBase<TId>,
     IContentStructureSnapshotRoundTrippable,
     IContentChangeSource
 {
@@ -80,6 +79,12 @@ public sealed class KeyedContentStructure<TId> :
     public IContentEntryIdStrategy<TId> IdStrategy { get; }
 
     /// <inheritdoc />
+    public override ContentManagerBase CreateManager()
+    {
+        return new KeyedContentManager<TId>(this);
+    }
+
+    /// <inheritdoc />
     public IContentStructureSnapshotFactory SnapshotFactory => CreateSnapshotFactory(IdStrategy);
 
     /// <summary>
@@ -88,7 +93,7 @@ public sealed class KeyedContentStructure<TId> :
     public int Count => _records.Count;
 
     /// <inheritdoc />
-    public IReadOnlyList<ContentEntryRecord> Records => _records.ToArray();
+    public override IReadOnlyList<ContentEntryRecord> Records => _records.ToArray();
 
     /// <inheritdoc />
     public event EventHandler<ContentChangedEventArgs>? Changed;
@@ -101,7 +106,7 @@ public sealed class KeyedContentStructure<TId> :
     /// <param name="record">The retained record when accepted; otherwise <see langword="null"/>.</param>
     /// <param name="failure">The structured failure when rejected; otherwise <see langword="null"/>.</param>
     /// <returns><see langword="true"/> when the entry is added.</returns>
-    public bool TryAdd(TId id, IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
+    public override bool TryAdd(TId id, IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
     {
         if (entry is null)
         {
@@ -136,7 +141,7 @@ public sealed class KeyedContentStructure<TId> :
     /// <param name="entry">The entry to add.</param>
     /// <returns>The retained record.</returns>
     /// <exception cref="ContentOperationException">Thrown when the ID is rejected.</exception>
-    public ContentEntryRecord Add(TId id, IContentEntry entry)
+    public override ContentEntryRecord Add(TId id, IContentEntry entry)
     {
         if (TryAdd(id, entry, out ContentEntryRecord? record, out ContentFailure? failure))
         {
@@ -147,7 +152,7 @@ public sealed class KeyedContentStructure<TId> :
     }
 
     /// <inheritdoc />
-    public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
+    public override bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
     {
         EnsureValidId(id);
 
@@ -168,7 +173,7 @@ public sealed class KeyedContentStructure<TId> :
     /// <param name="record">The retained record when found; otherwise <see langword="null"/>.</param>
     /// <param name="failure">The structured failure when the record cannot be found; otherwise <see langword="null"/>.</param>
     /// <returns><see langword="true"/> when a retained record is found.</returns>
-    public bool TryGet(TId id, out ContentEntryRecord? record, out ContentFailure? failure)
+    public override bool TryGet(TId id, out ContentEntryRecord? record, out ContentFailure? failure)
     {
         if (!TryNormalize(id, out ContentEntryId normalizedId, out failure))
         {
@@ -187,7 +192,7 @@ public sealed class KeyedContentStructure<TId> :
     }
 
     /// <inheritdoc />
-    public ContentEntryRecord Get(ContentEntryId id)
+    public override ContentEntryRecord Get(ContentEntryId id)
     {
         if (TryGet(id, out ContentEntryRecord? record, out ContentFailure? failure))
         {
@@ -203,7 +208,7 @@ public sealed class KeyedContentStructure<TId> :
     /// <param name="id">The entry ID to look up.</param>
     /// <returns>The retained record.</returns>
     /// <exception cref="ContentOperationException">Thrown when the record cannot be found or the ID is rejected.</exception>
-    public ContentEntryRecord Get(TId id)
+    public override ContentEntryRecord Get(TId id)
     {
         if (TryGet(id, out ContentEntryRecord? record, out ContentFailure? failure))
         {
@@ -214,7 +219,7 @@ public sealed class KeyedContentStructure<TId> :
     }
 
     /// <inheritdoc />
-    public bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+    public override bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
     {
         removedRecords = _records.ToArray();
         failure = null;
@@ -235,7 +240,7 @@ public sealed class KeyedContentStructure<TId> :
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<ContentEntryRecord> Clear()
+    public override IReadOnlyList<ContentEntryRecord> Clear()
     {
         if (TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure))
         {
@@ -246,7 +251,7 @@ public sealed class KeyedContentStructure<TId> :
     }
 
     /// <inheritdoc />
-    public bool TryRemove(ContentEntryId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
+    public override bool TryRemove(ContentEntryId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
     {
         EnsureValidId(id);
 
@@ -273,7 +278,7 @@ public sealed class KeyedContentStructure<TId> :
     /// <param name="removedRecord">The removed record when found; otherwise <see langword="null"/>.</param>
     /// <param name="failure">The structured failure when rejected; otherwise <see langword="null"/>.</param>
     /// <returns><see langword="true"/> when a retained record is removed.</returns>
-    public bool TryRemove(TId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
+    public override bool TryRemove(TId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
     {
         if (!TryNormalize(id, out ContentEntryId normalizedId, out failure))
         {
@@ -285,7 +290,7 @@ public sealed class KeyedContentStructure<TId> :
     }
 
     /// <inheritdoc />
-    public ContentEntryRecord Remove(ContentEntryId id)
+    public override ContentEntryRecord Remove(ContentEntryId id)
     {
         if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure))
         {
@@ -301,7 +306,7 @@ public sealed class KeyedContentStructure<TId> :
     /// <param name="id">The entry ID to remove.</param>
     /// <returns>The removed record.</returns>
     /// <exception cref="ContentOperationException">Thrown when the record cannot be removed or the ID is rejected.</exception>
-    public ContentEntryRecord Remove(TId id)
+    public override ContentEntryRecord Remove(TId id)
     {
         if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure))
         {

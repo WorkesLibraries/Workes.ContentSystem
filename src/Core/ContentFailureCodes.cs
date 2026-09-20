@@ -61,6 +61,11 @@ public static class ContentFailureCodes
     public const string StructureUnsupportedOperation = PackagePrefix + "structure.unsupported_operation";
 
     /// <summary>
+    /// Structure resolved to a manager that does not match the requested manager type.
+    /// </summary>
+    public const string ManagerMismatch = PackagePrefix + "manager.mismatch";
+
+    /// <summary>
     /// Snapshot operation rejection.
     /// </summary>
     public const string SnapshotRejected = PackagePrefix + "snapshot.rejected";

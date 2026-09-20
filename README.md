@@ -11,7 +11,7 @@ It is intended to be useful anywhere an application needs an ordered or structur
 
 - Extensible content entries instead of one fixed message shape.
 - Pluggable content structures, starting with a configurable sequence structure.
-- Structure-assigned and caller-keyed manager workflows.
+- Structure-driven manager resolution for sequence, keyed, and custom workflows.
 - Structure-owned entry identity so different storage models can use the IDs that fit them.
 - Optional change hooks for observing committed mutations.
 - Entry, record, and built-in structure snapshots for portable serialization.
@@ -23,29 +23,32 @@ It is intended to be useful anywhere an application needs an ordered or structur
 Install the package from [NuGet](https://www.nuget.org/packages/Workes.ContentSystem):
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.5.1
+dotnet add package Workes.ContentSystem --version 0.5.2
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.5.1" />
+<PackageReference Include="Workes.ContentSystem" Version="0.5.2" />
 ```
 
 The package targets .NET Standard 2.1.
 
 ## Quick Example
 
-The structure-assigned-ID manager uses an explicit sequence structure here. `ContentManager.For(...)` lets the sequence expose its natural numeric ID type without making you write the generic type:
+The normal path is to create a structure, then let ContentSystem resolve its natural manager:
 
 ```csharp
-var content = ContentManager.For(
+ContentManagerBase content = ContentManagers.ForStructure(
     new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
-content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
-content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Player joined: Workes"));
+if (content is ContentSequenceManager sequence)
+{
+    sequence.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
+    sequence.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Player joined: Workes"));
 
-ContentEntryRecord first = content.Get(1);
+    ContentEntryRecord first = sequence.Get(1);
+}
 
 foreach (ContentEntryRecord record in content.Records)
 {
@@ -53,10 +56,19 @@ foreach (ContentEntryRecord record in content.Records)
 }
 ```
 
-For caller-provided IDs, use a keyed manager:
+If your code expects a specific manager from the start, use the typed resolver:
 
 ```csharp
-var content = new KeyedContentManager<string>();
+ContentSequenceManager sequence =
+    ContentManagers.ForStructure<ContentSequenceManager>(
+        new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
+```
+
+For caller-provided IDs, resolve a keyed structure:
+
+```csharp
+var content = ContentManagers.ForStructure<KeyedContentManager<string>>(
+    new KeyedContentStructure<string>());
 
 content.Add("server-started", new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
 

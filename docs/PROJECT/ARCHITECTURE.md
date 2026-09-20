@@ -20,8 +20,8 @@ The package should be engine-neutral and centered on manager workflows that own 
 - `ContentEntryRecord` pairs a stored entry with the active structure's ID.
 - `ContentEntryId` is the shared stored-record identity representation.
 - `IContentEntryIdStrategy<TId>` validates and normalizes caller-provided IDs for keyed structures and validates normalized IDs restored from snapshots.
-- `IContentStructure` is the read/lookup storage abstraction.
-- The planned Pre-17.2 direction is for `IContentStructure` to also declare a narrow `ContentStructureWorkflow` descriptor used only for manager resolution.
+- `IContentStructure` is the read/lookup storage abstraction and creates the structure's tailored manager.
+- `ContentSequenceStructureBase` and `KeyedContentStructureBase<TId>` are structure-family bases for reusable workflow surfaces.
 - `IContentChangeSource` is the optional committed-change notification abstraction.
 - `IContentRetentionPolicyStructure` is the optional retention-policy inspection contract.
 - `IContentReadOrderStructure` is the optional read-order inspection contract.
@@ -31,15 +31,15 @@ The package should be engine-neutral and centered on manager workflows that own 
 - `IContentRecordRemovalStructure` is the optional record removal contract.
 - `IKeyedContentRecordRemovalStructure<TId>` is the optional typed keyed record removal contract.
 - `IParameterizedContentStructure` is the optional runtime structure-parameter contract.
-- `ContentManagerBase` is the shared manager read/lookup base.
-- `ContentManager` is the manager for structure-assigned-ID workflows.
-- `ContentManager<TId>` is the typed manager for structure-assigned-ID workflows with a natural retained-record ID type.
+- `ContentManagerBase` is the shared manager read/lookup and snapshot lifecycle base.
+- `ContentSequenceManagerBase` and `KeyedContentManagerBase<TId>` are manager-family bases for shared workflow behavior.
+- `ContentSequenceManager` is the tailored manager for `ContentSequenceStructure`.
 - `KeyedContentManager<TId>` is the manager for caller-provided typed-ID workflows.
-- `ContentManagers.ForStructure(...)` is planned as the preferred structure-driven manager resolver in Pre-17.2; it is not implemented yet.
+- `ContentManagers.ForStructure(...)` is the preferred structure-driven manager resolver.
 - The first structure is a configurable sequence structure.
 - `KeyedContentStructure<TId>` provides configurable typed-ID validation for caller-keyed records.
 - A shared failure model should represent expected content-system rejection.
-- Entry snapshots are implemented. Record and structure snapshot DTOs are implemented. Built-in sequence and keyed structures support exact snapshot capture and normal manager-owned restore through their round-trippable `SnapshotFactory`.
+- Entry snapshots are implemented. Record and structure snapshot DTOs are implemented. Built-in sequence and keyed structures support exact snapshot capture and normal manager-coordinated restore through their round-trippable `SnapshotFactory`.
 - Optional attachments should support export, bridges, and platform adapters without making those features mandatory.
 
 ## Intended Data Flow
@@ -48,7 +48,7 @@ The normal in-memory flow should be:
 
 ```text
 host application
--> ContentManager or KeyedContentManager<TId>
+-> ContentSequenceManager or KeyedContentManager<TId>
 -> IContentStructure
 -> retained ContentEntryRecord values
 -> host UI, exporter, bridge, or adapter
@@ -56,13 +56,13 @@ host application
 
 When a structure implements `IContentChangeSource`, mutations can also notify observers synchronously after commit. Managers forward those structure events through `ContentManagerBase.Changed`.
 
-The manager should be the convenient root. The structure should own ordering, retention, lookup, ID assignment or validation, mutability rules, and supported opt-in contracts. Shared runtime mutation is manager-owned, with managers delegating only when the active structure implements the relevant focused contract.
+The manager should be the convenient root. The structure should own retained content state: ordering, retention, lookup, ID assignment or validation, mutability rules, indexes, nesting, and supported opt-in contracts. Runtime mutation is manager-coordinated for normal callers, with managers delegating only when the active structure implements the relevant focused contract.
 
-Pre-17.2 will add a structure-declared workflow layer between structures and managers. The workflow descriptor will answer "which manager workflow should wrap this structure?" while focused contracts continue to answer "which operations does this structure support?"
+Manager resolution is direct. A structure creates the manager that knows its natural workflow, while focused contracts continue to answer which optional operations the structure supports.
 
 ## Structures
 
-The structure abstraction should be close in spirit to the InventorySystem structure model: core behavior belongs behind an abstraction so new storage models can be introduced without changing the manager into a one-purpose container.
+The structure abstraction follows the same extension discipline as InventorySystem, but not the same ownership split. InventorySystem inventories own item instances while layouts place them. ContentSystem structures own retained content state because future structures may be sequences, keyed maps, stacks, grouped feeds, or threaded/forum-like graphs rather than simple placements over one flat store.
 
 The current sequence implementation should stay small and useful:
 
@@ -73,15 +73,15 @@ The current sequence implementation should stay small and useful:
 
 Write workflows remain structure-specific. The sequence structure exposes structure-assigned-ID add, while keyed structures require caller-provided IDs.
 
-Managers currently mirror this split. `ContentManager` accepts any explicitly provided `IStructureAssignedIdContentStructure`. `ContentManager.For(...)` infers `ContentManager<TId>` for structures such as `ContentSequenceStructure` where the structure owns the one correct natural ID type. `KeyedContentManager<TId>` accepts any `IKeyedContentStructure<TId>` or uses built-in default ID strategy resolution to create a keyed structure for supported ID types. Shared read and lookup behavior belongs on `ContentManagerBase`.
+Managers mirror this split through structure-owned manager creation. `ContentSequenceStructure` creates `ContentSequenceManager`, `KeyedContentStructure<TId>` creates `KeyedContentManager<TId>`, and custom structures can return custom managers. Direct constructors remain explicit/manual paths where they fit cleanly. Shared read, lookup, event forwarding, and snapshot lifecycle behavior belongs on `ContentManagerBase`.
 
-The next manager architecture stage will move the preferred construction path to package-owned workflow resolution. Structures will declare their `ContentStructureWorkflow`; built-in and extension workflows will map that descriptor to the appropriate manager factory; direct constructors will remain explicit/manual paths where they still fit cleanly.
+Reusable workflow families can introduce family bases to reduce duplication. The current sequence and keyed families have both structure-family bases and manager-family bases, while their concrete structures still resolve to dedicated concrete managers.
 
 Change hooks are optional structure contracts. Built-in mutable structures implement `IContentChangeSource`; custom structures can opt in without changing the base `IContentStructure` contract.
 
 Retention policy and read order are optional structure contracts. `ContentSequenceStructure` implements `IContentRetentionPolicyStructure` and `IContentReadOrderStructure`; custom structures can implement either contract when those concepts are meaningful.
 
-Clear, removal, and parameterized structure mutation are optional structure contracts coordinated through managers. `ContentSequenceStructure` supports all three and exposes `overflowPolicy` as a stable runtime parameter. The built-in keyed structure supports clear, normalized removal, and typed keyed removal.
+Clear, removal, and parameterized structure mutation are optional structure contracts coordinated through managers. The manager does not clear a manager-owned record store; it asks the structure to perform the mutation according to that structure's own model. `ContentSequenceStructure` supports all three and exposes `overflowPolicy` as a stable runtime parameter. The built-in keyed structure supports clear, normalized removal, and typed keyed removal.
 
 FIFO-style history is a sequence plus `ContentOverflowPolicy.DropOldest(capacity)`, not a separate type. Additional retention or placement policies can be added when a later stage needs them.
 

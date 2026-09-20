@@ -29,18 +29,6 @@ public sealed class KeyedContentManagerTests
     }
 
     [Test]
-    public void Constructor_AcceptsCustomKeyedStructure()
-    {
-        var structure = new TestKeyedContentStructure();
-        var manager = new KeyedContentManager<CustomId>(structure);
-
-        ContentEntryRecord added = manager.Add(new CustomId("custom"), Entry("Custom"));
-
-        Assert.That(manager.Structure, Is.SameAs(structure));
-        Assert.That(manager.Records, Is.EqualTo(new[] { added }));
-    }
-
-    [Test]
     public void Constructor_NullStrategyThrows()
     {
         Assert.Throws<ArgumentNullException>(() => new KeyedContentManager<string>((IContentEntryIdStrategy<string>)null!));
@@ -55,7 +43,7 @@ public sealed class KeyedContentManagerTests
     [Test]
     public void Constructor_NullStructureThrows()
     {
-        Assert.Throws<ArgumentNullException>(() => new KeyedContentManager<string>((IKeyedContentStructure<string>)null!));
+        Assert.Throws<ArgumentNullException>(() => new KeyedContentManager<string>((KeyedContentStructure<string>)null!));
     }
 
     [Test]
@@ -75,6 +63,27 @@ public sealed class KeyedContentManagerTests
         Assert.That(sender, Is.SameAs(manager));
         Assert.That(changedArgs, Is.Not.Null);
         Assert.That(changedArgs!.AddedRecords, Is.EqualTo(new[] { added }));
+    }
+
+    [Test]
+    public void KeyedManagerBase_DelegatesSharedKeyedOperations()
+    {
+        KeyedContentManagerBase<string> manager = new KeyedContentManager<string>();
+
+        ContentEntryRecord added = manager.Add("entry", Entry("Stored"));
+        bool found = manager.TryGet("entry", out ContentEntryRecord? foundRecord, out ContentFailure? getFailure);
+        bool removed = manager.TryRemove("entry", out ContentEntryRecord? removedRecord, out ContentFailure? removeFailure);
+        bool cleared = manager.TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? clearFailure);
+
+        Assert.That(found, Is.True);
+        Assert.That(foundRecord, Is.SameAs(added));
+        Assert.That(getFailure, Is.Null);
+        Assert.That(removed, Is.True);
+        Assert.That(removedRecord, Is.SameAs(added));
+        Assert.That(removeFailure, Is.Null);
+        Assert.That(cleared, Is.True);
+        Assert.That(removedRecords, Is.Empty);
+        Assert.That(clearFailure, Is.Null);
     }
 
     [Test]
@@ -140,19 +149,6 @@ public sealed class KeyedContentManagerTests
         Assert.That(removedRecord, Is.Null);
         Assert.That(failure, Is.Not.Null);
         Assert.That(failure!.Code, Is.EqualTo(ContentFailureCodes.EntryNotFound));
-    }
-
-    [Test]
-    public void TryRemove_WhenCustomKeyedStructureDoesNotOptInReturnsUnsupportedFailure()
-    {
-        var manager = new KeyedContentManager<CustomId>(new TestKeyedContentStructure());
-
-        bool removed = manager.TryRemove(new CustomId("missing"), out ContentEntryRecord? removedRecord, out ContentFailure? failure);
-
-        Assert.That(removed, Is.False);
-        Assert.That(removedRecord, Is.Null);
-        Assert.That(failure, Is.Not.Null);
-        Assert.That(failure!.Code, Is.EqualTo(ContentFailureCodes.StructureUnsupportedOperation));
     }
 
     [Test]
@@ -223,84 +219,4 @@ public sealed class KeyedContentManagerTests
         return new PlainContentEntry(DateTimeOffset.UtcNow, text);
     }
 
-    private readonly struct CustomId
-    {
-        public CustomId(string value)
-        {
-            Value = value;
-        }
-
-        public string Value { get; }
-    }
-
-    private sealed class TestKeyedContentStructure : IKeyedContentStructure<CustomId>
-    {
-        private readonly Dictionary<ContentEntryId, ContentEntryRecord> _recordsById = new Dictionary<ContentEntryId, ContentEntryRecord>();
-        private readonly List<ContentEntryRecord> _records = new List<ContentEntryRecord>();
-
-        public IReadOnlyList<ContentEntryRecord> Records => _records.ToArray();
-
-        public bool TryAdd(CustomId id, IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
-        {
-            if (entry is null)
-            {
-                throw new ArgumentNullException(nameof(entry));
-            }
-
-            ContentEntryId normalizedId = new ContentEntryId(id.Value);
-            record = new ContentEntryRecord(normalizedId, entry);
-            _recordsById.Add(normalizedId, record);
-            _records.Add(record);
-            failure = null;
-            return true;
-        }
-
-        public ContentEntryRecord Add(CustomId id, IContentEntry entry)
-        {
-            if (TryAdd(id, entry, out ContentEntryRecord? record, out ContentFailure? failure))
-            {
-                return record!;
-            }
-
-            throw new ContentOperationException(failure!);
-        }
-
-        public bool TryGet(CustomId id, out ContentEntryRecord? record, out ContentFailure? failure)
-        {
-            return TryGet(new ContentEntryId(id.Value), out record, out failure);
-        }
-
-        public ContentEntryRecord Get(CustomId id)
-        {
-            if (TryGet(id, out ContentEntryRecord? record, out ContentFailure? failure))
-            {
-                return record!;
-            }
-
-            throw new ContentOperationException(failure!);
-        }
-
-        public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
-        {
-            if (_recordsById.TryGetValue(id, out record))
-            {
-                failure = null;
-                return true;
-            }
-
-            failure = ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing.");
-            return false;
-        }
-
-        public ContentEntryRecord Get(ContentEntryId id)
-        {
-            if (TryGet(id, out ContentEntryRecord? record, out ContentFailure? failure))
-            {
-                return record!;
-            }
-
-            throw new ContentOperationException(failure!);
-        }
-
-    }
 }

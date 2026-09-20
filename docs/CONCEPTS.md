@@ -24,19 +24,23 @@ A keyed structure is also available for callers that want to provide typed IDs d
 
 Other structures can behave very differently. A forum-like structure might group entries by thread. A chat structure might group by channel. A searchable structure might maintain indexes. A snapshot-aware structure might capture and restore portable state.
 
+### Why Structures Own Content
+
+ContentSystem intentionally differs from Workes.InventorySystem here. In InventorySystem, the inventory owns item instances and layouts decide where those instances are placed. Content can be more structurally varied: a sequence, keyed map, stack, group tree, or threaded forum may each own a different retained content model.
+
+For that reason, ContentSystem structures own retained content state. Managers provide the normal public workflow over a structure, but they do not keep a separate canonical record store. This keeps future grouped and threaded structures from being forced into a flat storage-plus-placement model.
+
 ## Content Managers
 
-Manager workflows are separated by entry ID ownership.
+Manager workflows are created by structures.
 
-Use `ContentManager` for structures that assign IDs when entries are added. Structure choice is explicit, so the simple sequence path is create a manager with `ContentSequenceStructure`, add entries, and read records. When the structure exposes a natural ID type, `ContentManager.For(...)` creates a typed manager without making the user spell that type.
+Use `ContentManagers.ForStructure(...)` to resolve a manager from a structure. `ContentSequenceStructure` creates `ContentSequenceManager` with natural numeric lookup. `KeyedContentStructure<TId>` creates `KeyedContentManager<TId>`.
 
-Use `KeyedContentManager<TId>` for structures where caller-provided IDs are first-class. This keeps keyed add and lookup typed without adding overloads for every possible ID shape. Built-in ID strategies are resolved for supported ID types, and custom ID types can provide custom strategies.
+Direct manager constructors remain available for explicit setup, tests, and advanced scenarios. Built-in ID strategies are resolved for supported keyed ID types, and custom ID types can provide custom strategies.
 
-`ContentManagerBase` provides the shared read, lookup, and manager-owned mutation surface for code that can work with existing managers from either workflow. It is common infrastructure, not a construction path.
+`ContentManagerBase` provides shared read and lookup plumbing for code that can work with existing managers from any workflow. It is common infrastructure, not a construction path. Tailored managers coordinate operations by delegating to structures that support the relevant focused contracts.
 
-See [Content Managers](CONTENT_MANAGERS.md) for the manager workflow split.
-
-The next breaking manager stage will move the preferred construction path toward structure-driven workflow resolution. Structures will declare which manager workflow they belong to, and the package will resolve the appropriate manager. This is planned Pre-17.2 work, not current API.
+See [Content Managers](CONTENT_MANAGERS.md) for structure-driven manager resolution.
 
 ## Content Changes
 
@@ -48,7 +52,7 @@ See [Content Changes](CONTENT_CHANGES.md) for event payloads and hook semantics.
 
 ## Snapshots And Attachments
 
-Portable snapshots are the serialization foundation. Entry snapshots are implemented for `PlainContentEntry` and custom opt-in entries. Record and structure snapshot DTOs describe retained IDs, entry payload snapshots, and structure-owned state. Built-in sequence and keyed structures can capture and restore whole-structure snapshots through explicit factories.
+Portable snapshots are the serialization foundation. Entry snapshots are implemented for `PlainContentEntry` and custom opt-in entries. Record and structure snapshot DTOs describe retained IDs, entry payload snapshots, and structure-owned state. Built-in sequence and keyed structures can capture and restore whole-structure snapshots through their round-trippable snapshot factories.
 
 Export, file appenders, log bridges, and platform integrations should be optional. The core package should make those capabilities possible without forcing every structure or every user to support them.
 

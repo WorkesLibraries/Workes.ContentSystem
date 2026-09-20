@@ -91,14 +91,14 @@ Built-in structure snapshot kinds are stable package-prefixed strings:
 Both currently use data version `1`.
 
 ```csharp
-var content = ContentManager.For(
+var content = ContentManagers.ForStructure<ContentSequenceManager>(
     new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
 
 ContentStructureSnapshot snapshot = content.CaptureSnapshot();
 
-var restored = ContentManager.For(
+var restored = ContentManagers.ForStructure<ContentSequenceManager>(
     new ContentSequenceStructure(ContentOverflowPolicy.None));
 
 restored.RestoreSnapshot(snapshot);
@@ -107,12 +107,14 @@ restored.RestoreSnapshot(snapshot);
 Keyed structure restore uses the active structure's typed factory so the restored structure keeps the right caller-facing ID workflow:
 
 ```csharp
-var content = new KeyedContentManager<string>();
+var content = ContentManagers.ForStructure<KeyedContentManager<string>>(
+    new KeyedContentStructure<string>());
 content.Add("server-started", new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
 
 ContentStructureSnapshot snapshot = content.CaptureSnapshot();
 
-var restored = new KeyedContentManager<string>();
+var restored = ContentManagers.ForStructure<KeyedContentManager<string>>(
+    new KeyedContentStructure<string>());
 restored.RestoreSnapshot(snapshot);
 ```
 
@@ -137,7 +139,7 @@ ContentSystem does not choose a serializer or write to disk. The normal workflow
 ```csharp
 using System.Text.Json;
 
-var content = ContentManager.For(
+var content = ContentManagers.ForStructure<ContentSequenceManager>(
     new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
@@ -147,7 +149,7 @@ string json = JsonSerializer.Serialize(snapshot);
 
 ContentStructureSnapshot loaded = JsonSerializer.Deserialize<ContentStructureSnapshot>(json)!;
 
-var restored = ContentManager.For(
+var restored = ContentManagers.ForStructure<ContentSequenceManager>(
     new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 restored.RestoreSnapshot(loaded);

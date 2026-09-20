@@ -23,7 +23,7 @@ ContentSystem currently supports two ID ownership models.
 Structure-assigned IDs are used when the structure decides the stored ID:
 
 ```csharp
-var content = ContentManager.For(
+var content = ContentManagers.ForStructure<ContentSequenceManager>(
     new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 ContentEntryRecord record = content.Add(
@@ -33,7 +33,8 @@ ContentEntryRecord record = content.Add(
 Caller-provided IDs are used when the caller decides the ID and the structure validates it:
 
 ```csharp
-var content = new KeyedContentManager<string>();
+var content = ContentManagers.ForStructure<KeyedContentManager<string>>(
+    new KeyedContentStructure<string>());
 
 ContentEntryRecord record = content.Add(
     "entry-1",
@@ -56,15 +57,17 @@ The 1.0 direction is to add `Guid` and `ContentEntryId` identity/fallback suppor
 Built-in strategies are resolved for supported ID types:
 
 ```csharp
-var stringKeyed = new KeyedContentManager<string>();
-var numberKeyed = new KeyedContentManager<long>();
+var stringKeyed = ContentManagers.ForStructure<KeyedContentManager<string>>(
+    new KeyedContentStructure<string>());
+var numberKeyed = ContentManagers.ForStructure<KeyedContentManager<long>>(
+    new KeyedContentStructure<long>());
 ```
 
 Custom ID types need an explicit strategy or keyed structure:
 
 ```csharp
 var structure = new KeyedContentStructure<MyEntryId>(new MyEntryIdStrategy());
-var content = new KeyedContentManager<MyEntryId>(structure);
+var content = ContentManagers.ForStructure<KeyedContentManager<MyEntryId>>(structure);
 ```
 
 ID strategies validate caller-provided IDs through `TryNormalize(...)`. They validate restored stored IDs through `TryValidateNormalized(...)`. Both methods must describe the same stored ID language so snapshots cannot restore IDs that the typed keyed API can never address.
@@ -80,10 +83,10 @@ ContentEntryRecord sequenceRecord = sequence.Get(1);
 ContentEntryRecord keyedRecord = keyed.Get("entry-1");
 ```
 
-For structure-assigned IDs, `ContentManager.For(...)` infers the natural ID type from the structure:
+For structure-assigned IDs, the structure resolves to a manager with the natural ID type:
 
 ```csharp
-var content = ContentManager.For(
+var content = ContentManagers.ForStructure<ContentSequenceManager>(
     new ContentSequenceStructure(ContentOverflowPolicy.None));
 
 ContentEntryRecord record = content.Get(1);

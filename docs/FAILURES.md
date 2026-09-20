@@ -55,6 +55,10 @@ Expected-success APIs should throw package-owned exceptions that carry the same 
 
 Programmer misuse, such as null arguments or invalid setup values, should use standard .NET exceptions.
 
+Manager workflow resolution uses structured failures for expected rejection:
+
+- `ManagerMismatch` when typed manager resolution expects a different manager type than the structure creates.
+
 Snapshot capture and restore use `ContentFailureKind.Snapshot` for expected rejection such as unsupported entries or structures, missing or duplicate restore factories, malformed snapshot payloads, unsupported snapshot versions, or codec rejection. Keyed snapshot restore can also surface `EntryIdInvalid` when a restored stored ID is rejected by the configured ID strategy.
 
 ## Why This Matters

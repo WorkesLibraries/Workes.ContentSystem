@@ -48,14 +48,14 @@ For clear, `Kind` is `ContentChangeKind.Cleared`, `Cleared` is true, `RemovedRec
 
 For runtime structure parameter changes, `Kind` is `ContentChangeKind.ConfigurationChanged`, `ConfigurationChanged` contains a `ContentConfigurationChanged` entry with `ContentConfigurationChangeKind.StructureParameter`, and `RequiresFullRefresh` is true. The configuration change reports the parameter ID, committed value, previous component, and current component. If the committed parameter change removes retained records, those records also appear in `RemovedRecords`.
 
-For manager-owned structure snapshot restore, `Kind` is `ContentChangeKind.SnapshotRestored`, `RequiresFullRefresh` is true, `RemovedRecords` contains the records from the previous active structure, and `AddedRecords` contains the restored records.
+For manager-coordinated structure snapshot restore, `Kind` is `ContentChangeKind.SnapshotRestored`, `RequiresFullRefresh` is true, `RemovedRecords` contains the records from the previous active structure, and `AddedRecords` contains the restored records.
 
 ## Subscribing Through A Manager
 
 Managers forward structure events through `ContentManagerBase.Changed` when the active structure implements `IContentChangeSource`:
 
 ```csharp
-var content = ContentManager.For(
+var content = ContentManagers.ForStructure<ContentSequenceManager>(
     new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 
 content.Changed += OnContentChanged;
@@ -76,7 +76,8 @@ Forwarded manager events use the manager as `sender` and preserve the original `
 This also works for keyed managers:
 
 ```csharp
-var content = new KeyedContentManager<string>();
+var content = ContentManagers.ForStructure<KeyedContentManager<string>>(
+    new KeyedContentStructure<string>());
 
 content.Changed += OnContentChanged;
 content.Add("thread-main", new PlainContentEntry(DateTimeOffset.UtcNow, "First post."));

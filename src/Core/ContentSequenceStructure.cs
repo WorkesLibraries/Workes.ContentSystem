@@ -9,13 +9,10 @@ namespace Workes.ContentSystem.Core;
 /// Stores content records as an ordered sequence with configurable retention behavior.
 /// </summary>
 public sealed class ContentSequenceStructure :
-    IStructureAssignedIdContentStructure<long>,
+    ContentSequenceStructureBase,
     IContentRetentionPolicyStructure,
     IContentReadOrderStructure,
     IParameterizedContentStructure,
-    IContentClearableStructure,
-    IContentNaturalIdRemovalStructure<long>,
-    IContentRecordRemovalStructure,
     IContentStructureSnapshotRoundTrippable,
     IContentChangeSource
 {
@@ -98,13 +95,19 @@ public sealed class ContentSequenceStructure :
     public int Count => _records.Count;
 
     /// <inheritdoc />
+    public override ContentManagerBase CreateManager()
+    {
+        return new ContentSequenceManager(this);
+    }
+
+    /// <inheritdoc />
     public IReadOnlyCollection<ContentParameterDefinition> Parameters => s_parameters;
 
     /// <inheritdoc />
     public IContentStructureSnapshotFactory SnapshotFactory => Factory;
 
     /// <inheritdoc />
-    public IReadOnlyList<ContentEntryRecord> Records => CreateReadSnapshot();
+    public override IReadOnlyList<ContentEntryRecord> Records => CreateReadSnapshot();
 
     /// <inheritdoc />
     public event EventHandler<ContentChangedEventArgs>? Changed;
@@ -114,7 +117,7 @@ public sealed class ContentSequenceStructure :
     /// </summary>
     /// <param name="entry">The entry to add.</param>
     /// <returns>The retained record.</returns>
-    public ContentEntryRecord Add(IContentEntry entry)
+    public override ContentEntryRecord Add(IContentEntry entry)
     {
         if (TryAdd(entry, out ContentEntryRecord? record, out ContentFailure? failure))
         {
@@ -125,7 +128,7 @@ public sealed class ContentSequenceStructure :
     }
 
     /// <inheritdoc />
-    public bool TryAdd(IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
+    public override bool TryAdd(IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
     {
         if (entry is null)
         {
@@ -153,7 +156,7 @@ public sealed class ContentSequenceStructure :
     }
 
     /// <inheritdoc />
-    public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
+    public override bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
     {
         EnsureValidId(id);
 
@@ -180,13 +183,13 @@ public sealed class ContentSequenceStructure :
     /// <param name="record">The retained record when found; otherwise <see langword="null"/>.</param>
     /// <param name="failure">The structured failure when the record cannot be found; otherwise <see langword="null"/>.</param>
     /// <returns><see langword="true"/> when a retained record is found.</returns>
-    public bool TryGet(long id, out ContentEntryRecord? record, out ContentFailure? failure)
+    public override bool TryGet(long id, out ContentEntryRecord? record, out ContentFailure? failure)
     {
         return TryGet(CreateNumericId(id), out record, out failure);
     }
 
     /// <inheritdoc />
-    public ContentEntryRecord Get(ContentEntryId id)
+    public override ContentEntryRecord Get(ContentEntryId id)
     {
         if (TryGet(id, out ContentEntryRecord? record, out ContentFailure? failure))
         {
@@ -202,13 +205,13 @@ public sealed class ContentSequenceStructure :
     /// <param name="id">The structure-assigned numeric entry ID.</param>
     /// <returns>The retained record.</returns>
     /// <exception cref="ContentOperationException">Thrown when the record cannot be found.</exception>
-    public ContentEntryRecord Get(long id)
+    public override ContentEntryRecord Get(long id)
     {
         return Get(CreateNumericId(id));
     }
 
     /// <inheritdoc />
-    public bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+    public override bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
     {
         removedRecords = _records.ToArray();
         failure = null;
@@ -228,7 +231,7 @@ public sealed class ContentSequenceStructure :
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<ContentEntryRecord> Clear()
+    public override IReadOnlyList<ContentEntryRecord> Clear()
     {
         if (TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure))
         {
@@ -239,7 +242,7 @@ public sealed class ContentSequenceStructure :
     }
 
     /// <inheritdoc />
-    public bool TryRemove(ContentEntryId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
+    public override bool TryRemove(ContentEntryId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
     {
         EnsureValidId(id);
 
@@ -270,13 +273,13 @@ public sealed class ContentSequenceStructure :
     /// <param name="removedRecord">The removed record when found; otherwise <see langword="null"/>.</param>
     /// <param name="failure">The structured failure when rejected; otherwise <see langword="null"/>.</param>
     /// <returns><see langword="true"/> when a retained record is removed.</returns>
-    public bool TryRemove(long id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
+    public override bool TryRemove(long id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
     {
         return TryRemove(CreateNumericId(id), out removedRecord, out failure);
     }
 
     /// <inheritdoc />
-    public ContentEntryRecord Remove(ContentEntryId id)
+    public override ContentEntryRecord Remove(ContentEntryId id)
     {
         if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure))
         {
@@ -292,7 +295,7 @@ public sealed class ContentSequenceStructure :
     /// <param name="id">The structure-assigned numeric entry ID.</param>
     /// <returns>The removed record.</returns>
     /// <exception cref="ContentOperationException">Thrown when the record cannot be removed.</exception>
-    public ContentEntryRecord Remove(long id)
+    public override ContentEntryRecord Remove(long id)
     {
         return Remove(CreateNumericId(id));
     }

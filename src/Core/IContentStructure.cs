@@ -8,6 +8,12 @@ namespace Workes.ContentSystem.Core;
 public interface IContentStructure
 {
     /// <summary>
+    /// Creates the manager that exposes this structure's normal public workflow.
+    /// </summary>
+    /// <returns>The manager for this structure.</returns>
+    ContentManagerBase CreateManager();
+
+    /// <summary>
     /// Gets retained records in the structure's read order.
     /// </summary>
     IReadOnlyList<ContentEntryRecord> Records { get; }

@@ -6,9 +6,7 @@ This guide documents the extension contracts that are stable enough to use today
 
 A custom structure starts with `IContentStructure`.
 
-It must expose retained `ContentEntryRecord` values in its chosen read order and implement lookup by stored `ContentEntryId`. The structure owns what IDs mean: generated numeric IDs, caller-provided string IDs, normalized custom IDs, or another stable format.
-
-Roadmap note: Pre-17.2 will make manager workflow declaration part of `IContentStructure`. Custom structures will declare a stable `ContentStructureWorkflow`, and custom manager workflows will register a factory so `ContentManagers.ForStructure(...)` can create the right manager. This is planned behavior, not implemented in the current package.
+It must expose retained `ContentEntryRecord` values in its chosen read order, implement lookup by stored `ContentEntryId`, and create the tailored manager that knows how to operate it. The structure owns what IDs mean: generated numeric IDs, caller-provided string IDs, normalized custom IDs, or another stable format.
 
 Add only the focused contracts that the structure truly supports:
 
@@ -16,13 +14,100 @@ Add only the focused contracts that the structure truly supports:
 - `IKeyedContentStructure<TId>` for caller-provided typed IDs;
 - `IContentChangeSource` for synchronous committed-change events;
 - `IContentClearableStructure`, `IContentRecordRemovalStructure`, and keyed/natural removal contracts for mutation support;
-- `IParameterizedContentStructure` for manager-owned runtime configuration;
+- `IParameterizedContentStructure` for manager-coordinated runtime configuration;
 - `IContentRetentionPolicyStructure` and `IContentReadOrderStructure` for readable configuration;
 - `IContentStructureSnapshotRoundTrippable` for whole-structure snapshot round trips.
 
 Do not use a broad capability flag object. In ContentSystem, implementing the focused interface is the capability.
 
-Workflow descriptors are the planned exception because they identify manager resolution, not supported operations. A custom stack-like structure, for example, may eventually declare a stack workflow so the resolver can create a stack manager, while still using focused contracts for snapshots, mutation, events, and other behavior.
+Manager resolution is not a capability flag. A structure creates its own manager because a useful manager is usually tailored to the structure's operations. A stack-like structure can return a stack manager with `Push`, `Peek`, and `Pop`; a threaded structure can return a thread-aware manager with thread-specific commands.
+
+## Custom Manager Workflows
+
+Create a manager that derives from `ContentManagerBase`, then have the structure return that manager from `CreateManager()`:
+
+```csharp
+public sealed class QuestLogStructure : IContentStructure
+{
+    private readonly List<ContentEntryRecord> _records = new();
+    private long _nextId = 1;
+
+    public IReadOnlyList<ContentEntryRecord> Records => _records;
+
+    public ContentManagerBase CreateManager()
+    {
+        return new QuestLogManager(this);
+    }
+
+    public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
+    {
+        foreach (ContentEntryRecord candidate in _records)
+        {
+            if (candidate.Id.Equals(id))
+            {
+                record = candidate;
+                failure = null;
+                return true;
+            }
+        }
+
+        record = null;
+        failure = ContentFailure.Create(
+            ContentFailureKind.Entry,
+            ContentFailureCodes.EntryNotFound,
+            "Quest log entry was not found.");
+        return false;
+    }
+
+    public ContentEntryRecord Get(ContentEntryId id)
+    {
+        if (TryGet(id, out ContentEntryRecord? record, out ContentFailure? failure))
+        {
+            return record!;
+        }
+
+        throw new ContentOperationException(failure!);
+    }
+
+    public ContentEntryRecord AddQuest(IContentEntry entry)
+    {
+        var record = new ContentEntryRecord(
+            new ContentEntryId((_nextId++).ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            entry);
+
+        _records.Add(record);
+        return record;
+    }
+}
+```
+
+The manager exposes the structure's natural workflow:
+
+```csharp
+public sealed class QuestLogManager : ContentManagerBase
+{
+    public QuestLogManager(QuestLogStructure structure)
+        : base(structure)
+    {
+    }
+
+    private QuestLogStructure QuestLog => (QuestLogStructure)Structure;
+
+    public ContentEntryRecord AddQuest(IContentEntry entry)
+    {
+        return QuestLog.AddQuest(entry);
+    }
+}
+```
+
+Normal users can then resolve the manager from the structure:
+
+```csharp
+QuestLogManager content =
+    ContentManagers.ForStructure<QuestLogManager>(new QuestLogStructure());
+```
+
+No registry setup is needed for manager resolution. The typed resolver validates that the structure-created manager is the expected manager type and returns a structured manager-mismatch failure when it is not.
 
 ## Snapshot Support
 
@@ -105,7 +190,7 @@ For generated-ID structures, restore should validate retained IDs and generated 
 
 Snapshot restore should create and validate a replacement structure before changing manager state. Failed restore must leave the existing manager state unchanged and emit no event.
 
-Successful manager-owned restore emits one full-refresh event with `ContentChangeKind.SnapshotRestored`. Custom structures that implement `IContentChangeSource` should raise events only after mutations commit. Handler exceptions are synchronous and are not swallowed.
+Successful manager-coordinated restore emits one full-refresh event with `ContentChangeKind.SnapshotRestored`. Custom structures that implement `IContentChangeSource` should raise events only after mutations commit. Handler exceptions are synchronous and are not swallowed.
 
 ## Pitfalls
 

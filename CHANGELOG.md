@@ -2,19 +2,33 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
-## Unreleased
+## 0.5.2 - 20-09-2026
 
-Documentation:
+Added:
 
-- Reconciled the planned Pre-17 manager workflow direction before adding more built-in structures.
-- Documented the planned `ContentStructureWorkflow` descriptor, structure-driven manager resolution, and custom workflow registration direction for the future `0.6.0` breaking stage.
+- Added `IContentStructure.CreateManager()` so each structure can create its tailored manager.
+- Added `ContentManagers.ForStructure(...)` and typed manager resolution over structure-created managers.
+- Added `ContentSequenceManager` as the tailored manager for `ContentSequenceStructure`.
+- Added `ContentSequenceStructureBase` and `KeyedContentStructureBase<TId>` as structure-family bases.
+- Added `ContentSequenceManagerBase` and `KeyedContentManagerBase<TId>` as manager-family bases.
+- Added `ManagerMismatch` structured failures for typed manager resolution mismatches.
+
+Changed:
+
+- `IContentStructure` now requires manager creation instead of a workflow descriptor.
+- Replaced broad `ContentManager` / `ContentManager<TId>` usage with tailored managers.
+- Removed workflow descriptors and package-owned manager factory registration.
+- Moved clear, remove, and structure-parameter mutation off `ContentManagerBase` and onto tailored managers.
+- `ContentSequenceStructure` and `KeyedContentStructure<TId>` now inherit family bases while still resolving to dedicated concrete managers.
+- Updated docs to make structure-created manager resolution the preferred construction path.
+- Documented that ContentSystem structures own retained content state, while managers coordinate workflows over the active structure.
 
 ## 0.5.1 - 20-09-2026
 
 Documentation:
 
 - Clarified that normal structure snapshot restore uses the active round-trippable structure's `SnapshotFactory`.
-- Added a serializer save/load example for manager-owned structure snapshots.
+- Added a serializer save/load example for manager-coordinated structure snapshots.
 - Clarified why custom entry factories still need package-wide registration before restoring serialized structure snapshots.
 
 ## 0.5.0 - 20-09-2026
@@ -32,7 +46,7 @@ Added:
 
 - Added structure snapshot capture and restore contracts, helpers, and package-wide entry factory registration.
 - Added built-in structure snapshot round trips for `ContentSequenceStructure` and `KeyedContentStructure<TId>`.
-- Added manager-owned atomic structure snapshot restore and `ContentChangeKind.SnapshotRestored`.
+- Added manager-coordinated atomic structure snapshot restore and `ContentChangeKind.SnapshotRestored`.
 - Added snapshot failures for unsupported structures and missing restore factories.
 - Added package-wide entry snapshot factory registration and keyed snapshot restore validation through ID strategies.
 
@@ -53,15 +67,15 @@ Added:
 Added:
 
 - Added `IContentRetentionPolicyStructure` and `IContentReadOrderStructure` as focused opt-in structure contracts.
-- Added manager-owned runtime mutation for clear, remove, and generic structure parameter changes.
+- Added manager-coordinated runtime mutation for clear, remove, and generic structure parameter changes.
 - Added focused mutation contracts for clear, record removal, typed keyed record removal, and parameterized structures.
 - Added richer content change event metadata for change kind, clear events, configuration changes with previous/current components, and full-refresh guidance.
-- Added inferred natural-ID managers for structure-assigned-ID structures through `ContentManager.For(...)`.
+- Added inferred natural-ID managers for structure-assigned-ID structures.
 
 Documentation:
 
 - Reframed structure capabilities as focused opt-in contracts instead of broad metadata.
-- Documented manager-owned mutation and richer event semantics.
+- Documented manager-coordinated mutation and richer event semantics.
 
 ## 0.3.0 - 15-09-2026
 
@@ -99,7 +113,7 @@ This release introduces the first useful ContentSystem core:
 - content entries as the core extension model;
 - a bounded FIFO content structure;
 - keyed content structures with typed ID strategies;
-- manager-owned workflows for normal and keyed use;
+- manager-coordinated workflows for normal and keyed use;
 - a shared failure and exception model;
 - focused docs and examples for normal usage.
 
@@ -109,4 +123,4 @@ Included:
 - `ContentEntryId`, `ContentEntryRecord`, `IContentEntry`, and `PlainContentEntry` as the first entry foundation.
 - `IContentStructure`, `IStructureAssignedIdContentStructure`, `IKeyedContentStructure<TId>`, and `BoundedFifoContentStructure` for retained-record lookup and bounded FIFO storage.
 - ID strategies and `KeyedContentStructure` for caller-provided entry IDs.
-- `ContentManagerBase`, `ContentManager`, and `KeyedContentManager<TId>` for shared read/lookup behavior and workflow-specific entry adds.
+- `ContentManagerBase`, `ContentSequenceManager`, and `KeyedContentManager<TId>` for shared read/lookup behavior and workflow-specific entry adds.

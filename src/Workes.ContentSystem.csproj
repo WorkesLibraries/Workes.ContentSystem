@@ -7,8 +7,8 @@
     <LangVersion>10.0</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Workes.ContentSystem</PackageId>
-    <Version>0.5.1</Version>
-    <PackageReleaseNotes>Clarifies snapshot restore documentation and adds a serializer save/load example.</PackageReleaseNotes>
+    <Version>0.5.2</Version>
+    <PackageReleaseNotes>Adds structure-family bases and dedicated manager bases for sequence and keyed workflows.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Workes</Authors>
     <Company>Workes</Company>

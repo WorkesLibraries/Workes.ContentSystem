@@ -324,7 +324,7 @@ public sealed class ContentSequenceStructureTests
     [Test]
     public void TrySetStructureParameter_ToNoneStopsFutureOverflow()
     {
-        var manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(1)));
+        var manager = new ContentSequenceManager(new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(1)));
         ContentEntryRecord first = manager.Add(Entry("First"));
 
         manager.SetStructureParameter(ContentSequenceStructure.OverflowPolicyParameterId, ContentOverflowPolicy.None);
@@ -336,7 +336,7 @@ public sealed class ContentSequenceStructureTests
     [Test]
     public void TrySetStructureParameter_SamePolicyEmitsNoEvent()
     {
-        var manager = new ContentManager(new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2)));
+        var manager = new ContentSequenceManager(new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2)));
         int eventCount = 0;
         manager.Changed += (_, _) => eventCount++;
 
@@ -567,6 +567,11 @@ public sealed class ContentSequenceStructureTests
 
         public System.Collections.Generic.IReadOnlyList<ContentEntryRecord> Records => Array.Empty<ContentEntryRecord>();
 
+        public ContentManagerBase CreateManager()
+        {
+            return new TestManager(this);
+        }
+
         public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
         {
             record = null;
@@ -596,6 +601,11 @@ public sealed class ContentSequenceStructureTests
             new[] { new ContentParameterDefinition("overflowPolicy", typeof(ContentOverflowPolicy), "Overflow policy.") };
 
         public IReadOnlyList<ContentEntryRecord> Records => Array.Empty<ContentEntryRecord>();
+
+        public ContentManagerBase CreateManager()
+        {
+            return new TestManager(this);
+        }
 
         public bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
         {
@@ -652,6 +662,14 @@ public sealed class ContentSequenceStructureTests
         public ContentEntryRecord Get(ContentEntryId id)
         {
             throw new ContentOperationException(ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing."));
+        }
+    }
+
+    private sealed class TestManager : ContentManagerBase
+    {
+        public TestManager(IContentStructure structure)
+            : base(structure)
+        {
         }
     }
 }

@@ -8,36 +8,39 @@ These guidelines keep the package consistent with the other Workes packages whil
 
 ## Root Workflow
 
-Prefer manager-owned workflows for normal use.
+Prefer manager-coordinated workflows for normal use.
 
-The structure-assigned-ID root type is `ContentManager`. It should require an explicit structure so the active storage policy is visible at construction.
+The sequence root type is `ContentSequenceManager`. It should require an explicit `ContentSequenceStructure` so the active storage policy is visible at construction.
 
-Use `ContentManager.For(...)` when a structure-assigned-ID structure exposes a natural retained-record ID type. This keeps normal usage ergonomic without asking users to spell a generic type that the structure already owns. Keep `new ContentManager<TId>(structure)` legal and document it briefly as the explicit equivalent.
+Use `ContentManagers.ForStructure(...)` as the preferred structure-driven construction path. Structures create their tailored manager through `IContentStructure.CreateManager()`, and typed resolution validates that the created manager is the expected type.
 
-Use `KeyedContentManager<TId>` for structures where caller-provided IDs are first-class. Do not make one manager expose write methods that only work for some structures.
+Keep direct manager constructors legal for explicit/manual use. Do not make one manager expose write methods that only work for some structures.
 
-`ContentManagerBase` is public shared read/lookup plumbing for code that can work with already-created managers from either workflow. It also owns shared manager workflows such as runtime mutation and structure snapshot restore when the active structure opts in. It is abstract and should stay small rather than becoming a catch-all capability surface.
+`ContentManagerBase` is public shared read/lookup plumbing for code that can work with already-created managers from any workflow. It may coordinate shared lifecycle workflows such as structure snapshot restore, but it must not assume managers own retained records. It is abstract and should stay small rather than becoming a catch-all capability surface.
 
-Pre-17.2 should introduce the preferred structure-driven construction path: `ContentManagers.ForStructure(structure)`. Structures will declare a `ContentStructureWorkflow` through `IContentStructure`, and manager factories will resolve the correct concrete manager for that workflow. Keep direct constructors legal for explicit/manual use unless the implementation exposes a specific conflict.
-
-The workflow descriptor is not capability metadata. It should identify the manager workflow only. Operation support remains represented by focused contracts and concrete manager APIs.
+Manager creation is not capability metadata. Operation support remains represented by focused contracts and concrete manager APIs.
 
 Advanced behavior should be opt-in through options, focused structure contracts, snapshots, or attachments.
 
-Runtime mutation should be manager-owned for normal callers. Structures may expose focused opt-in contracts that managers coordinate. Unsupported manager mutations should return `StructureUnsupportedOperation` from try APIs and throw `ContentOperationException` from expected-success APIs.
+Runtime mutation should be manager-coordinated for normal callers through tailored managers. Structures own retained content state and may expose focused opt-in contracts that managers delegate to. Unsupported mutations should not be exposed on a manager unless that manager deliberately offers a try/throwing path around an optional contract.
+
+Use family manager bases when multiple concrete managers share a workflow surface, but keep concrete managers as the normal public entry point. Family bases reduce redundancy; concrete managers expose concrete structure behavior.
 
 ## Structures
 
 Represent shared read and lookup behavior through `IContentStructure`.
 
-After Pre-17.2, `IContentStructure` should also expose the structure's `ContentStructureWorkflow`. This is a deliberate prerelease breaking change so every structure can participate in package-owned manager resolution.
+`IContentStructure` exposes `CreateManager()`. This is a deliberate prerelease breaking change so every structure can participate in package-owned manager resolution without a separate workflow registry.
 
 Avoid baking FIFO assumptions into the whole package. `ContentSequenceStructure` provides the first sequence behavior, with unbounded retention and bounded drop-oldest retention expressed through `ContentOverflowPolicy`.
 
 Use focused opt-in contracts to expose inspectable structure behavior and supported mutations. For example, retention policy belongs on `IContentRetentionPolicyStructure`, read order belongs on `IContentReadOrderStructure`, clear/remove support belongs on mutation-specific contracts, and runtime configuration belongs on `IParameterizedContentStructure`.
 
+Use structure-family bases when a workflow family has a real shared instruction set. `ContentSequenceStructureBase` and `KeyedContentStructureBase<TId>` are the current examples. Do not create a family base for one-off structures unless it removes real duplication or represents a planned reusable family.
+
 A structure should own:
 
+- retained content state;
 - entry retention;
 - ordering;
 - lookup;
@@ -103,7 +106,7 @@ Snapshots should be serializer-friendly DTOs rather than direct file I/O. Entry 
 
 Structure extension helpers should reduce boilerplate without making inheritance mandatory. `ContentStructureSnapshotFactoryBase<TStructure>`, `ContentSnapshotRecords`, and `ContentSnapshotProperties` are convenience APIs for extension authors; direct implementation of the snapshot interfaces remains valid.
 
-Custom manager workflows should follow the same pattern once Pre-17.2 lands: a custom structure declares a stable workflow descriptor, a custom manager factory is registered once during application or package setup, and unsupported or conflicting workflow resolution fails through structured ContentSystem failures.
+Custom manager workflows should follow the same pattern: a custom structure returns its custom manager from `CreateManager()`, and callers can use `ContentManagers.ForStructure<TManager>(structure)` when they want typed validation. A typed mismatch fails through structured ContentSystem failures.
 
 ## Documentation Expectations
 
