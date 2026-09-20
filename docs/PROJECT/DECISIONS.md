@@ -607,3 +607,31 @@ This matches the package style used elsewhere: focused opt-in contracts remain t
 #### Consequences
 
 Built-in structures should use the public helper path where appropriate so the extension surface stays exercised by package code. Extension docs should grow as future extension systems such as sorting, batch operations, and export become implemented.
+
+### D-029: Structures Declare Their Manager Workflow
+
+#### Context
+
+The package currently has separate manager classes for structure-assigned IDs, natural structure-assigned IDs, and caller-keyed IDs. That works for the first two structures, but planned structures such as single-entry, bounded keyed, stack-like, grouped, or threaded structures may need different manager surfaces. Asking users to pick from a growing list of manager types by hand would add friction and make extension managers feel second-class.
+
+#### Decision
+
+Pre-17.2 will introduce a narrow workflow descriptor named `ContentStructureWorkflow`.
+
+Every `IContentStructure` will declare the manager workflow it belongs to. This is an accepted prerelease breaking change. The workflow descriptor identifies manager resolution only; it does not describe operation support or replace focused structure contracts.
+
+The preferred normal construction path will become `ContentManagers.ForStructure(structure)`. A typed expected-manager path such as `ContentManagers.ForStructure<TManager>(structure)` should also exist for callers that want validation instead of manual casts.
+
+Manager workflow factories will be registered through a package-owned static registry. Built-in workflows should register automatically. Extension authors can register custom workflow-to-manager factories. Re-registering the same mapping should be harmless; conflicting mappings should fail through structured ContentSystem failures.
+
+Direct manager constructors remain legal for explicit/manual use unless Pre-17.2 exposes a concrete conflict.
+
+#### Reasoning
+
+The structure already owns ID meaning, retention, lookup, and focused operation contracts. Letting the structure also declare its manager workflow keeps the user path close to "create a structure, ask the package for the right manager" without coupling structures directly to manager construction.
+
+Keeping the descriptor narrow preserves the InventorySystem-style contract model. Actual behavior remains discoverable and usable through focused interfaces such as keyed add, structure-assigned add, change source, mutation, parameterization, and snapshots.
+
+#### Consequences
+
+Pre-17.2 will be a breaking API stage and is planned as `0.6.0`. Existing direct construction examples should remain valid but stop being the primary documented path after the resolver lands. Unsupported or unregistered workflows, typed manager mismatches, and conflicting registrations should use structured failures and expected-success exceptions instead of hidden nulls or invalid casts.

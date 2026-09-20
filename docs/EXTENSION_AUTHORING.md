@@ -8,6 +8,8 @@ A custom structure starts with `IContentStructure`.
 
 It must expose retained `ContentEntryRecord` values in its chosen read order and implement lookup by stored `ContentEntryId`. The structure owns what IDs mean: generated numeric IDs, caller-provided string IDs, normalized custom IDs, or another stable format.
 
+Roadmap note: Pre-17.2 will make manager workflow declaration part of `IContentStructure`. Custom structures will declare a stable `ContentStructureWorkflow`, and custom manager workflows will register a factory so `ContentManagers.ForStructure(...)` can create the right manager. This is planned behavior, not implemented in the current package.
+
 Add only the focused contracts that the structure truly supports:
 
 - `IStructureAssignedIdContentStructure` or `IStructureAssignedIdContentStructure<TId>` for structure-assigned add workflows;
@@ -19,6 +21,8 @@ Add only the focused contracts that the structure truly supports:
 - `IContentStructureSnapshotRoundTrippable` for whole-structure snapshot round trips.
 
 Do not use a broad capability flag object. In ContentSystem, implementing the focused interface is the capability.
+
+Workflow descriptors are the planned exception because they identify manager resolution, not supported operations. A custom stack-like structure, for example, may eventually declare a stack workflow so the resolver can create a stack manager, while still using focused contracts for snapshots, mutation, events, and other behavior.
 
 ## Snapshot Support
 

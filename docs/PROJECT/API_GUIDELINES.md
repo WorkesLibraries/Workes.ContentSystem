@@ -18,6 +18,10 @@ Use `KeyedContentManager<TId>` for structures where caller-provided IDs are firs
 
 `ContentManagerBase` is public shared read/lookup plumbing for code that can work with already-created managers from either workflow. It also owns shared manager workflows such as runtime mutation and structure snapshot restore when the active structure opts in. It is abstract and should stay small rather than becoming a catch-all capability surface.
 
+Pre-17.2 should introduce the preferred structure-driven construction path: `ContentManagers.ForStructure(structure)`. Structures will declare a `ContentStructureWorkflow` through `IContentStructure`, and manager factories will resolve the correct concrete manager for that workflow. Keep direct constructors legal for explicit/manual use unless the implementation exposes a specific conflict.
+
+The workflow descriptor is not capability metadata. It should identify the manager workflow only. Operation support remains represented by focused contracts and concrete manager APIs.
+
 Advanced behavior should be opt-in through options, focused structure contracts, snapshots, or attachments.
 
 Runtime mutation should be manager-owned for normal callers. Structures may expose focused opt-in contracts that managers coordinate. Unsupported manager mutations should return `StructureUnsupportedOperation` from try APIs and throw `ContentOperationException` from expected-success APIs.
@@ -25,6 +29,8 @@ Runtime mutation should be manager-owned for normal callers. Structures may expo
 ## Structures
 
 Represent shared read and lookup behavior through `IContentStructure`.
+
+After Pre-17.2, `IContentStructure` should also expose the structure's `ContentStructureWorkflow`. This is a deliberate prerelease breaking change so every structure can participate in package-owned manager resolution.
 
 Avoid baking FIFO assumptions into the whole package. `ContentSequenceStructure` provides the first sequence behavior, with unbounded retention and bounded drop-oldest retention expressed through `ContentOverflowPolicy`.
 
@@ -96,6 +102,8 @@ Change hooks should use ordinary synchronous .NET events. Raise them only after 
 Snapshots should be serializer-friendly DTOs rather than direct file I/O. Entry snapshot capture should be opt-in on the entry instance, while restore should use a factory object registered in `ContentEntrySnapshotFactories`. Structure snapshot round trips should be opt-in on the structure through `IContentStructureSnapshotRoundTrippable`, and normal manager restore should use the active structure's `SnapshotFactory`. Explicit structure factories remain available for migration and advanced restore targets. Record and structure snapshots should keep stored IDs and structure data in serializer-friendly forms. Unsupported custom entries or structures should fail snapshot capture or restore with structured failures unless they opt in.
 
 Structure extension helpers should reduce boilerplate without making inheritance mandatory. `ContentStructureSnapshotFactoryBase<TStructure>`, `ContentSnapshotRecords`, and `ContentSnapshotProperties` are convenience APIs for extension authors; direct implementation of the snapshot interfaces remains valid.
+
+Custom manager workflows should follow the same pattern once Pre-17.2 lands: a custom structure declares a stable workflow descriptor, a custom manager factory is registered once during application or package setup, and unsupported or conflicting workflow resolution fails through structured ContentSystem failures.
 
 ## Documentation Expectations
 

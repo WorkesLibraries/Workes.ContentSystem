@@ -38,9 +38,21 @@ Completed implementation makes custom structures practical to implement in the s
 
 Later stages should expand the extension guide as new extension systems land.
 
+### Pre-17.1: Reconcile manager workflow instruction sets
+
+Record the breaking manager-workflow direction before adding more built-in structures. The chosen direction is to use `ContentStructureWorkflow` as a narrow manager-resolution descriptor owned by `IContentStructure`, not as broad capability metadata. This stage is documentation and roadmap reconciliation only.
+
+### Pre-17.2: Implement manager workflow resolution
+
+Implement the `0.6.0` breaking workflow foundation. Structures will declare their workflow through `IContentStructure`, built-in workflows will register automatically, custom workflow/manager pairs will register through package-owned manager resolution, and `ContentManagers.ForStructure(...)` will become the preferred structure-driven manager creation path.
+
+### Pre-17.3: Reconcile documentation after manager workflow resolution
+
+Sweep all user-facing and project-control documentation after the Pre-17.2 breaking workflow change. Update examples to use the preferred resolver path and remove stale direct-manager-first wording before Stage 17 adds more structures.
+
 ### Stage 17: Add selected remaining built-in structures
 
-Add selected built-in structures after configuration, opt-in contracts, mutation, and snapshot contracts are stable.
+Add selected built-in structures after configuration, opt-in contracts, mutation, snapshots, and manager workflow resolution are stable.
 
 ### Stage 18: Add additional built-in ID strategies
 

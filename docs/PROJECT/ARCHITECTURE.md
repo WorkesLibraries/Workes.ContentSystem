@@ -21,6 +21,7 @@ The package should be engine-neutral and centered on manager workflows that own 
 - `ContentEntryId` is the shared stored-record identity representation.
 - `IContentEntryIdStrategy<TId>` validates and normalizes caller-provided IDs for keyed structures and validates normalized IDs restored from snapshots.
 - `IContentStructure` is the read/lookup storage abstraction.
+- The planned Pre-17.2 direction is for `IContentStructure` to also declare a narrow `ContentStructureWorkflow` descriptor used only for manager resolution.
 - `IContentChangeSource` is the optional committed-change notification abstraction.
 - `IContentRetentionPolicyStructure` is the optional retention-policy inspection contract.
 - `IContentReadOrderStructure` is the optional read-order inspection contract.
@@ -34,6 +35,7 @@ The package should be engine-neutral and centered on manager workflows that own 
 - `ContentManager` is the manager for structure-assigned-ID workflows.
 - `ContentManager<TId>` is the typed manager for structure-assigned-ID workflows with a natural retained-record ID type.
 - `KeyedContentManager<TId>` is the manager for caller-provided typed-ID workflows.
+- `ContentManagers.ForStructure(...)` is planned as the preferred structure-driven manager resolver in Pre-17.2; it is not implemented yet.
 - The first structure is a configurable sequence structure.
 - `KeyedContentStructure<TId>` provides configurable typed-ID validation for caller-keyed records.
 - A shared failure model should represent expected content-system rejection.
@@ -56,6 +58,8 @@ When a structure implements `IContentChangeSource`, mutations can also notify ob
 
 The manager should be the convenient root. The structure should own ordering, retention, lookup, ID assignment or validation, mutability rules, and supported opt-in contracts. Shared runtime mutation is manager-owned, with managers delegating only when the active structure implements the relevant focused contract.
 
+Pre-17.2 will add a structure-declared workflow layer between structures and managers. The workflow descriptor will answer "which manager workflow should wrap this structure?" while focused contracts continue to answer "which operations does this structure support?"
+
 ## Structures
 
 The structure abstraction should be close in spirit to the InventorySystem structure model: core behavior belongs behind an abstraction so new storage models can be introduced without changing the manager into a one-purpose container.
@@ -69,7 +73,9 @@ The current sequence implementation should stay small and useful:
 
 Write workflows remain structure-specific. The sequence structure exposes structure-assigned-ID add, while keyed structures require caller-provided IDs.
 
-Managers mirror this split. `ContentManager` accepts any explicitly provided `IStructureAssignedIdContentStructure`. `ContentManager.For(...)` infers `ContentManager<TId>` for structures such as `ContentSequenceStructure` where the structure owns the one correct natural ID type. `KeyedContentManager<TId>` accepts any `IKeyedContentStructure<TId>` or uses built-in default ID strategy resolution to create a keyed structure for supported ID types. Shared read and lookup behavior belongs on `ContentManagerBase`.
+Managers currently mirror this split. `ContentManager` accepts any explicitly provided `IStructureAssignedIdContentStructure`. `ContentManager.For(...)` infers `ContentManager<TId>` for structures such as `ContentSequenceStructure` where the structure owns the one correct natural ID type. `KeyedContentManager<TId>` accepts any `IKeyedContentStructure<TId>` or uses built-in default ID strategy resolution to create a keyed structure for supported ID types. Shared read and lookup behavior belongs on `ContentManagerBase`.
+
+The next manager architecture stage will move the preferred construction path to package-owned workflow resolution. Structures will declare their `ContentStructureWorkflow`; built-in and extension workflows will map that descriptor to the appropriate manager factory; direct constructors will remain explicit/manual paths where they still fit cleanly.
 
 Change hooks are optional structure contracts. Built-in mutable structures implement `IContentChangeSource`; custom structures can opt in without changing the base `IContentStructure` contract.
 

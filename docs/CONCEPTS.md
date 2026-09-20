@@ -36,6 +36,8 @@ Use `KeyedContentManager<TId>` for structures where caller-provided IDs are firs
 
 See [Content Managers](CONTENT_MANAGERS.md) for the manager workflow split.
 
+The next breaking manager stage will move the preferred construction path toward structure-driven workflow resolution. Structures will declare which manager workflow they belong to, and the package will resolve the appropriate manager. This is planned Pre-17.2 work, not current API.
+
 ## Content Changes
 
 Some structures can raise committed-change notifications through `IContentChangeSource`.

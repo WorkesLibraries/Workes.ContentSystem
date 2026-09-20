@@ -6,6 +6,8 @@ Content structures define how entries are stored, ordered, found, and retained.
 
 `IContentStructure` is the shared abstraction for reading retained content records and looking them up by ID.
 
+Pre-17.2 will extend this base abstraction so every structure also declares a narrow `ContentStructureWorkflow` descriptor. That planned descriptor is for manager resolution only; it is not implemented yet and should not be confused with operation support.
+
 The structure owns the rules. The manager should provide a convenient root workflow, but the structure decides what operations are supported and what entry IDs mean.
 
 The common abstraction exposes:
@@ -173,8 +175,12 @@ Future contracts can cover sorting, searching, or export only where a structure 
 
 Runtime mutation should be manager-owned for normal callers, with structures opting into the underlying contracts that managers coordinate.
 
+Manager workflow resolution is the next planned exception to the historically minimal base shape: every structure will declare which manager workflow should wrap it. Actual supported operations will still be expressed through the focused contracts listed above.
+
 `ContentStructureSnapshot` is the portable DTO shape for retained records plus structure-owned data. Built-in sequence and keyed structures capture their own state into that DTO, including retained records and structure-owned configuration. Round-trippable structures expose a `SnapshotFactory` so normal manager restore can use `RestoreSnapshot(snapshot)` while still letting custom structures own their state schema.
 
 Custom structures can use `ContentStructureSnapshotFactoryBase<TStructure>`, `ContentSnapshotRecords`, and `ContentSnapshotProperties` to implement the same snapshot pattern without copying built-in structure internals. See [Extension Authoring](EXTENSION_AUTHORING.md).
 
 This mirrors the strategy used in other Workes packages: keep the central abstraction small, then add focused optional contracts where they are genuinely needed. Avoid a broad capability metadata object unless a future stage finds a concrete use case that opt-in contracts cannot solve cleanly.
+
+The planned workflow descriptor is intentionally not broad capability metadata. It exists because manager selection itself has become a base structure concern before more built-ins such as single-entry, bounded keyed, or stack-like structures are added.

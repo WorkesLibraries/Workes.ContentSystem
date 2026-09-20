@@ -2,6 +2,13 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
+## Unreleased
+
+Documentation:
+
+- Reconciled the planned Pre-17 manager workflow direction before adding more built-in structures.
+- Documented the planned `ContentStructureWorkflow` descriptor, structure-driven manager resolution, and custom workflow registration direction for the future `0.6.0` breaking stage.
+
 ## 0.5.1 - 20-09-2026
 
 Documentation:

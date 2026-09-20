@@ -2,6 +2,8 @@
 
 Content managers are the normal root objects for using Workes.ContentSystem.
 
+> Roadmap note: Pre-17.2 will add structure-driven manager resolution through `ContentManagers.ForStructure(structure)`. Until that lands, use the manager constructors and `ContentManager.For(...)` shown below.
+
 ## Purpose
 
 A manager owns one active content structure and exposes the write workflow that structure category supports.
@@ -203,3 +205,25 @@ Choose based on who owns entry IDs:
 - use `ContentManagerBase` when code only needs shared read, lookup, clear/remove, or structure-parameter mutation behavior.
 
 This split keeps the API explicit. It avoids one broad manager with add methods that only work for some structures.
+
+## Planned Workflow Resolution
+
+The next breaking manager stage will let structures declare a narrow `ContentStructureWorkflow` descriptor through `IContentStructure`.
+
+That descriptor will identify which manager workflow should wrap the structure. It will not replace focused contracts such as keyed add, structure-assigned add, mutation, change hooks, or snapshots.
+
+The preferred path is planned to become:
+
+```csharp
+ContentManagerBase content = ContentManagers.ForStructure(
+    new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
+```
+
+Callers that expect a specific manager will be able to use a typed resolver rather than a manual cast:
+
+```csharp
+ContentManager<long> content =
+    ContentManagers.ForStructure<ContentManager<long>>(sequence);
+```
+
+Built-in workflows will register automatically. Extension authors will be able to register custom workflow-to-manager factories for custom structures and managers. Direct manager constructors should remain available for explicit setup and tests where they still fit.
