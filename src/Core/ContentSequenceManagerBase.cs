@@ -89,4 +89,17 @@ public abstract class ContentSequenceManagerBase : ContentManagerBase
     {
         return Sequence.Clear();
     }
+
+    /// <inheritdoc />
+    protected override bool TryAcceptStructureReplacement(IContentStructure structure, out ContentFailure? failure)
+    {
+        if (structure is ContentSequenceStructureBase)
+        {
+            failure = null;
+            return true;
+        }
+
+        failure = ContentFailures.StructureUnsupportedOperation("Replacement structure is not a sequence-family content structure.");
+        return false;
+    }
 }

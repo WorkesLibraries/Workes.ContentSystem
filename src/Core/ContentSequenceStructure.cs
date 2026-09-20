@@ -424,30 +424,22 @@ public sealed class ContentSequenceStructure :
         Changed?.Invoke(this, args);
     }
 
-    private sealed class ContentSequenceStructureSnapshotFactory : ContentStructureSnapshotFactoryBase<ContentSequenceStructure>
+    private sealed class ContentSequenceStructureSnapshotFactory : ContentSequenceStructureSnapshotFactoryBase<ContentSequenceStructure>
     {
         public ContentSequenceStructureSnapshotFactory()
             : base(SnapshotKind, SnapshotDataVersion)
         {
         }
 
-        protected override bool TryRestoreValidatedSnapshot(
+        protected override bool TryRestoreValidatedSequenceSnapshot(
             ContentStructureSnapshot snapshot,
+            ContentEntryRecord[] records,
+            long maximumId,
             out ContentSequenceStructure? structure,
             out ContentFailure? failure)
         {
             structure = null;
             failure = null;
-
-            if (!ContentSnapshotRecords.TryRestore(snapshot.Records, out ContentEntryRecord[] records, out failure))
-            {
-                return false;
-            }
-
-            if (!ContentSnapshotRecords.TryGetMaximumPositiveNumericId(records, out long maximumId, out failure))
-            {
-                return false;
-            }
 
             if (!TryRestoreData(snapshot, out long nextId, out ContentSequenceReadOrder readOrder, out ContentOverflowPolicy overflowPolicy, out failure))
             {

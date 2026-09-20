@@ -120,38 +120,53 @@ Use `DataVersion` to version the structure-owned snapshot schema. Increment it w
 The helper APIs reduce boilerplate:
 
 - `ContentStructureSnapshotFactoryBase<TStructure>` validates kind/version/data, wraps unexpected exceptions into snapshot failures, and implements throwing restore.
+- `ContentSequenceStructureSnapshotFactoryBase<TStructure>` adds sequence-family record restore plus positive numeric ID validation before concrete restore code runs.
+- `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` adds keyed-family record restore plus normalized ID validation through the configured `IContentEntryIdStrategy<TId>`.
 - `ContentSnapshotRecords` captures and restores retained records through registered entry factories, preserves order, rejects duplicate IDs, and can validate positive numeric generated IDs.
 - `ContentSnapshotProperties` builds and decodes object-shaped structure data.
 
-Example shape:
+Example sequence-family shape:
 
 ```csharp
 public sealed class QuestLogSnapshotFactory
-    : ContentStructureSnapshotFactoryBase<QuestLogStructure>
+    : ContentSequenceStructureSnapshotFactoryBase<QuestLogStructure>
 {
     public QuestLogSnapshotFactory()
         : base(QuestLogStructure.SnapshotKind, QuestLogStructure.SnapshotDataVersion)
     {
     }
 
-    protected override bool TryRestoreValidatedSnapshot(
+    protected override bool TryRestoreValidatedSequenceSnapshot(
         ContentStructureSnapshot snapshot,
+        ContentEntryRecord[] records,
+        long maximumId,
         out QuestLogStructure? structure,
         out ContentFailure? failure)
     {
         structure = null;
 
-        if (!ContentSnapshotRecords.TryRestore(snapshot.Records, out ContentEntryRecord[] records, out failure) ||
-            !ContentSnapshotProperties.TryDecodeRequiredString(snapshot.Data, "questGroup", out string questGroup, out failure))
+        if (!ContentSnapshotProperties.TryDecodeRequiredString(snapshot.Data, "questGroup", out string questGroup, out failure) ||
+            !ContentSnapshotProperties.TryDecodeRequiredInt64(snapshot.Data, "nextId", out long nextId, out failure))
         {
             return false;
         }
 
-        structure = new QuestLogStructure(questGroup, records);
+        if (nextId <= maximumId)
+        {
+            failure = ContentFailure.Create(
+                ContentFailureKind.Snapshot,
+                ContentFailureCodes.SnapshotMalformed,
+                "Next ID must be greater than retained record IDs.");
+            return false;
+        }
+
+        structure = new QuestLogStructure(questGroup, records, nextId);
         return true;
     }
 }
 ```
+
+For keyed-family structures, use `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>`. The keyed base restores records and calls `TryValidateNormalized` for every stored ID before your concrete restore method runs. Your concrete factory should then restore any extra structure-owned data and construct the structure with the same ID strategy used by future operations.
 
 The structure should expose the same factory from `SnapshotFactory`:
 

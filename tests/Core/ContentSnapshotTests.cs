@@ -814,6 +814,22 @@ public sealed class ContentSnapshotTests
     }
 
     [Test]
+    public void SequenceManagerFamilyBase_AcceptsSequenceFamilySnapshotReplacement()
+    {
+        var source = new ExampleAssignedStructure("family");
+        source.Add(Entry("Family record"));
+        ContentStructureSnapshot snapshot = source.CaptureSnapshot();
+        var manager = new ExampleSequenceFamilyManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+
+        bool restored = manager.TryRestoreSnapshot(snapshot, ExampleAssignedStructure.SnapshotFactory, out ContentFailure? failure);
+
+        Assert.That(restored, Is.True);
+        Assert.That(failure, Is.Null);
+        Assert.That(manager.Structure, Is.TypeOf<ExampleAssignedStructure>());
+        Assert.That(manager.Get(1).Entry.PlainText, Is.EqualTo("Family record"));
+    }
+
+    [Test]
     public void CustomKeyedStructure_UsesStrategyValidationDuringSnapshotRestore()
     {
         var structure = new ExampleKeyedStructure(new PrefixIdStrategy());
@@ -1125,7 +1141,7 @@ public sealed class ContentSnapshotTests
         }
     }
 
-    private sealed class ExampleAssignedStructure : IStructureAssignedIdContentStructure<long>, IContentStructureSnapshotRoundTrippable
+    private sealed class ExampleAssignedStructure : ContentSequenceStructureBase, IContentStructureSnapshotRoundTrippable
     {
         public const string SnapshotKind = "test.structure.assigned";
 
@@ -1150,16 +1166,16 @@ public sealed class ContentSnapshotTests
 
         public string Label { get; }
 
-        public IReadOnlyList<ContentEntryRecord> Records => _records.ToArray();
+        public override IReadOnlyList<ContentEntryRecord> Records => _records.ToArray();
 
         IContentStructureSnapshotFactory IContentStructureSnapshotRoundTrippable.SnapshotFactory => SnapshotFactory;
 
-        public ContentManagerBase CreateManager()
+        public override ContentManagerBase CreateManager()
         {
             return new ExampleAssignedManager(this);
         }
 
-        public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
+        public override bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
         {
             record = _records.FirstOrDefault(candidate => candidate.Id.Equals(id));
             if (record is not null)
@@ -1172,17 +1188,17 @@ public sealed class ContentSnapshotTests
             return false;
         }
 
-        public bool TryGet(long id, out ContentEntryRecord? record, out ContentFailure? failure)
+        public override bool TryGet(long id, out ContentEntryRecord? record, out ContentFailure? failure)
         {
             return TryGet(new ContentEntryId(id.ToString(System.Globalization.CultureInfo.InvariantCulture)), out record, out failure);
         }
 
-        public ContentEntryRecord Get(long id)
+        public override ContentEntryRecord Get(long id)
         {
             return Get(new ContentEntryId(id.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         }
 
-        public ContentEntryRecord Get(ContentEntryId id)
+        public override ContentEntryRecord Get(ContentEntryId id)
         {
             if (TryGet(id, out ContentEntryRecord? record, out ContentFailure? failure) && record is not null)
             {
@@ -1192,7 +1208,7 @@ public sealed class ContentSnapshotTests
             throw new ContentOperationException(failure!);
         }
 
-        public bool TryAdd(IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
+        public override bool TryAdd(IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
         {
             if (entry is null)
             {
@@ -1205,10 +1221,58 @@ public sealed class ContentSnapshotTests
             return true;
         }
 
-        public ContentEntryRecord Add(IContentEntry entry)
+        public override ContentEntryRecord Add(IContentEntry entry)
         {
             TryAdd(entry, out ContentEntryRecord? record, out _);
             return record!;
+        }
+
+        public override bool TryRemove(ContentEntryId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
+        {
+            removedRecord = _records.FirstOrDefault(candidate => candidate.Id.Equals(id));
+            if (removedRecord is null)
+            {
+                failure = ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing.");
+                return false;
+            }
+
+            _records.Remove(removedRecord);
+            failure = null;
+            return true;
+        }
+
+        public override ContentEntryRecord Remove(ContentEntryId id)
+        {
+            if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure) && removedRecord is not null)
+            {
+                return removedRecord;
+            }
+
+            throw new ContentOperationException(failure!);
+        }
+
+        public override bool TryRemove(long id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
+        {
+            return TryRemove(new ContentEntryId(id.ToString(System.Globalization.CultureInfo.InvariantCulture)), out removedRecord, out failure);
+        }
+
+        public override ContentEntryRecord Remove(long id)
+        {
+            return Remove(new ContentEntryId(id.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+
+        public override bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+        {
+            removedRecords = _records.ToArray();
+            _records.Clear();
+            failure = null;
+            return true;
+        }
+
+        public override IReadOnlyList<ContentEntryRecord> Clear()
+        {
+            TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out _);
+            return removedRecords;
         }
 
         public bool TryCaptureSnapshot(out ContentStructureSnapshot? snapshot, out ContentFailure? failure)
@@ -1244,23 +1308,23 @@ public sealed class ContentSnapshotTests
             throw new ContentOperationException(failure ?? ContentFailure.Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotRejected, "Capture failed."));
         }
 
-        public sealed class Factory : ContentStructureSnapshotFactoryBase<ExampleAssignedStructure>
+        public sealed class Factory : ContentSequenceStructureSnapshotFactoryBase<ExampleAssignedStructure>
         {
             public Factory()
                 : base(SnapshotKind, SnapshotDataVersion)
             {
             }
 
-            protected override bool TryRestoreValidatedSnapshot(
+            protected override bool TryRestoreValidatedSequenceSnapshot(
                 ContentStructureSnapshot snapshot,
+                ContentEntryRecord[] records,
+                long maximumId,
                 out ExampleAssignedStructure? structure,
                 out ContentFailure? failure)
             {
                 structure = null;
 
-                if (!ContentSnapshotRecords.TryRestore(snapshot.Records, out ContentEntryRecord[] records, out failure)
-                    || !ContentSnapshotRecords.TryGetMaximumPositiveNumericId(records, out long maximumId, out failure)
-                    || !ContentSnapshotProperties.TryDecodeRequiredString(snapshot.Data, "label", out string label, out failure)
+                if (!ContentSnapshotProperties.TryDecodeRequiredString(snapshot.Data, "label", out string label, out failure)
                     || !ContentSnapshotProperties.TryDecodeRequiredInt64(snapshot.Data, "nextId", out long nextId, out failure))
                 {
                     return false;
@@ -1278,23 +1342,11 @@ public sealed class ContentSnapshotTests
         }
     }
 
-    private sealed class ExampleAssignedManager : ContentManagerBase
+    private sealed class ExampleAssignedManager : ContentSequenceManagerBase
     {
         public ExampleAssignedManager(ExampleAssignedStructure structure)
             : base(structure)
         {
-        }
-
-        private ExampleAssignedStructure Assigned => (ExampleAssignedStructure)Structure;
-
-        public ContentEntryRecord Add(IContentEntry entry)
-        {
-            return Assigned.Add(entry);
-        }
-
-        public ContentEntryRecord Get(long id)
-        {
-            return Assigned.Get(id);
         }
 
         protected override bool TryAcceptStructureReplacement(IContentStructure structure, out ContentFailure? failure)
@@ -1310,7 +1362,15 @@ public sealed class ContentSnapshotTests
         }
     }
 
-    private sealed class ExampleKeyedStructure : IKeyedContentStructure<CustomSnapshotId>, IContentStructureSnapshotRoundTrippable
+    private sealed class ExampleSequenceFamilyManager : ContentSequenceManagerBase
+    {
+        public ExampleSequenceFamilyManager(ContentSequenceStructureBase structure)
+            : base(structure)
+        {
+        }
+    }
+
+    private sealed class ExampleKeyedStructure : KeyedContentStructureBase<CustomSnapshotId>, IContentStructureSnapshotRoundTrippable
     {
         public const string SnapshotKind = "test.structure.keyed";
 
@@ -1330,16 +1390,16 @@ public sealed class ContentSnapshotTests
             _records = records.ToList();
         }
 
-        public IReadOnlyList<ContentEntryRecord> Records => _records.ToArray();
+        public override IReadOnlyList<ContentEntryRecord> Records => _records.ToArray();
 
         public IContentStructureSnapshotFactory SnapshotFactory => new Factory(_strategy);
 
-        public ContentManagerBase CreateManager()
+        public override ContentManagerBase CreateManager()
         {
             return new ExampleKeyedManager(this);
         }
 
-        public bool TryAdd(CustomSnapshotId id, IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
+        public override bool TryAdd(CustomSnapshotId id, IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
         {
             if (entry is null)
             {
@@ -1364,7 +1424,7 @@ public sealed class ContentSnapshotTests
             return true;
         }
 
-        public ContentEntryRecord Add(CustomSnapshotId id, IContentEntry entry)
+        public override ContentEntryRecord Add(CustomSnapshotId id, IContentEntry entry)
         {
             if (TryAdd(id, entry, out ContentEntryRecord? record, out ContentFailure? failure) && record is not null)
             {
@@ -1374,7 +1434,7 @@ public sealed class ContentSnapshotTests
             throw new ContentOperationException(failure!);
         }
 
-        public bool TryGet(CustomSnapshotId id, out ContentEntryRecord? record, out ContentFailure? failure)
+        public override bool TryGet(CustomSnapshotId id, out ContentEntryRecord? record, out ContentFailure? failure)
         {
             record = null;
             if (!_strategy.TryNormalize(id, out ContentEntryId normalizedId, out failure))
@@ -1385,7 +1445,7 @@ public sealed class ContentSnapshotTests
             return TryGet(normalizedId, out record, out failure);
         }
 
-        public ContentEntryRecord Get(CustomSnapshotId id)
+        public override ContentEntryRecord Get(CustomSnapshotId id)
         {
             if (TryGet(id, out ContentEntryRecord? record, out ContentFailure? failure) && record is not null)
             {
@@ -1395,7 +1455,7 @@ public sealed class ContentSnapshotTests
             throw new ContentOperationException(failure!);
         }
 
-        public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
+        public override bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
         {
             record = _records.FirstOrDefault(candidate => candidate.Id.Equals(id));
             if (record is not null)
@@ -1408,7 +1468,7 @@ public sealed class ContentSnapshotTests
             return false;
         }
 
-        public ContentEntryRecord Get(ContentEntryId id)
+        public override ContentEntryRecord Get(ContentEntryId id)
         {
             if (TryGet(id, out ContentEntryRecord? record, out ContentFailure? failure) && record is not null)
             {
@@ -1447,59 +1507,91 @@ public sealed class ContentSnapshotTests
             throw new ContentOperationException(failure ?? ContentFailure.Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotRejected, "Capture failed."));
         }
 
-        public sealed class Factory : ContentStructureSnapshotFactoryBase<ExampleKeyedStructure>
+        public override bool TryRemove(ContentEntryId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
         {
-            private readonly PrefixIdStrategy _strategy;
-
-            public Factory(PrefixIdStrategy strategy)
-                : base(SnapshotKind, SnapshotDataVersion)
+            removedRecord = _records.FirstOrDefault(candidate => candidate.Id.Equals(id));
+            if (removedRecord is null)
             {
-                _strategy = strategy;
+                failure = ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing.");
+                return false;
             }
 
-            protected override bool TryRestoreValidatedSnapshot(
+            _records.Remove(removedRecord);
+            failure = null;
+            return true;
+        }
+
+        public override ContentEntryRecord Remove(ContentEntryId id)
+        {
+            if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure) && removedRecord is not null)
+            {
+                return removedRecord;
+            }
+
+            throw new ContentOperationException(failure!);
+        }
+
+        public override bool TryRemove(CustomSnapshotId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
+        {
+            removedRecord = null;
+            if (!_strategy.TryNormalize(id, out ContentEntryId normalizedId, out failure))
+            {
+                return false;
+            }
+
+            return TryRemove(normalizedId, out removedRecord, out failure);
+        }
+
+        public override ContentEntryRecord Remove(CustomSnapshotId id)
+        {
+            if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure) && removedRecord is not null)
+            {
+                return removedRecord;
+            }
+
+            throw new ContentOperationException(failure!);
+        }
+
+        public override bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+        {
+            removedRecords = _records.ToArray();
+            _records.Clear();
+            failure = null;
+            return true;
+        }
+
+        public override IReadOnlyList<ContentEntryRecord> Clear()
+        {
+            TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out _);
+            return removedRecords;
+        }
+
+        public sealed class Factory : KeyedContentStructureSnapshotFactoryBase<CustomSnapshotId, ExampleKeyedStructure>
+        {
+            public Factory(PrefixIdStrategy strategy)
+                : base(SnapshotKind, SnapshotDataVersion, strategy)
+            {
+            }
+
+            protected override bool TryRestoreValidatedKeyedSnapshot(
                 ContentStructureSnapshot snapshot,
+                ContentEntryRecord[] records,
                 out ExampleKeyedStructure? structure,
                 out ContentFailure? failure)
             {
                 structure = null;
-                if (!ContentSnapshotRecords.TryRestore(snapshot.Records, out ContentEntryRecord[] records, out failure))
-                {
-                    return false;
-                }
-
-                foreach (ContentEntryRecord record in records)
-                {
-                    if (!_strategy.TryValidateNormalized(record.Id, out failure))
-                    {
-                        return false;
-                    }
-                }
-
-                structure = new ExampleKeyedStructure(_strategy, records);
+                structure = new ExampleKeyedStructure((PrefixIdStrategy)IdStrategy, records);
                 failure = null;
                 return true;
             }
         }
     }
 
-    private sealed class ExampleKeyedManager : ContentManagerBase
+    private sealed class ExampleKeyedManager : KeyedContentManagerBase<CustomSnapshotId>
     {
         public ExampleKeyedManager(ExampleKeyedStructure structure)
             : base(structure)
         {
-        }
-
-        private ExampleKeyedStructure Keyed => (ExampleKeyedStructure)Structure;
-
-        public ContentEntryRecord Add(CustomSnapshotId id, IContentEntry entry)
-        {
-            return Keyed.Add(id, entry);
-        }
-
-        public ContentEntryRecord Get(CustomSnapshotId id)
-        {
-            return Keyed.Get(id);
         }
 
         protected override bool TryAcceptStructureReplacement(IContentStructure structure, out ContentFailure? failure)

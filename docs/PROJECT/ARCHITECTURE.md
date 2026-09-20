@@ -99,7 +99,7 @@ The entry factory registry is still needed even though entries own their capture
 
 Structure snapshot round trips are opt-in through `IContentStructureSnapshotRoundTrippable`. Normal manager restore uses the active structure's `SnapshotFactory`; explicit structure factories remain available for migrations and advanced restore targets.
 
-Structure extension authoring is supported through focused contracts plus helper APIs. `ContentStructureSnapshotFactoryBase<TStructure>` handles common restore validation, while `ContentSnapshotRecords` and `ContentSnapshotProperties` expose the same retained-record and structure-data helper patterns used by built-in structures.
+Structure extension authoring is supported through focused contracts plus helper APIs. `ContentStructureSnapshotFactoryBase<TStructure>` handles common restore validation, `ContentSequenceStructureSnapshotFactoryBase<TStructure>` and `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` handle family restore invariants, and `ContentSnapshotRecords` / `ContentSnapshotProperties` expose the same retained-record and structure-data helper patterns used by built-in structures.
 
 ## Failure Model
 

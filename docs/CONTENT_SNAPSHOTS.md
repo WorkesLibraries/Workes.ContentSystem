@@ -174,7 +174,7 @@ Whole-structure restore through managers is atomic. A failed restore leaves the 
 
 For keyed structures, restore validates stored snapshot IDs through the configured `IContentEntryIdStrategy<TId>`. Custom strategies must ensure restored normalized IDs describe the same ID language as caller-provided IDs.
 
-Custom structure authors can use `ContentStructureSnapshotFactoryBase<TStructure>` for common factory validation, `ContentSnapshotRecords` for retained record capture/restore, and `ContentSnapshotProperties` for structure-owned snapshot data. See [Extension Authoring](EXTENSION_AUTHORING.md).
+Custom structure authors can use `ContentStructureSnapshotFactoryBase<TStructure>` for common factory validation, `ContentSequenceStructureSnapshotFactoryBase<TStructure>` and `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` for family-level restore invariants, `ContentSnapshotRecords` for retained record capture/restore, and `ContentSnapshotProperties` for structure-owned snapshot data. See [Extension Authoring](EXTENSION_AUTHORING.md).
 
 ## Relationship To Export And Attachments
 

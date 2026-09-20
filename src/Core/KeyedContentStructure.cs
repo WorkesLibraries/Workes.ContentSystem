@@ -365,18 +365,16 @@ public sealed class KeyedContentStructure<TId> :
         Changed?.Invoke(this, args);
     }
 
-    private sealed class KeyedContentStructureSnapshotFactory : ContentStructureSnapshotFactoryBase<KeyedContentStructure<TId>>
+    private sealed class KeyedContentStructureSnapshotFactory : KeyedContentStructureSnapshotFactoryBase<TId, KeyedContentStructure<TId>>
     {
-        private readonly IContentEntryIdStrategy<TId> _idStrategy;
-
         public KeyedContentStructureSnapshotFactory(IContentEntryIdStrategy<TId> idStrategy)
-            : base(SnapshotKind, SnapshotDataVersion)
+            : base(SnapshotKind, SnapshotDataVersion, idStrategy)
         {
-            _idStrategy = idStrategy ?? throw new ArgumentNullException(nameof(idStrategy));
         }
 
-        protected override bool TryRestoreValidatedSnapshot(
+        protected override bool TryRestoreValidatedKeyedSnapshot(
             ContentStructureSnapshot snapshot,
+            ContentEntryRecord[] records,
             out KeyedContentStructure<TId>? structure,
             out ContentFailure? failure)
         {
@@ -389,25 +387,7 @@ public sealed class KeyedContentStructure<TId> :
                 return false;
             }
 
-            if (!ContentSnapshotRecords.TryRestore(snapshot.Records, out ContentEntryRecord[] records, out failure))
-            {
-                return false;
-            }
-
-            foreach (ContentEntryRecord record in records)
-            {
-                if (!_idStrategy.TryValidateNormalized(record.Id, out failure))
-                {
-                    return false;
-                }
-            }
-
-            if (!ContentSnapshotRecords.TryValidateUniqueIds(records, out failure))
-            {
-                return false;
-            }
-
-            structure = new KeyedContentStructure<TId>(_idStrategy, records);
+            structure = new KeyedContentStructure<TId>(IdStrategy, records);
             return true;
         }
     }

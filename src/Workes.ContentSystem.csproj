@@ -7,8 +7,8 @@
     <LangVersion>10.0</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Workes.ContentSystem</PackageId>
-    <Version>0.5.2</Version>
-    <PackageReleaseNotes>Adds structure-family bases and dedicated manager bases for sequence and keyed workflows.</PackageReleaseNotes>
+    <Version>0.5.3</Version>
+    <PackageReleaseNotes>Adds snapshot factory bases for structure-family snapshot restore.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Workes</Authors>
     <Company>Workes</Company>

@@ -180,7 +180,7 @@ Manager resolution is part of the base shape: every structure creates the manage
 
 `ContentStructureSnapshot` is the portable DTO shape for retained records plus structure-owned data. Built-in sequence and keyed structures capture their own state into that DTO, including retained records and structure-owned configuration. Round-trippable structures expose a `SnapshotFactory` so normal manager restore can use `RestoreSnapshot(snapshot)` while still letting custom structures own their state schema.
 
-Custom structures can use `ContentStructureSnapshotFactoryBase<TStructure>`, `ContentSnapshotRecords`, and `ContentSnapshotProperties` to implement the same snapshot pattern without copying built-in structure internals. See [Extension Authoring](EXTENSION_AUTHORING.md).
+Custom structures can use `ContentStructureSnapshotFactoryBase<TStructure>`, the sequence/keyed family snapshot factory bases, `ContentSnapshotRecords`, and `ContentSnapshotProperties` to implement the same snapshot pattern without copying built-in structure internals. See [Extension Authoring](EXTENSION_AUTHORING.md).
 
 This mirrors the strategy used in other Workes packages: keep the central abstraction small, then add focused optional contracts where they are genuinely needed. Avoid a broad capability metadata object unless a future stage finds a concrete use case that opt-in contracts cannot solve cleanly.
 

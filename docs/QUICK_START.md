@@ -5,13 +5,13 @@ This package is a reusable content-entry backend. The first useful core supports
 ## Install
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.5.2
+dotnet add package Workes.ContentSystem --version 0.5.3
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.5.2" />
+<PackageReference Include="Workes.ContentSystem" Version="0.5.3" />
 ```
 
 ## Mental Model

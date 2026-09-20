@@ -2,6 +2,18 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
+## 0.5.3 - 20-09-2026
+
+Added:
+
+- Added `ContentSequenceStructureSnapshotFactoryBase<TStructure>` for sequence-family snapshot restore helpers.
+- Added `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` for keyed-family snapshot restore helpers with normalized ID validation.
+
+Changed:
+
+- Refactored built-in sequence and keyed snapshot factories to use the family snapshot factory bases without changing the snapshot DTO wire shape.
+- `ContentSequenceManagerBase` and `KeyedContentManagerBase<TId>` now accept compatible family replacement structures by default, while concrete managers keep narrow concrete restore compatibility.
+
 ## 0.5.2 - 20-09-2026
 
 Added:

@@ -90,4 +90,17 @@ public abstract class KeyedContentManagerBase<TId> : ContentManagerBase
     {
         return KeyedStructure.Clear();
     }
+
+    /// <inheritdoc />
+    protected override bool TryAcceptStructureReplacement(IContentStructure structure, out ContentFailure? failure)
+    {
+        if (structure is KeyedContentStructureBase<TId>)
+        {
+            failure = null;
+            return true;
+        }
+
+        failure = ContentFailures.StructureUnsupportedOperation("Replacement structure is not a keyed-family content structure for the active ID type.");
+        return false;
+    }
 }

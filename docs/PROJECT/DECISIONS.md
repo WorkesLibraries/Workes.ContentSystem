@@ -597,6 +597,7 @@ After built-in structure snapshot restore was implemented, custom structure auth
 ContentSystem provides public helper APIs for structure extension authors:
 
 - `ContentStructureSnapshotFactoryBase<TStructure>` for common structure factory restore plumbing;
+- sequence and keyed family snapshot factory bases for shared family restore invariants;
 - `ContentSnapshotRecords` for retained record capture, restore, duplicate ID validation, and positive numeric ID validation;
 - `ContentSnapshotProperties` for named structure-owned snapshot data and scalar decoding.
 
@@ -695,3 +696,32 @@ This also keeps future opt-in features from becoming awkward. A concrete sortabl
 Normal users still resolve concrete managers from concrete structures. Extension authors can choose between implementing only `IContentStructure`, inheriting a family base, or creating an entirely custom manager/structure pair.
 
 Snapshot layering and flexible generated ID sources remain separate follow-up stages.
+
+### D-032: Snapshot Restore Uses Family Bases Without Changing User APIs
+
+#### Context
+
+After structure-family bases were introduced, the snapshot restore code still had the shared sequence and keyed restore rules embedded in the concrete built-in factories. That worked for built-ins, but extension authors would have had to copy package internals to restore records, validate generated numeric IDs, and validate keyed normalized IDs consistently.
+
+#### Decision
+
+Structure snapshots keep the same normal user workflow: managers capture with `CaptureSnapshot()` and restore with `RestoreSnapshot(snapshot)`.
+
+Structures still own final snapshot kind, data version, structure-owned data, and concrete construction.
+
+Reusable family snapshot factory bases now handle family invariants:
+
+- `ContentSequenceStructureSnapshotFactoryBase<TStructure>` restores retained records and exposes the maximum positive numeric retained ID before concrete restore code runs.
+- `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` restores retained records and validates every stored normalized ID through the configured `IContentEntryIdStrategy<TId>`.
+
+Built-in sequence and keyed factories use those family bases without changing their snapshot DTO wire shape.
+
+#### Reasoning
+
+This keeps the easy path small for users while giving extension authors first-class helpers that enforce the same invariants as package structures. It also preserves the distinction between family reuse and concrete ownership: the family base handles what is genuinely shared, and the concrete factory still owns the schema and final object.
+
+#### Consequences
+
+Family manager bases may accept restored structures from their family by default. Concrete managers remain narrower: `ContentSequenceManager` accepts only `ContentSequenceStructure`, and `KeyedContentManager<TId>` accepts only `KeyedContentStructure<TId>`.
+
+The snapshot system still does not own disk I/O, serializer choice, global structure factory registration, or generated-ID source redesign.

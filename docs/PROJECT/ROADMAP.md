@@ -48,7 +48,7 @@ Completed implementation adds the first manager/structure family foundation. Str
 
 ### Pre-17.2B: Reconcile snapshots with structure-family bases
 
-Rework snapshot behavior for the new structure-family and dedicated-manager architecture while keeping the normal user API minimal: `CaptureSnapshot()` and `RestoreSnapshot(snapshot)`.
+Completed implementation adds sequence-family and keyed-family snapshot factory bases. Built-in snapshot wire shapes stay compatible, normal manager APIs remain `CaptureSnapshot()` and `RestoreSnapshot(snapshot)`, and concrete managers keep strict restore compatibility while family manager bases can accept compatible family replacements.
 
 ### Pre-17.2C: Add flexible ID strategies and generated ID sources
 
