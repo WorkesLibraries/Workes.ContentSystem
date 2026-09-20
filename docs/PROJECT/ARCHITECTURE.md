@@ -12,6 +12,16 @@ Workes.ContentSystem now has its first useful core: public entry, failure, struc
 
 The package should be engine-neutral and centered on manager workflows that own one active content structure and expose simple APIs for normal users.
 
+## Source Organization
+
+The source tree is split by subsystem, matching the style used by sibling Workes packages.
+
+`Core` is reserved for package-wide primitives and root coordination: failures, exceptions, `ContentManagerBase`, and manager resolution. Subsystem folders own their contracts, bases, DTOs, and helper APIs: `Entries`, `Identity`, `Structures`, `Managers`, `Changes`, `Snapshots`, and `Parameters`.
+
+Concrete package-provided implementations live in `BuiltIn` folders under the subsystem they implement. For example, `PlainContentEntry` is under `Entries/BuiltIn`, built-in ID strategies are under `Identity/BuiltIn`, and built-in structures/managers are under `Structures/BuiltIn` and `Managers/BuiltIn`.
+
+This is a physical organization rule, not a namespace rule. Public namespaces remain stable unless a later explicit prerelease namespace cleanup decision changes them.
+
 ## Main Concepts
 
 - `IContentEntry` is the core content payload abstraction.
@@ -21,7 +31,7 @@ The package should be engine-neutral and centered on manager workflows that own 
 - `ContentEntryId` is the shared stored-record identity representation.
 - `IContentEntryIdStrategy<TId>` validates and normalizes caller-provided IDs for keyed structures and validates normalized IDs restored from snapshots.
 - `IContentStructure` is the read/lookup storage abstraction and creates the structure's tailored manager.
-- `ContentSequenceStructureBase` and `KeyedContentStructureBase<TId>` are structure-family bases for reusable workflow surfaces.
+- `ContentSequenceStructureBase<TId>` and `KeyedContentStructureBase<TId>` are structure-family bases for reusable workflow surfaces.
 - `IContentChangeSource` is the optional committed-change notification abstraction.
 - `IContentRetentionPolicyStructure` is the optional retention-policy inspection contract.
 - `IContentReadOrderStructure` is the optional read-order inspection contract.
@@ -32,7 +42,7 @@ The package should be engine-neutral and centered on manager workflows that own 
 - `IKeyedContentRecordRemovalStructure<TId>` is the optional typed keyed record removal contract.
 - `IParameterizedContentStructure` is the optional runtime structure-parameter contract.
 - `ContentManagerBase` is the shared manager read/lookup and snapshot lifecycle base.
-- `ContentSequenceManagerBase` and `KeyedContentManagerBase<TId>` are manager-family bases for shared workflow behavior.
+- `ContentSequenceManagerBase<TId>` and `KeyedContentManagerBase<TId>` are manager-family bases for shared workflow behavior.
 - `ContentSequenceManager` is the tailored manager for `ContentSequenceStructure`.
 - `KeyedContentManager<TId>` is the manager for caller-provided typed-ID workflows.
 - `ContentManagers.ForStructure(...)` is the preferred structure-driven manager resolver.
@@ -99,7 +109,7 @@ The entry factory registry is still needed even though entries own their capture
 
 Structure snapshot round trips are opt-in through `IContentStructureSnapshotRoundTrippable`. Normal manager restore uses the active structure's `SnapshotFactory`; explicit structure factories remain available for migrations and advanced restore targets.
 
-Structure extension authoring is supported through focused contracts plus helper APIs. `ContentStructureSnapshotFactoryBase<TStructure>` handles common restore validation, `ContentSequenceStructureSnapshotFactoryBase<TStructure>` and `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` handle family restore invariants, and `ContentSnapshotRecords` / `ContentSnapshotProperties` expose the same retained-record and structure-data helper patterns used by built-in structures.
+Structure extension authoring is supported through focused contracts plus helper APIs. `ContentStructureSnapshotFactoryBase<TStructure>` handles common restore validation, `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` handles generic sequence restore with generated ID sources, `ContentSequenceStructureSnapshotFactoryBase<TStructure>` handles the long-ID numeric convenience path, `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` handles keyed restore invariants, and `ContentSnapshotRecords` / `ContentSnapshotProperties` expose the same retained-record and structure-data helper patterns used by built-in structures.
 
 ## Failure Model
 

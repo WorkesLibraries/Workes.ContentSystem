@@ -2,6 +2,21 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
+## 0.6.0 - 20-09-2026
+
+Added:
+
+- Added generated ID source contracts and a built-in `LongContentGeneratedIdSource`.
+- Added generic `ContentSequenceStructure<TId>` and `ContentSequenceManager<TId>` for custom sequence ID models.
+- Added explicit-ID add support for sequence structures while preserving id-less generated-ID adds.
+- Added `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` for generic sequence-family snapshot restore with custom generated ID sources.
+- Reorganized source files by subsystem with `BuiltIn` folders for concrete package-provided implementations.
+
+Changed:
+
+- `ContentSequenceStructure` and `ContentSequenceManager` remain the normal long-ID sequence path over the new generic sequence implementation.
+- Sequence snapshots now preserve generated ID source state, expose reusable generic generated-ID source restore helpers for extensions, and keep legacy long sequence restore compatibility.
+
 ## 0.5.3 - 20-09-2026
 
 Added:

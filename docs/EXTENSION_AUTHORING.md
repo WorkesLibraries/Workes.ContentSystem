@@ -120,7 +120,8 @@ Use `DataVersion` to version the structure-owned snapshot schema. Increment it w
 The helper APIs reduce boilerplate:
 
 - `ContentStructureSnapshotFactoryBase<TStructure>` validates kind/version/data, wraps unexpected exceptions into snapshot failures, and implements throwing restore.
-- `ContentSequenceStructureSnapshotFactoryBase<TStructure>` adds sequence-family record restore plus positive numeric ID validation before concrete restore code runs.
+- `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` adds sequence-family record restore, generated ID source restore, restored-ID validation through the source strategy, and source observation before concrete restore code runs.
+- `ContentSequenceStructureSnapshotFactoryBase<TStructure>` is the long-ID convenience helper for sequence-family structures that only need restored records plus the maximum positive numeric ID.
 - `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` adds keyed-family record restore plus normalized ID validation through the configured `IContentEntryIdStrategy<TId>`.
 - `ContentSnapshotRecords` captures and restores retained records through registered entry factories, preserves order, rejects duplicate IDs, and can validate positive numeric generated IDs.
 - `ContentSnapshotProperties` builds and decodes object-shaped structure data.
@@ -168,6 +169,37 @@ public sealed class QuestLogSnapshotFactory
 
 For keyed-family structures, use `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>`. The keyed base restores records and calls `TryValidateNormalized` for every stored ID before your concrete restore method runs. Your concrete factory should then restore any extra structure-owned data and construct the structure with the same ID strategy used by future operations.
 
+For sequence-family structures with custom generated ID sources, use `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>`. The generic sequence base restores the source snapshot, validates every restored stored ID through `idSource.IdStrategy.TryValidateNormalized(...)`, and calls `idSource.TryObserveNormalized(...)` before your concrete restore method runs. Your concrete factory should restore any extra structure-owned data and construct the structure with the restored source:
+
+```csharp
+public sealed class QuestLogSnapshotFactory
+    : ContentSequenceStructureSnapshotFactoryBase<QuestEntryId, QuestLogStructure>
+{
+    public QuestLogSnapshotFactory(IContentGeneratedIdSourceFactory<QuestEntryId> sourceFactory)
+        : base(QuestLogStructure.SnapshotKind, QuestLogStructure.SnapshotDataVersion, sourceFactory)
+    {
+    }
+
+    protected override bool TryRestoreValidatedSequenceSnapshot(
+        ContentStructureSnapshot snapshot,
+        ContentEntryRecord[] records,
+        IContentGeneratedIdSource<QuestEntryId> idSource,
+        out QuestLogStructure? structure,
+        out ContentFailure? failure)
+    {
+        structure = null;
+
+        if (!ContentSnapshotProperties.TryDecodeRequiredString(snapshot.Data, "questGroup", out string questGroup, out failure))
+        {
+            return false;
+        }
+
+        structure = new QuestLogStructure(questGroup, idSource, records);
+        return true;
+    }
+}
+```
+
 The structure should expose the same factory from `SnapshotFactory`:
 
 ```csharp
@@ -199,7 +231,7 @@ For keyed structures, `IContentEntryIdStrategy<TId>` has two responsibilities:
 
 Both methods must describe the same stored ID language. A keyed structure should reject a snapshot ID that the typed API can never address.
 
-For generated-ID structures, restore should validate retained IDs and generated counters before constructing the restored structure. `ContentSnapshotRecords.TryGetMaximumPositiveNumericId(...)` is useful for sequence-like structures.
+For generated-ID structures, restore should validate retained IDs and generated ID source state before constructing the restored structure. Use `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` when the structure uses an `IContentGeneratedIdSource<TId>`. `ContentSnapshotRecords.TryGetMaximumPositiveNumericId(...)` and `ContentSequenceStructureSnapshotFactoryBase<TStructure>` remain useful for simple long-ID sequence-like structures.
 
 ## Events And Atomicity
 

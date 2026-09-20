@@ -36,7 +36,7 @@ Avoid baking FIFO assumptions into the whole package. `ContentSequenceStructure`
 
 Use focused opt-in contracts to expose inspectable structure behavior and supported mutations. For example, retention policy belongs on `IContentRetentionPolicyStructure`, read order belongs on `IContentReadOrderStructure`, clear/remove support belongs on mutation-specific contracts, and runtime configuration belongs on `IParameterizedContentStructure`.
 
-Use structure-family bases when a workflow family has a real shared instruction set. `ContentSequenceStructureBase` and `KeyedContentStructureBase<TId>` are the current examples. Do not create a family base for one-off structures unless it removes real duplication or represents a planned reusable family.
+Use structure-family bases when a workflow family has a real shared instruction set. `ContentSequenceStructureBase<TId>` and `KeyedContentStructureBase<TId>` are the current examples, with non-generic long-ID sequence wrappers kept for normal use. Do not create a family base for one-off structures unless it removes real duplication or represents a planned reusable family.
 
 A structure should own:
 
@@ -52,7 +52,7 @@ Do not force one append method into the base structure abstraction. Structure-as
 
 Concrete structures should expose natural lookup and removal overloads for their ID model when removal is supported. For example, sequence generated-ID structures can support `Get(1)` and `Remove(1)` while generic code can continue using `ContentEntryId`. Keyed structures that support typed removal should opt into `IKeyedContentRecordRemovalStructure<TId>`.
 
-ID strategies should validate and normalize typed caller-provided IDs and validate normalized stored IDs restored from snapshots. Built-in default strategy resolution is acceptable for explicitly supported ID types such as `string`, `long`, `Guid`, and `ContentEntryId`; custom ID types require custom strategies. Do not add generation behavior to that abstraction until a concrete structure needs configurable generated IDs.
+ID strategies should validate and normalize typed caller-provided IDs and validate normalized stored IDs restored from snapshots. Generated ID sources should own automatic ID generation and source state. Keep these concepts separate: a source can use a strategy, but a strategy should not generate IDs.
 
 ## Entries
 
@@ -104,7 +104,7 @@ Change hooks should use ordinary synchronous .NET events. Raise them only after 
 
 Snapshots should be serializer-friendly DTOs rather than direct file I/O. Entry snapshot capture should be opt-in on the entry instance, while restore should use a factory object registered in `ContentEntrySnapshotFactories`. Structure snapshot round trips should be opt-in on the structure through `IContentStructureSnapshotRoundTrippable`, and normal manager restore should use the active structure's `SnapshotFactory`. Explicit structure factories remain available for migration and advanced restore targets. Record and structure snapshots should keep stored IDs and structure data in serializer-friendly forms. Unsupported custom entries or structures should fail snapshot capture or restore with structured failures unless they opt in.
 
-Structure extension helpers should reduce boilerplate without making inheritance mandatory. `ContentStructureSnapshotFactoryBase<TStructure>`, `ContentSequenceStructureSnapshotFactoryBase<TStructure>`, `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>`, `ContentSnapshotRecords`, and `ContentSnapshotProperties` are convenience APIs for extension authors; direct implementation of the snapshot interfaces remains valid.
+Structure extension helpers should reduce boilerplate without making inheritance mandatory. `ContentStructureSnapshotFactoryBase<TStructure>`, `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>`, `ContentSequenceStructureSnapshotFactoryBase<TStructure>`, `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>`, `ContentSnapshotRecords`, and `ContentSnapshotProperties` are convenience APIs for extension authors; direct implementation of the snapshot interfaces remains valid.
 
 Custom manager workflows should follow the same pattern: a custom structure returns its custom manager from `CreateManager()`, and callers can use `ContentManagers.ForStructure<TManager>(structure)` when they want typed validation. A typed mismatch fails through structured ContentSystem failures.
 

@@ -597,7 +597,7 @@ After built-in structure snapshot restore was implemented, custom structure auth
 ContentSystem provides public helper APIs for structure extension authors:
 
 - `ContentStructureSnapshotFactoryBase<TStructure>` for common structure factory restore plumbing;
-- sequence and keyed family snapshot factory bases for shared family restore invariants;
+- sequence and keyed family snapshot factory bases for shared family restore invariants, including generic generated-ID sequence restore and the long-ID convenience path;
 - `ContentSnapshotRecords` for retained record capture, restore, duplicate ID validation, and positive numeric ID validation;
 - `ContentSnapshotProperties` for named structure-owned snapshot data and scalar decoding.
 
@@ -637,7 +637,7 @@ This removes a separate factory registry and avoids a misleading middle layer. A
 
 #### Consequences
 
-Pre-17.2 was split into smaller prerelease stages after this decision. The rejected workflow descriptor and manager factory registry are removed in the `0.5.2` manager/structure foundation, while later Pre-17.2 stages finish snapshot layering and flexible ID strategy work before the broader `0.6.0` milestone. Existing direct construction remains valid, but `ContentManagers.ForStructure(...)` is the preferred documented path. Typed manager mismatches use structured failures and expected-success exceptions instead of hidden nulls or invalid casts.
+Pre-17.2 was split into smaller prerelease stages after this decision and released together as the `0.6.0` manager/structure redo. The rejected workflow descriptor and manager factory registry are removed, snapshot layering follows the family/concrete split, and flexible generated sequence IDs sit on the same foundation. Existing direct construction remains valid, but `ContentManagers.ForStructure(...)` is the preferred documented path. Typed manager mismatches use structured failures and expected-success exceptions instead of hidden nulls or invalid casts.
 
 `ContentManagerBase` stays small: shared read/lookup, event forwarding, and snapshot lifecycle. Retained-state mutations move to concrete tailored managers such as `ContentSequenceManager` and `KeyedContentManager<TId>`.
 
@@ -681,7 +681,7 @@ The direct structure-created-manager model was cleaner than workflow descriptors
 
 ContentSystem uses structure-family bases and manager-family bases where a workflow family is reusable.
 
-For the implemented families, `ContentSequenceStructureBase` and `KeyedContentStructureBase<TId>` define the shared family structure surface. `ContentSequenceManagerBase` and `KeyedContentManagerBase<TId>` define shared manager behavior for those family surfaces.
+For the implemented families, `ContentSequenceStructureBase<TId>` and `KeyedContentStructureBase<TId>` define the shared family structure surface. `ContentSequenceManagerBase<TId>` and `KeyedContentManagerBase<TId>` define shared manager behavior for those family surfaces.
 
 Concrete structures still create dedicated concrete managers. `ContentSequenceStructure` creates `ContentSequenceManager`, and `KeyedContentStructure<TId>` creates `KeyedContentManager<TId>`.
 
@@ -695,7 +695,7 @@ This also keeps future opt-in features from becoming awkward. A concrete sortabl
 
 Normal users still resolve concrete managers from concrete structures. Extension authors can choose between implementing only `IContentStructure`, inheriting a family base, or creating an entirely custom manager/structure pair.
 
-Snapshot layering and flexible generated ID sources remain separate follow-up stages.
+Snapshot layering and flexible generated ID sources were completed in the follow-up Pre-17.2 stages and are part of the `0.6.0` architecture.
 
 ### D-032: Snapshot Restore Uses Family Bases Without Changing User APIs
 
@@ -711,7 +711,8 @@ Structures still own final snapshot kind, data version, structure-owned data, an
 
 Reusable family snapshot factory bases now handle family invariants:
 
-- `ContentSequenceStructureSnapshotFactoryBase<TStructure>` restores retained records and exposes the maximum positive numeric retained ID before concrete restore code runs.
+- `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` restores retained records, generated ID source state, and restored-ID source observations before concrete restore code runs.
+- `ContentSequenceStructureSnapshotFactoryBase<TStructure>` remains the long-ID convenience helper and exposes the maximum positive numeric retained ID before concrete restore code runs.
 - `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` restores retained records and validates every stored normalized ID through the configured `IContentEntryIdStrategy<TId>`.
 
 Built-in sequence and keyed factories use those family bases without changing their snapshot DTO wire shape.
@@ -724,4 +725,49 @@ This keeps the easy path small for users while giving extension authors first-cl
 
 Family manager bases may accept restored structures from their family by default. Concrete managers remain narrower: `ContentSequenceManager` accepts only `ContentSequenceStructure`, and `KeyedContentManager<TId>` accepts only `KeyedContentStructure<TId>`.
 
-The snapshot system still does not own disk I/O, serializer choice, global structure factory registration, or generated-ID source redesign.
+The snapshot system still does not own disk I/O, serializer choice, or global structure factory registration.
+
+### D-033: Generated IDs Use Sources, Not Strategies
+
+#### Context
+
+Sequence structures needed configurable ID models without making normal users write generic types. The existing `IContentEntryIdStrategy<TId>` already had a clear job: validate caller-facing IDs and validate normalized stored IDs restored from snapshots.
+
+#### Decision
+
+ID strategies remain validation/normalization-only.
+
+Generated IDs use separate `IContentGeneratedIdSource<TId>` implementations. A source owns automatic ID generation, observes manual and restored IDs, and captures/restores source state for snapshots.
+
+`ContentSequenceStructure` and `ContentSequenceManager` remain the normal long-ID path. Advanced users can use `ContentSequenceStructure<TId>` and `ContentSequenceManager<TId>` with a custom generated ID source.
+
+#### Consequences
+
+The default sequence path stays clean: callers can add entries without IDs and look up by `long`. Structures that want custom sequence IDs can opt into generic sequence types without changing keyed structures.
+
+Manual and generated sequence IDs may be mixed. That is allowed, but source state controls how later generated IDs advance.
+
+### D-034: Generic Sequence Snapshot Helpers Preserve Generated-ID Extension Parity
+
+#### Context
+
+After flexible sequence IDs were added, the built-in generic sequence structure could restore generated ID source state, validate restored normalized IDs through the source strategy, and observe retained IDs so future generated IDs stayed coherent. The public sequence snapshot helper still only covered the long-ID numeric path by exposing the maximum positive retained ID.
+
+That left extension authors with custom generated ID sources either copying built-in restore logic or accepting weaker restore validation than the package structures.
+
+#### Decision
+
+ContentSystem provides two sequence snapshot helper paths:
+
+- `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` for sequence-family structures that use an `IContentGeneratedIdSource<TId>`;
+- `ContentSequenceStructureSnapshotFactoryBase<TStructure>` as the long-ID convenience helper for structures that only need restored records plus the greatest positive numeric retained ID.
+
+The generic helper restores retained records, restores generated ID source state through an `IContentGeneratedIdSourceFactory<TId>`, validates every restored `ContentEntryId` through the restored source strategy, and observes restored IDs before concrete restore code constructs the structure.
+
+#### Reasoning
+
+Custom sequence structures should be able to support snapshots in the same capacity as built-ins without duplicating private package logic. Generated source restore is a different invariant than simple numeric maximum detection, so keeping both helpers makes the extension surface more honest.
+
+#### Consequences
+
+Extension authors with custom sequence ID models can use the generic helper. Long-ID sequence-like extensions can keep using the simpler numeric helper. Built-in generic sequence restore uses the public helper path while preserving legacy long `nextId` snapshot compatibility.

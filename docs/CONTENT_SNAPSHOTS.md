@@ -26,7 +26,7 @@ The built-in scalar codecs support null, string, Boolean, `int`, `long`, and `Da
 
 An entry snapshot represents one entry payload.
 
-It does not preserve structure-owned state such as stored IDs, generated ID counters, grouping, ordering, or capacity configuration.
+It does not preserve structure-owned state such as stored IDs, generated ID source state, grouping, ordering, or capacity configuration.
 
 Entries opt into capture with `IContentEntrySnapshotSerializable`. Restore is explicit through an `IContentEntrySnapshotFactory`.
 
@@ -77,7 +77,7 @@ A structure snapshot represents whole-structure state.
 For built-in structures, a structure snapshot should preserve retained records and structure-owned state such as:
 
 - structure kind and snapshot version;
-- generated ID state;
+- generated ID source state;
 - capacity, bounds, placement, ordering, and overflow settings;
 - keyed or grouped state where applicable.
 
@@ -88,7 +88,7 @@ Built-in structure snapshot kinds are stable package-prefixed strings:
 - `ContentSequenceStructure.SnapshotKind`, `workes.content.structure.sequence`;
 - `KeyedContentStructure<TId>.SnapshotKind`, `workes.content.structure.keyed`.
 
-Both currently use data version `1`.
+Both currently use data version `1`. Sequence snapshots include generated ID source state so future generated IDs remain coherent after restore.
 
 ```csharp
 var content = ContentManagers.ForStructure<ContentSequenceManager>(
@@ -174,7 +174,7 @@ Whole-structure restore through managers is atomic. A failed restore leaves the 
 
 For keyed structures, restore validates stored snapshot IDs through the configured `IContentEntryIdStrategy<TId>`. Custom strategies must ensure restored normalized IDs describe the same ID language as caller-provided IDs.
 
-Custom structure authors can use `ContentStructureSnapshotFactoryBase<TStructure>` for common factory validation, `ContentSequenceStructureSnapshotFactoryBase<TStructure>` and `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` for family-level restore invariants, `ContentSnapshotRecords` for retained record capture/restore, and `ContentSnapshotProperties` for structure-owned snapshot data. See [Extension Authoring](EXTENSION_AUTHORING.md).
+Custom structure authors can use `ContentStructureSnapshotFactoryBase<TStructure>` for common factory validation, `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` for generated-ID sequence restore, `ContentSequenceStructureSnapshotFactoryBase<TStructure>` for long-ID sequence restore, `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` for keyed restore invariants, `ContentSnapshotRecords` for retained record capture/restore, and `ContentSnapshotProperties` for structure-owned snapshot data. See [Extension Authoring](EXTENSION_AUTHORING.md).
 
 ## Relationship To Export And Attachments
 

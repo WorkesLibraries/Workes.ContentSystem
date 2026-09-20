@@ -72,13 +72,15 @@ Lookup only finds retained records. A record that was dropped by capacity overfl
 
 When `DropOldest` overflow drops the oldest record, the structure emits one change event containing both the removed oldest record and the added new record.
 
-Changing the sequence `overflowPolicy` parameter through `ContentSequenceManager.SetStructureParameter` may trim oldest records immediately. Changing from `DropOldest` to `None` stops future overflow without resetting generated IDs.
+Changing the sequence `overflowPolicy` parameter through `ContentSequenceManager.SetStructureParameter` may trim oldest records immediately. Changing from `DropOldest` to `None` stops future overflow without resetting generated ID source state.
 
-Because sequence-generated IDs are sequential numbers, `ContentSequenceStructure` exposes numeric lookup:
+Because the normal sequence uses generated positive long IDs, `ContentSequenceStructure` exposes numeric lookup:
 
 ```csharp
 ContentEntryRecord record = sequence.Get(1);
 ```
+
+Advanced users can use `ContentSequenceStructure<TId>` with a custom `IContentGeneratedIdSource<TId>` when a sequence needs a different ID model. The matching manager is `ContentSequenceManager<TId>`.
 
 The shared `ContentEntryId` lookup remains available for code that works through `IContentStructure`.
 
@@ -86,7 +88,7 @@ The shared `ContentEntryId` lookup remains available for code that works through
 
 `KeyedContentStructure<TId>` stores records using caller-provided IDs.
 
-It uses an `IContentEntryIdStrategy<TId>` to validate and normalize typed IDs before records are stored or fetched. ID strategies also validate normalized stored IDs during keyed snapshot restore. They do not generate IDs.
+It uses an `IContentEntryIdStrategy<TId>` to validate and normalize typed IDs before records are stored or fetched. ID strategies also validate normalized stored IDs during keyed snapshot restore. Keyed structures do not generate IDs.
 
 Built-in strategies include:
 
@@ -153,7 +155,7 @@ Not every structure should support every operation.
 
 `IContentStructure` is the base minimum useful contract. It covers retained records and lookup.
 
-Reusable structure families can use abstract bases when the workflow is shared by more than one likely structure. `ContentSequenceStructureBase` defines the current sequence-family instruction set, while `KeyedContentStructureBase<TId>` defines the keyed-family instruction set. Concrete structures still create dedicated managers.
+Reusable structure families can use abstract bases when the workflow is shared by more than one likely structure. `ContentSequenceStructureBase<TId>` defines the current sequence-family instruction set, while `KeyedContentStructureBase<TId>` defines the keyed-family instruction set. Concrete structures still create dedicated managers.
 
 Additional behavior should be exposed through focused opt-in contracts, mirroring the InventorySystem style already used by:
 
@@ -180,7 +182,7 @@ Manager resolution is part of the base shape: every structure creates the manage
 
 `ContentStructureSnapshot` is the portable DTO shape for retained records plus structure-owned data. Built-in sequence and keyed structures capture their own state into that DTO, including retained records and structure-owned configuration. Round-trippable structures expose a `SnapshotFactory` so normal manager restore can use `RestoreSnapshot(snapshot)` while still letting custom structures own their state schema.
 
-Custom structures can use `ContentStructureSnapshotFactoryBase<TStructure>`, the sequence/keyed family snapshot factory bases, `ContentSnapshotRecords`, and `ContentSnapshotProperties` to implement the same snapshot pattern without copying built-in structure internals. See [Extension Authoring](EXTENSION_AUTHORING.md).
+Custom structures can use `ContentStructureSnapshotFactoryBase<TStructure>`, the sequence/keyed family snapshot factory bases, `ContentSnapshotRecords`, and `ContentSnapshotProperties` to implement the same snapshot pattern without copying built-in structure internals. Sequence extensions can choose the generic generated-ID source helper or the long-ID numeric convenience helper. See [Extension Authoring](EXTENSION_AUTHORING.md).
 
 This mirrors the strategy used in other Workes packages: keep the central abstraction small, then add focused optional contracts where they are genuinely needed. Avoid a broad capability metadata object unless a future stage finds a concrete use case that opt-in contracts cannot solve cleanly.
 

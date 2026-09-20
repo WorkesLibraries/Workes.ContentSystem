@@ -14,7 +14,7 @@ public sealed class ContentManagerResolutionTests
 
         ContentManagerBase manager = structure.CreateManager();
 
-        Assert.That(structure, Is.InstanceOf<ContentSequenceStructureBase>());
+        Assert.That(structure, Is.InstanceOf<ContentSequenceStructureBase<long>>());
         Assert.That(manager, Is.TypeOf<ContentSequenceManager>());
         Assert.That(manager, Is.InstanceOf<ContentSequenceManagerBase>());
         var sequence = (ContentSequenceManager)manager;

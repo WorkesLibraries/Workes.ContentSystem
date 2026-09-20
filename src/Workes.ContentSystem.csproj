@@ -7,8 +7,8 @@
     <LangVersion>10.0</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Workes.ContentSystem</PackageId>
-    <Version>0.5.3</Version>
-    <PackageReleaseNotes>Adds snapshot factory bases for structure-family snapshot restore.</PackageReleaseNotes>
+    <Version>0.6.0</Version>
+    <PackageReleaseNotes>Adds structure-created managers, sequence/keyed family bases, snapshot-family helpers, and flexible generated sequence IDs.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Workes</Authors>
     <Company>Workes</Company>

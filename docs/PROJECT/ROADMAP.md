@@ -52,15 +52,19 @@ Completed implementation adds sequence-family and keyed-family snapshot factory 
 
 ### Pre-17.2C: Add flexible ID strategies and generated ID sources
 
-Implement the flexible ID direction: natural defaults for normal users, optional custom typed ID strategy/source support for advanced users, and generated-ID behavior owned by ID strategies/sources where families or concrete structures opt into automatic IDs.
+Completed implementation adds generated ID source contracts, a built-in long generated ID source, and generic sequence structure/manager types for custom sequence ID models while preserving the normal non-generic long-ID sequence path.
 
 ### Pre-17.3: Reconcile documentation after manager/structure redo
 
-Sweep all user-facing and project-control documentation after Pre-17.2A through Pre-17.2C are complete. Update examples to use the final preferred structure, manager, snapshot, and ID paths before Stage 17 adds more structures.
+Completed implementation reconciles user-facing and project-control documentation after Pre-17.2A through Pre-17.2C, updates package metadata for `0.6.0`, and makes the final preferred structure, manager, snapshot, and ID paths the documented baseline before Stage 17 adds more structures.
+
+### Pre-17.4: Add generic sequence snapshot extension parity
+
+Completed implementation adds a generic sequence-family snapshot factory base for custom generated ID sources. This closes the extension gap where built-in generic sequences could restore custom ID source state and validate restored IDs, but custom sequence-family structures only had a long-ID numeric helper.
 
 ### Stage 17: Add selected remaining built-in structures
 
-Add selected built-in structures after configuration, opt-in contracts, mutation, snapshots, and manager workflow resolution are stable.
+Add selected built-in structures after configuration, opt-in contracts, mutation, snapshots, structure-created managers, family bases, and flexible sequence IDs are stable.
 
 ### Stage 18: Add additional built-in ID strategies
 

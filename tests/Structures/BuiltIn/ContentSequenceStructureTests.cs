@@ -8,6 +8,76 @@ namespace Workes.ContentSystem.Tests.Core;
 public sealed class ContentSequenceStructureTests
 {
     [Test]
+    public void LongGeneratedIdSource_GeneratesSequentialIds()
+    {
+        var source = new LongContentGeneratedIdSource();
+
+        bool first = source.TryCreateNext(out long firstId, out ContentFailure? failure);
+        bool second = source.TryCreateNext(out long secondId, out failure);
+        bool third = source.TryCreateNext(out long thirdId, out failure);
+
+        Assert.That(first, Is.True);
+        Assert.That(second, Is.True);
+        Assert.That(third, Is.True);
+        Assert.That(new[] { firstId, secondId, thirdId }, Is.EqualTo(new[] { 1L, 2L, 3L }));
+        Assert.That(failure, Is.Null);
+    }
+
+    [Test]
+    public void LongGeneratedIdSource_ObservingManualIdAdvancesFutureGeneratedIds()
+    {
+        var source = new LongContentGeneratedIdSource();
+
+        bool observed = source.TryObserve(1000, out ContentFailure? failure);
+        source.TryCreateNext(out long nextId, out failure);
+
+        Assert.That(observed, Is.True);
+        Assert.That(nextId, Is.EqualTo(1001));
+        Assert.That(failure, Is.Null);
+    }
+
+    [Test]
+    public void LongGeneratedIdSource_RejectsInvalidObservedIds()
+    {
+        var source = new LongContentGeneratedIdSource();
+
+        bool observed = source.TryObserve(0, out ContentFailure? failure);
+
+        Assert.That(observed, Is.False);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.EntryIdInvalid));
+    }
+
+    [Test]
+    public void LongGeneratedIdSource_RejectsMaximumObservedId()
+    {
+        var source = new LongContentGeneratedIdSource();
+
+        bool observed = source.TryObserve(long.MaxValue, out ContentFailure? failure);
+
+        Assert.That(observed, Is.False);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.EntryIdInvalid));
+    }
+
+    [Test]
+    public void LongGeneratedIdSource_RestoredMaximumNextIdIsMalformed()
+    {
+        ContentSnapshotValue snapshot = ContentSnapshotValue.Object(new[]
+        {
+            ContentSnapshotProperties.Named("dataVersion", ContentSnapshotCodecs.Encode(1)),
+            ContentSnapshotProperties.Named("nextId", ContentSnapshotCodecs.Encode(long.MaxValue))
+        });
+
+        bool restored = LongContentGeneratedIdSource.Factory.TryRestore(
+            snapshot,
+            out IContentGeneratedIdSource<long>? source,
+            out ContentFailure? failure);
+
+        Assert.That(restored, Is.False);
+        Assert.That(source, Is.Null);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.SnapshotMalformed));
+    }
+
+    [Test]
     public void ContentSequenceStructure_ImplementsRetentionPolicyContract()
     {
         ContentOverflowPolicy overflowPolicy = ContentOverflowPolicy.DropOldest(3);
@@ -453,6 +523,96 @@ public sealed class ContentSequenceStructureTests
     }
 
     [Test]
+    public void Add_WithExplicitIdAdvancesFutureGeneratedIds()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+
+        ContentEntryRecord manual = structure.Add(1000, Entry("Manual"));
+        ContentEntryRecord generated = structure.Add(Entry("Generated"));
+
+        Assert.That(manual.Id, Is.EqualTo(new ContentEntryId("1000")));
+        Assert.That(generated.Id, Is.EqualTo(new ContentEntryId("1001")));
+    }
+
+    [Test]
+    public void Add_WithDuplicateExplicitIdReturnsStructuredFailure()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+        structure.Add(1, Entry("First"));
+
+        bool accepted = structure.TryAdd(1, Entry("Duplicate"), out ContentEntryRecord? record, out ContentFailure? failure);
+
+        Assert.That(accepted, Is.False);
+        Assert.That(record, Is.Null);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.EntryIdDuplicate));
+    }
+
+    [Test]
+    public void GenericSequence_UsesCustomGeneratedStringIds()
+    {
+        var structure = new ContentSequenceStructure<string>(
+            new TestStringGeneratedIdSource(),
+            ContentOverflowPolicy.None);
+        var manager = ContentManagers.ForStructure<ContentSequenceManager<string>>(structure);
+
+        ContentEntryRecord generated = manager.Add(Entry("Generated"));
+        ContentEntryRecord manual = manager.Add("custom-10", Entry("Manual"));
+        ContentEntryRecord next = manager.Add(Entry("Next"));
+
+        Assert.That(generated.Id.Value, Is.EqualTo("custom-1"));
+        Assert.That(manual.Id.Value, Is.EqualTo("custom-10"));
+        Assert.That(next.Id.Value, Is.EqualTo("custom-11"));
+        Assert.That(manager.Get("custom-10"), Is.EqualTo(manual));
+    }
+
+    [Test]
+    public void GenericSequence_SnapshotPreservesCustomGeneratedIdSourceState()
+    {
+        var source = new ContentSequenceStructure<string>(
+            new TestStringGeneratedIdSource(),
+            ContentOverflowPolicy.None);
+        source.Add("custom-10", Entry("Manual"));
+        ContentStructureSnapshot snapshot = source.CaptureSnapshot();
+        var target = new ContentSequenceManager<string>(
+            new ContentSequenceStructure<string>(
+                new TestStringGeneratedIdSource(),
+                ContentOverflowPolicy.None));
+
+        target.RestoreSnapshot(snapshot);
+        ContentEntryRecord next = target.Add(Entry("Next"));
+
+        Assert.That(target.Get("custom-10").Entry.PlainText, Is.EqualTo("Manual"));
+        Assert.That(next.Id.Value, Is.EqualTo("custom-11"));
+    }
+
+    [Test]
+    public void GenericSequence_RestoreRejectsMalformedGeneratedIdSourceData()
+    {
+        var source = new ContentSequenceStructure<string>(
+            new TestStringGeneratedIdSource(),
+            ContentOverflowPolicy.None);
+        ContentStructureSnapshot snapshot = source.CaptureSnapshot();
+        ContentSnapshotEncodedValue sourceData = snapshot.Data.Properties.Single(property => property.Name == "idSourceData").Value;
+        sourceData.Data = ContentSnapshotValue.Object(new[]
+        {
+            ContentSnapshotProperties.Named("nextId", ContentSnapshotCodecs.Encode(-1))
+        });
+        var target = new ContentSequenceManager<string>(
+            new ContentSequenceStructure<string>(
+                new TestStringGeneratedIdSource(),
+                ContentOverflowPolicy.None));
+        int eventCount = 0;
+        target.Changed += (_, _) => eventCount++;
+
+        bool restored = target.TryRestoreSnapshot(snapshot, out ContentFailure? failure);
+
+        Assert.That(restored, Is.False);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.SnapshotMalformed));
+        Assert.That(target.Records, Is.Empty);
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
     public void TryGet_WhenRecordIsRetained_ReturnsRecord()
     {
         var structure = new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(2));
@@ -670,6 +830,109 @@ public sealed class ContentSequenceStructureTests
         public TestManager(IContentStructure structure)
             : base(structure)
         {
+        }
+    }
+
+    private sealed class TestStringGeneratedIdSource : IContentGeneratedIdSource<string>
+    {
+        public static IContentGeneratedIdSourceFactory<string> Factory { get; } = new TestStringGeneratedIdSourceFactory();
+
+        private int _nextId;
+
+        public TestStringGeneratedIdSource()
+            : this(1)
+        {
+        }
+
+        private TestStringGeneratedIdSource(int nextId)
+        {
+            _nextId = nextId;
+        }
+
+        public IContentEntryIdStrategy<string> IdStrategy { get; } = new StringContentEntryIdStrategy();
+
+        public IContentGeneratedIdSourceFactory<string> SnapshotFactory => Factory;
+
+        public bool TryCreateNext(out string id, out ContentFailure? failure)
+        {
+            id = "custom-" + _nextId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _nextId++;
+            failure = null;
+            return true;
+        }
+
+        public bool TryObserve(string id, out ContentFailure? failure)
+        {
+            if (!TryReadId(id, out int value))
+            {
+                failure = ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryIdInvalid, "Invalid custom ID.");
+                return false;
+            }
+
+            if (value >= _nextId)
+            {
+                _nextId = value + 1;
+            }
+
+            failure = null;
+            return true;
+        }
+
+        public bool TryObserveNormalized(ContentEntryId id, out ContentFailure? failure)
+        {
+            return TryObserve(id.Value, out failure);
+        }
+
+        public bool TryCaptureSnapshot(out ContentSnapshotValue? snapshot, out ContentFailure? failure)
+        {
+            snapshot = ContentSnapshotValue.Object(new[]
+            {
+                ContentSnapshotProperties.Named("nextId", ContentSnapshotCodecs.Encode(_nextId))
+            });
+            failure = null;
+            return true;
+        }
+
+        private static bool TryReadId(string id, out int value)
+        {
+            value = 0;
+            return id.StartsWith("custom-", StringComparison.Ordinal)
+                && int.TryParse(id.Substring("custom-".Length), out value)
+                && value > 0;
+        }
+
+        private sealed class TestStringGeneratedIdSourceFactory : IContentGeneratedIdSourceFactory<string>
+        {
+            public string Kind => "test.id_source.string";
+
+            public bool TryRestore(ContentSnapshotValue snapshot, out IContentGeneratedIdSource<string>? source, out ContentFailure? failure)
+            {
+                source = null;
+                if (!ContentSnapshotProperties.TryDecodeRequiredInt32(snapshot, "nextId", out int nextId, out failure))
+                {
+                    return false;
+                }
+
+                if (nextId <= 0)
+                {
+                    failure = ContentFailure.Create(ContentFailureKind.Snapshot, ContentFailureCodes.SnapshotMalformed, "Invalid next ID.");
+                    return false;
+                }
+
+                source = new TestStringGeneratedIdSource(nextId);
+                failure = null;
+                return true;
+            }
+
+            public IContentGeneratedIdSource<string> Restore(ContentSnapshotValue snapshot)
+            {
+                if (TryRestore(snapshot, out IContentGeneratedIdSource<string>? source, out ContentFailure? failure) && source is not null)
+                {
+                    return source;
+                }
+
+                throw new ContentOperationException(failure!);
+            }
         }
     }
 }

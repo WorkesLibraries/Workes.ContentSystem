@@ -23,13 +23,13 @@ It is intended to be useful anywhere an application needs an ordered or structur
 Install the package from [NuGet](https://www.nuget.org/packages/Workes.ContentSystem):
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.5.3
+dotnet add package Workes.ContentSystem --version 0.6.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.5.3" />
+<PackageReference Include="Workes.ContentSystem" Version="0.6.0" />
 ```
 
 The package targets .NET Standard 2.1.
