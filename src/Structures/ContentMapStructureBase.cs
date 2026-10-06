@@ -3,11 +3,11 @@ using System.Collections.Generic;
 namespace Workes.ContentSystem.Core;
 
 /// <summary>
-/// Provides the shared structure family surface for keyed content structures.
+/// Provides the shared structure family surface for map content structures.
 /// </summary>
 /// <typeparam name="TId">The caller-facing ID type.</typeparam>
-public abstract class KeyedContentStructureBase<TId> :
-    IKeyedContentRecordRemovalStructure<TId>,
+public abstract class ContentMapStructureBase<TId> :
+    IContentMapRecordRemovalStructure<TId>,
     IContentClearableStructure
 {
     /// <inheritdoc />
@@ -21,6 +21,12 @@ public abstract class KeyedContentStructureBase<TId> :
 
     /// <inheritdoc />
     public abstract ContentEntryRecord Add(TId id, IContentEntry entry);
+
+    /// <inheritdoc />
+    public abstract bool TrySet(TId id, IContentEntry entry, out ContentEntryRecord? record, out ContentEntryRecord? replacedRecord, out ContentFailure? failure);
+
+    /// <inheritdoc />
+    public abstract ContentEntryRecord Set(TId id, IContentEntry entry);
 
     /// <inheritdoc />
     public abstract bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure);

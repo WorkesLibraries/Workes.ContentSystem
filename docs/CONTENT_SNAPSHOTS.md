@@ -2,7 +2,7 @@
 
 Content snapshots are the serialization foundation for Workes.ContentSystem.
 
-Entry snapshot round trips are implemented. Record and structure snapshot DTOs are implemented. Built-in structure snapshot capture and restore are implemented for the sequence and keyed structures.
+Entry snapshot round trips are implemented. Record and structure snapshot DTOs are implemented. Built-in structure snapshot capture and restore are implemented for sequence, map, single-entry, stack, and compound structures.
 
 ## Purpose
 
@@ -79,16 +79,21 @@ For built-in structures, a structure snapshot should preserve retained records a
 - structure kind and snapshot version;
 - generated ID source state;
 - capacity, bounds, placement, ordering, and overflow settings;
-- keyed or grouped state where applicable.
+- map or grouped state where applicable.
 
 Custom structures opt into structure snapshot round trips with `IContentStructureSnapshotRoundTrippable`. The structure exposes the `SnapshotFactory` used by normal manager restore. Unsupported structures fail capture or factory-less restore with `ContentFailureCodes.SnapshotUnsupportedStructure`.
 
 Built-in structure snapshot kinds are stable package-prefixed strings:
 
 - `ContentSequenceStructure.SnapshotKind`, `workes.content.structure.sequence`;
-- `KeyedContentStructure<TId>.SnapshotKind`, `workes.content.structure.keyed`.
+- `ContentMapStructure<TId>.SnapshotKind`, `workes.content.structure.map`;
+- `ContentSingleStructure<TId>.SnapshotKind`, `workes.content.structure.single`;
+- `ContentStackStructure<TId>.SnapshotKind`, `workes.content.structure.stack`;
+- `ContentCompoundStructure<TId>.SnapshotKind`, `workes.content.structure.compound`.
 
-Both currently use data version `1`. Sequence snapshots include generated ID source state so future generated IDs remain coherent after restore.
+They currently use data version `1`. Sequence, single, stack, and compound snapshots include generated ID source state so future generated IDs remain coherent after restore.
+
+Compound snapshots preserve retained records, parent-child relationships, root/child insertion order, sibling read order, child-removal policy, and generated ID source state.
 
 ```csharp
 var content = ContentManagers.ForStructure<ContentSequenceManager>(
@@ -104,17 +109,43 @@ var restored = ContentManagers.ForStructure<ContentSequenceManager>(
 restored.RestoreSnapshot(snapshot);
 ```
 
-Keyed structure restore uses the active structure's typed factory so the restored structure keeps the right caller-facing ID workflow:
+Single and stack structures use the same manager-level path:
 
 ```csharp
-var content = ContentManagers.ForStructure<KeyedContentManager<string>>(
-    new KeyedContentStructure<string>());
+var stack = ContentManagers.ForStructure<ContentStackManager>(
+    new ContentStackStructure(ContentOverflowPolicy.Reject(capacity: 20)));
+
+stack.Push(new PlainContentEntry(DateTimeOffset.UtcNow, "Opened menu"));
+
+ContentStructureSnapshot snapshot = stack.CaptureSnapshot();
+stack.RestoreSnapshot(snapshot);
+```
+
+Compound structures also use the same manager-level path:
+
+```csharp
+var tree = ContentManagers.ForStructure<ContentCompoundManager>(
+    new ContentCompoundStructure(ContentCompoundChildRemovalPolicy.RemoveSubtree));
+
+ContentCompoundNode topic = tree.AddRoot(
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Topic"));
+tree.AddChild(1, new PlainContentEntry(DateTimeOffset.UtcNow, "Reply"));
+
+ContentStructureSnapshot snapshot = tree.CaptureSnapshot();
+tree.RestoreSnapshot(snapshot);
+```
+
+Map structure restore uses the active structure's typed factory so the restored structure keeps the right caller-facing ID workflow:
+
+```csharp
+var content = ContentManagers.ForStructure<ContentMapManager<string>>(
+    new ContentMapStructure<string>());
 content.Add("server-started", new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
 
 ContentStructureSnapshot snapshot = content.CaptureSnapshot();
 
-var restored = ContentManagers.ForStructure<KeyedContentManager<string>>(
-    new KeyedContentStructure<string>());
+var restored = ContentManagers.ForStructure<ContentMapManager<string>>(
+    new ContentMapStructure<string>());
 restored.RestoreSnapshot(snapshot);
 ```
 
@@ -172,9 +203,9 @@ Record restore preserves stored record identity as part of a structure restore.
 
 Whole-structure restore through managers is atomic. A failed restore leaves the active structure unchanged and emits no change event. A successful restore replaces the active structure, resubscribes manager event forwarding, and emits `ContentChangeKind.SnapshotRestored` with `RequiresFullRefresh = true`.
 
-For keyed structures, restore validates stored snapshot IDs through the configured `IContentEntryIdStrategy<TId>`. Custom strategies must ensure restored normalized IDs describe the same ID language as caller-provided IDs.
+For map structures, restore validates stored snapshot IDs through the configured `IContentEntryIdStrategy<TId>`. Custom strategies must ensure restored normalized IDs describe the same ID language as caller-provided IDs.
 
-Custom structure authors can use `ContentStructureSnapshotFactoryBase<TStructure>` for common factory validation, `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` for generated-ID sequence restore, `ContentSequenceStructureSnapshotFactoryBase<TStructure>` for long-ID sequence restore, `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` for keyed restore invariants, `ContentSnapshotRecords` for retained record capture/restore, and `ContentSnapshotProperties` for structure-owned snapshot data. See [Extension Authoring](EXTENSION_AUTHORING.md).
+Custom structure authors can use `ContentStructureSnapshotFactoryBase<TStructure>` for common factory validation, `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` for generated-ID sequence restore, `ContentSequenceStructureSnapshotFactoryBase<TStructure>` for long-ID sequence restore, `ContentMapStructureSnapshotFactoryBase<TId, TStructure>` for map restore invariants, `ContentCompoundStructureSnapshotFactoryBase<TId, TStructure>` for compound tree restore invariants, `ContentSnapshotRecords` for retained record capture/restore, and `ContentSnapshotProperties` for structure-owned snapshot data. See [Extension Authoring](EXTENSION_AUTHORING.md).
 
 ## Relationship To Export And Attachments
 

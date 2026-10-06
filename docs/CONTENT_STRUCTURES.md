@@ -24,7 +24,7 @@ Manager resolution follows the same split:
 
 - `ContentManagers.ForStructure(...)` asks a structure to create its tailored manager;
 - `ContentSequenceManager` works with `ContentSequenceStructure`;
-- `KeyedContentManager<TId>` works with the built-in keyed structure;
+- `ContentMapManager<TId>` works with the built-in map structure;
 - `ContentManagerBase` provides shared read and lookup behavior for manager-agnostic code.
 
 See [Content Managers](CONTENT_MANAGERS.md) for manager usage.
@@ -39,6 +39,7 @@ Expected behavior:
 - retention is configured through `ContentOverflowPolicy`;
 - `ContentOverflowPolicy.None` retains all records;
 - `ContentOverflowPolicy.DropOldest(capacity)` drops the oldest retained record when the configured capacity is exceeded;
+- `ContentOverflowPolicy.Reject(capacity)` rejects adds once the configured capacity is reached;
 - retained records are read oldest to newest by default;
 - `ContentSequenceReadOrder.NewestFirst` can expose retained records newest to oldest;
 - entry IDs are assigned internally as increasing decimal strings.
@@ -72,6 +73,8 @@ Lookup only finds retained records. A record that was dropped by capacity overfl
 
 When `DropOldest` overflow drops the oldest record, the structure emits one change event containing both the removed oldest record and the added new record.
 
+When `Reject` capacity is reached, the add fails with `ContentFailureCodes.StructureCapacityReached`, preserves state, and emits no event.
+
 Changing the sequence `overflowPolicy` parameter through `ContentSequenceManager.SetStructureParameter` may trim oldest records immediately. Changing from `DropOldest` to `None` stops future overflow without resetting generated ID source state.
 
 Because the normal sequence uses generated positive long IDs, `ContentSequenceStructure` exposes numeric lookup:
@@ -84,11 +87,11 @@ Advanced users can use `ContentSequenceStructure<TId>` with a custom `IContentGe
 
 The shared `ContentEntryId` lookup remains available for code that works through `IContentStructure`.
 
-## Keyed Structure
+## Map Structure
 
-`KeyedContentStructure<TId>` stores records using caller-provided IDs.
+`ContentMapStructure<TId>` stores records using caller-provided IDs.
 
-It uses an `IContentEntryIdStrategy<TId>` to validate and normalize typed IDs before records are stored or fetched. ID strategies also validate normalized stored IDs during keyed snapshot restore. Keyed structures do not generate IDs.
+It uses an `IContentEntryIdStrategy<TId>` to validate and normalize typed IDs before records are stored or fetched. ID strategies also validate normalized stored IDs during map snapshot restore. Map structures do not generate IDs.
 
 Built-in strategies include:
 
@@ -97,49 +100,144 @@ Built-in strategies include:
 
 Built-in default strategies are available for `string` and `long`.
 
-String-keyed usage:
+String-map usage:
 
 ```csharp
-var keyed = new KeyedContentStructure<string>();
+var map = new ContentMapStructure<string>();
 
-keyed.Add("thread-main", new PlainContentEntry(DateTimeOffset.UtcNow, "First post."));
+map.Add("thread-main", new PlainContentEntry(DateTimeOffset.UtcNow, "First post."));
 
-ContentEntryRecord record = keyed.Get("thread-main");
+ContentEntryRecord record = map.Get("thread-main");
 ```
 
-Integer-keyed usage:
+Integer-map usage:
 
 ```csharp
-var keyed = new KeyedContentStructure<long>();
+var map = new ContentMapStructure<long>();
 
-keyed.Add(8, new PlainContentEntry(DateTimeOffset.UtcNow, "Eighth entry."));
+map.Add(8, new PlainContentEntry(DateTimeOffset.UtcNow, "Eighth entry."));
 
-ContentEntryRecord record = keyed.Get(8);
+ContentEntryRecord record = map.Get(8);
 ```
 
 Custom ID types are supported by passing a custom `IContentEntryIdStrategy<TId>` to the constructor. Custom strategies must implement both caller-facing normalization and restored normalized-ID validation.
 
 See [Content Identity](CONTENT_IDENTITY.md) for the identity model and strategy guidance.
 
-`KeyedContentStructure<TId>` implements `IKeyedContentStructure<TId>`, so it can also be used through `KeyedContentManager<TId>`:
+`ContentMapStructure<TId>` implements `IContentMapStructure<TId>`, so it can also be used through `ContentMapManager<TId>`:
 
 ```csharp
-var content = ContentManagers.ForStructure<KeyedContentManager<string>>(
-    new KeyedContentStructure<string>());
+var content = ContentManagers.ForStructure<ContentMapManager<string>>(
+    new ContentMapStructure<string>());
 
 content.Add("thread-main", new PlainContentEntry(DateTimeOffset.UtcNow, "First post."));
 ```
 
 Duplicate IDs and IDs rejected by the active strategy fail through `ContentFailure`. Missing lookups still use `EntryNotFound`.
 
-Successful keyed adds, removals, and clears raise `Changed`. Duplicate IDs, invalid IDs, and missing removals are rejected without raising change events.
+Successful map adds, removals, and clears raise `Changed`. Duplicate IDs, invalid IDs, and missing removals are rejected without raising change events.
+
+Map also exposes `Set`, which adds a missing ID or replaces an existing record in place. Replacements emit `ContentChangeKind.Replaced` with the new record in `AddedRecords` and the replaced record in `RemovedRecords`.
+
+## Single-Entry Structure
+
+`ContentSingleStructure<TId>` stores at most one retained record.
+
+It is useful for current status, selected item details, current objective text, latest announcement, or any state where the structure should expose one current entry rather than a growing history.
+
+Replacement behavior is configured through `ContentSingleReplacementPolicy`:
+
+- `Replace` accepts a new record and replaces the current record when one exists;
+- `Reject` accepts the first record and then rejects additional sets until the structure is cleared.
+
+The non-generic `ContentSingleStructure` is the normal long-ID path:
+
+```csharp
+var current = ContentManagers.ForStructure<ContentSingleManager>(
+    new ContentSingleStructure(ContentSingleReplacementPolicy.Replace));
+
+ContentEntryRecord record = current.Set(
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Current objective"));
+```
+
+Advanced users can use `ContentSingleStructure<TId>` with a custom generated ID source. Both generated-ID `Set(entry)` and explicit-ID `Set(id, entry)` are supported.
+
+Successful replacement emits `ContentChangeKind.Replaced`. Rejected replacement uses `StructureCapacityReached`, preserves state, and emits no event.
+
+## Stack Structure
+
+`ContentStackStructure<TId>` stores records as a last-in-first-out stack.
+
+It supports:
+
+- `Push`;
+- `Peek`;
+- `Pop`;
+- lookup and removal by ID;
+- clear;
+- configurable read order through `ContentStackReadOrder.TopFirst` or `BottomFirst`.
+
+The stack uses configurable overflow state rather than separate bounded/unbounded types:
+
+- `ContentOverflowPolicy.None` allows the stack to grow without package-owned capacity;
+- `ContentOverflowPolicy.Reject(capacity)` rejects pushes once the capacity is reached.
+
+`DropOldest` is intentionally not supported by stack because silently dropping the bottom retained record would make stack behavior surprising.
+
+```csharp
+var stack = ContentManagers.ForStructure<ContentStackManager>(
+    new ContentStackStructure(ContentOverflowPolicy.Reject(capacity: 20)));
+
+stack.Push(new PlainContentEntry(DateTimeOffset.UtcNow, "Opened menu"));
+ContentEntryRecord top = stack.Peek();
+ContentEntryRecord removed = stack.Pop();
+```
+
+Advanced users can use `ContentStackStructure<TId>` with a custom generated ID source. Both generated-ID `Push(entry)` and explicit-ID `Push(id, entry)` are supported.
+
+## Compound Structure
+
+`ContentCompoundStructure<TId>` stores records as an owned tree.
+
+It is useful for hierarchy-shaped content such as grouped feed items, topic/post layouts, nested notes, or scene-like content trees without baking in forum, chat, user, role, or channel concepts.
+
+The compound model is intentionally a tree:
+
+- each node stores one `ContentEntryRecord`;
+- each node has zero or one parent;
+- root nodes have no parent;
+- child nodes belong to exactly one parent.
+
+Removal behavior is configured through `ContentCompoundChildRemovalPolicy`:
+
+- `Reject` rejects removal of nodes that still have children;
+- `RemoveSubtree` removes the target node and all descendants.
+
+Sibling read direction is configured through `ContentCompoundSiblingReadOrder.OldestFirst` or `NewestFirst`.
+
+The non-generic `ContentCompoundStructure` is the normal long-ID path:
+
+```csharp
+var tree = ContentManagers.ForStructure<ContentCompoundManager>(
+    new ContentCompoundStructure(ContentCompoundChildRemovalPolicy.RemoveSubtree));
+
+ContentCompoundNode topic = tree.AddRoot(
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Topic"));
+ContentCompoundNode reply = tree.AddChild(
+    1,
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Reply"));
+```
+
+Compound structures expose hierarchy-native operations such as `AddRoot`, `AddChild`, `GetNode`, `GetRoots`, `GetChildren`, `Remove`, and `Clear`. `Records` is a deterministic depth-first flattened view of retained records using the configured sibling order.
+
+Advanced users can use `ContentCompoundStructure<TId>` with a custom generated ID source. Both generated-ID and explicit-ID root/child creation are supported.
+
+Compound snapshots preserve records, parent-child relationships, root/child insertion order, policies, sibling order, and generated ID source state without changing the normal compound user path.
 
 ## Future Structures
 
 The abstraction should leave room for other useful structures:
 
-- bounded keyed sequence;
-- grouped feed;
 - channel-based chat history;
 - threaded conversation/forum structure;
 - indexed/searchable structure;
@@ -147,7 +245,7 @@ The abstraction should leave room for other useful structures:
 - grid-like structure for forum or board-style UIs;
 - composite structures that mirror entries into more than one view.
 
-These should grow from the existing abstractions rather than making the sequence implementation complicated. Grouped and threaded structures should wait until focused structure contracts, manager-coordinated runtime mutation, and snapshot contracts are stable.
+These should grow from the existing abstractions rather than making the sequence implementation complicated. Grouped and threaded use cases should first be evaluated against `ContentCompoundStructure`; domain-specific structures should only be added when the compound tree cannot express the workflow cleanly.
 
 ## Structure Contracts
 
@@ -155,12 +253,12 @@ Not every structure should support every operation.
 
 `IContentStructure` is the base minimum useful contract. It covers retained records and lookup.
 
-Reusable structure families can use abstract bases when the workflow is shared by more than one likely structure. `ContentSequenceStructureBase<TId>` defines the current sequence-family instruction set, while `KeyedContentStructureBase<TId>` defines the keyed-family instruction set. Concrete structures still create dedicated managers.
+Reusable structure families can use abstract bases when the workflow is shared by more than one likely structure. `ContentSequenceStructureBase<TId>` defines the current sequence-family instruction set, while `ContentMapStructureBase<TId>` defines the map-family instruction set. Concrete structures still create dedicated managers.
 
 Additional behavior should be exposed through focused opt-in contracts, mirroring the InventorySystem style already used by:
 
 - `IStructureAssignedIdContentStructure`;
-- `IKeyedContentStructure<TId>`;
+- `IContentMapStructure<TId>`;
 - `IContentChangeSource`;
 - `IContentRetentionPolicyStructure`;
 - `IContentReadOrderStructure`;
@@ -168,11 +266,11 @@ Additional behavior should be exposed through focused opt-in contracts, mirrorin
 - `IContentNaturalIdRemovalStructure<TId>`;
 - `IContentClearableStructure`;
 - `IContentRecordRemovalStructure`;
-- `IKeyedContentRecordRemovalStructure<TId>`;
+- `IContentMapRecordRemovalStructure<TId>`;
 - `IParameterizedContentStructure`.
 - `IContentStructureSnapshotRoundTrippable`.
 
-`ContentSequenceStructure` implements the retention policy, read-order, natural long-ID lookup/removal, clear, remove, and parameterized structure contracts. Its first parameter is `ContentSequenceStructure.OverflowPolicyParameterId`. `KeyedContentStructure<TId>` implements keyed add/lookup, clear, typed keyed removal, normalized removal, and change-source contracts.
+`ContentSequenceStructure` implements the retention policy, read-order, natural long-ID lookup/removal, clear, remove, and parameterized structure contracts. Its first parameter is `ContentSequenceStructure.OverflowPolicyParameterId`. `ContentMapStructure<TId>` implements map add/lookup, set, clear, typed map removal, normalized removal, and change-source contracts. `ContentSingleStructure<TId>`, `ContentStackStructure<TId>`, and `ContentCompoundStructure<TId>` add focused built-in families for single-entry state, stack workflows, and owned-tree workflows.
 
 Future contracts can cover sorting, searching, or export only where a structure genuinely supports that behavior.
 
@@ -180,10 +278,10 @@ Runtime mutation should be manager-coordinated for normal callers, with structur
 
 Manager resolution is part of the base shape: every structure creates the manager that knows how to operate it. Actual supported operations are still expressed through the focused contracts listed above.
 
-`ContentStructureSnapshot` is the portable DTO shape for retained records plus structure-owned data. Built-in sequence and keyed structures capture their own state into that DTO, including retained records and structure-owned configuration. Round-trippable structures expose a `SnapshotFactory` so normal manager restore can use `RestoreSnapshot(snapshot)` while still letting custom structures own their state schema.
+`ContentStructureSnapshot` is the portable DTO shape for retained records plus structure-owned data. Built-in sequence, map, single, stack, and compound structures capture their own state into that DTO, including retained records and structure-owned configuration. Round-trippable structures expose a `SnapshotFactory` so normal manager restore can use `RestoreSnapshot(snapshot)` while still letting custom structures own their state schema.
 
-Custom structures can use `ContentStructureSnapshotFactoryBase<TStructure>`, the sequence/keyed family snapshot factory bases, `ContentSnapshotRecords`, and `ContentSnapshotProperties` to implement the same snapshot pattern without copying built-in structure internals. Sequence extensions can choose the generic generated-ID source helper or the long-ID numeric convenience helper. See [Extension Authoring](EXTENSION_AUTHORING.md).
+Custom structures can use `ContentStructureSnapshotFactoryBase<TStructure>`, the sequence/map family snapshot factory bases, `ContentSnapshotRecords`, and `ContentSnapshotProperties` to implement the same snapshot pattern without copying built-in structure internals. Sequence extensions can choose the generic generated-ID source helper or the long-ID numeric convenience helper. See [Extension Authoring](EXTENSION_AUTHORING.md).
 
 This mirrors the strategy used in other Workes packages: keep the central abstraction small, then add focused optional contracts where they are genuinely needed. Avoid a broad capability metadata object unless a future stage finds a concrete use case that opt-in contracts cannot solve cleanly.
 
-Manager creation is intentionally not broad capability metadata. It exists because manager selection itself is a base structure concern before more built-ins such as single-entry, bounded keyed, or stack-like structures are added.
+Manager creation is intentionally not broad capability metadata. It exists because manager selection itself is a base structure concern across sequence, map, single-entry, stack, compound, and custom structures.

@@ -3,21 +3,21 @@ using System;
 namespace Workes.ContentSystem.Core;
 
 /// <summary>
-/// Base implementation for snapshot factories that restore keyed structure-family structures.
+/// Base implementation for snapshot factories that restore map structure-family structures.
 /// </summary>
 /// <typeparam name="TId">The caller-facing ID type.</typeparam>
-/// <typeparam name="TStructure">The keyed structure-family structure restored by the factory.</typeparam>
-public abstract class KeyedContentStructureSnapshotFactoryBase<TId, TStructure> :
+/// <typeparam name="TStructure">The map structure-family structure restored by the factory.</typeparam>
+public abstract class ContentMapStructureSnapshotFactoryBase<TId, TStructure> :
     ContentStructureSnapshotFactoryBase<TStructure>
-    where TStructure : KeyedContentStructureBase<TId>, IContentStructure
+    where TStructure : ContentMapStructureBase<TId>, IContentStructure
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="KeyedContentStructureSnapshotFactoryBase{TId, TStructure}"/> class.
+    /// Initializes a new instance of the <see cref="ContentMapStructureSnapshotFactoryBase{TId, TStructure}"/> class.
     /// </summary>
     /// <param name="kind">The stable structure snapshot kind.</param>
     /// <param name="dataVersion">The supported structure snapshot data version.</param>
     /// <param name="idStrategy">The ID strategy used to validate restored normalized IDs.</param>
-    protected KeyedContentStructureSnapshotFactoryBase(
+    protected ContentMapStructureSnapshotFactoryBase(
         string kind,
         int dataVersion,
         IContentEntryIdStrategy<TId> idStrategy)
@@ -57,18 +57,18 @@ public abstract class KeyedContentStructureSnapshotFactoryBase<TId, TStructure> 
             return false;
         }
 
-        return TryRestoreValidatedKeyedSnapshot(snapshot, records, out structure, out failure);
+        return TryRestoreValidatedMapSnapshot(snapshot, records, out structure, out failure);
     }
 
     /// <summary>
-    /// Attempts to restore the concrete keyed structure after shared record and ID validation has succeeded.
+    /// Attempts to restore the concrete map structure after shared record and ID validation has succeeded.
     /// </summary>
     /// <param name="snapshot">The validated structure snapshot.</param>
     /// <param name="records">The restored retained records in insertion order.</param>
     /// <param name="structure">The restored structure.</param>
     /// <param name="failure">The structured failure when restore is rejected.</param>
     /// <returns><see langword="true"/> when restore succeeded.</returns>
-    protected abstract bool TryRestoreValidatedKeyedSnapshot(
+    protected abstract bool TryRestoreValidatedMapSnapshot(
         ContentStructureSnapshot snapshot,
         ContentEntryRecord[] records,
         out TStructure? structure,

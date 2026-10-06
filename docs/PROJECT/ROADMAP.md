@@ -30,7 +30,7 @@ Define serializer-friendly DTOs for stored records and whole structures without 
 
 ### Stage 15: Add snapshot capture and restore for built-in structures
 
-Completed implementation adds exact snapshot capture and restore for built-in sequence and keyed structures, package-wide entry factory registration, keyed restore ID validation, and manager-coordinated atomic restore. Stage 16 refines the normal restore path so round-trippable structures expose their own restore factory.
+Completed implementation adds exact snapshot capture and restore for built-in sequence and map structures, package-wide entry factory registration, map restore ID validation, and manager-coordinated atomic restore. Stage 16 refines the normal restore path so round-trippable structures expose their own restore factory.
 
 ### Stage 16: Add structure extension authoring support
 
@@ -44,11 +44,11 @@ Record the need for a breaking manager-workflow direction before adding more bui
 
 ### Pre-17.2A: Add structure-family bases and dedicated manager bases
 
-Completed implementation adds the first manager/structure family foundation. Structures still create their tailored concrete manager through `IContentStructure.CreateManager()`, but sequence and keyed workflows now share structure-family bases and manager-family bases so future related structures can reduce redundancy without losing dedicated managers.
+Completed implementation adds the first manager/structure family foundation. Structures still create their tailored concrete manager through `IContentStructure.CreateManager()`, but sequence and map workflows now share structure-family bases and manager-family bases so future related structures can reduce redundancy without losing dedicated managers.
 
 ### Pre-17.2B: Reconcile snapshots with structure-family bases
 
-Completed implementation adds sequence-family and keyed-family snapshot factory bases. Built-in snapshot wire shapes stay compatible, normal manager APIs remain `CaptureSnapshot()` and `RestoreSnapshot(snapshot)`, and concrete managers keep strict restore compatibility while family manager bases can accept compatible family replacements.
+Completed implementation adds sequence-family and map-family snapshot factory bases. Built-in snapshot wire shapes stay compatible, normal manager APIs remain `CaptureSnapshot()` and `RestoreSnapshot(snapshot)`, and concrete managers keep strict restore compatibility while family manager bases can accept compatible family replacements.
 
 ### Pre-17.2C: Add flexible ID strategies and generated ID sources
 
@@ -62,47 +62,47 @@ Completed implementation reconciles user-facing and project-control documentatio
 
 Completed implementation adds a generic sequence-family snapshot factory base for custom generated ID sources. This closes the extension gap where built-in generic sequences could restore custom ID source state and validate restored IDs, but custom sequence-family structures only had a long-ID numeric helper.
 
-### Stage 17: Add selected remaining built-in structures
+### Stage 17: Add simple configurable built-in structures
 
-Add selected built-in structures after configuration, opt-in contracts, mutation, snapshots, structure-created managers, family bases, and flexible sequence IDs are stable.
+Completed implementation adds the next simple built-in structure set: map naming for direct ID-addressed content, sequence reject overflow, single-entry structures, and stack structures. The stage keeps the principle that configurable state is preferred over separate bounded/unbounded or replacing/rejecting types unless the workflow language truly changes.
 
-### Stage 18: Add additional built-in ID strategies
+### Stage 18A: Add compound hierarchy core
+
+Completed implementation adds the in-memory compound hierarchy workflow: tree-owned nodes, generated and explicit root/child creation, hierarchy traversal, configurable child-removal policy, configurable sibling read direction, depth-first flattened records, manager workflow, events, docs, and tests.
+
+### Stage 18B: Add compound snapshots and 0.7.0 release sweep
+
+Completed implementation adds compound structure snapshot capture/restore, compound snapshot extension helpers, documentation reconciliation, and `0.7.0` metadata for the Stage 17 plus Stage 18 built-in expansion.
+
+### Stage 19: Add additional built-in ID strategies
 
 Add selected low-assumption ID strategies after core structure and snapshot contracts are stable.
 
-### Stage 19: Add validation and preflight APIs
+### Stage 20: Add validation and preflight APIs
 
 Add preflight APIs for mutation and snapshot workflows. Preflight should not mutate state or emit events, and final commit should still revalidate.
 
-### Stage 20: Add manager read-query helpers
+### Stage 21: Add manager read-query helpers
 
 Add manager-side helpers for materialized filtered and sorted record views without mutating the active structure.
 
-### Stage 21: Add bulk operations and mutation helper APIs
+### Stage 22: Add bulk operations and mutation helper APIs
 
 Add high-value helper operations such as range workflows and predicate-based removal while preserving atomicity and event semantics.
 
-### Stage 22: Add optional structure sorting support
+### Stage 23: Add optional structure sorting support
 
 Add opt-in structure-owned sorting only for structures where reordering retained records is meaningful.
 
-### Stage 23: Add export helpers and attachment abstractions
+### Stage 24: Add export helpers and attachment abstractions
 
 Add optional export helpers and attachment abstractions after portable snapshots exist. Export and attachments should not become the serialization foundation.
 
-### Stage 24: Evaluate threaded/forum-like content structure
-
-Decide whether threaded content belongs in core, needs custom managers, or should be deferred to examples or companion packages.
-
-### Stage 25: Add optional grouped content structure
-
-Add grouped content if the structure-owned content model and manager workflow remain clean and domain-neutral.
-
-### Stage 26: Add example tests and usage docs
+### Stage 25: Add example tests and usage docs
 
 Add examples and focused usage docs for the implemented 1.0 feature set.
 
-### Stage 27: Prepare 1.0.0 release
+### Stage 26: Prepare 1.0.0 release
 
 Audit API names, docs, examples, XML docs, metadata, changelog, compatibility notes, package build, release branch, and tag.
 

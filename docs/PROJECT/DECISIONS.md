@@ -237,7 +237,7 @@ Stored records expose a stable typed ID while structures remain responsible for 
 
 #### Context
 
-ContentSystem needs one shared structure abstraction, but not every structure will add entries the same way. FIFO can assign IDs internally, while keyed or forum-like structures may require caller-provided IDs.
+ContentSystem needs one shared structure abstraction, but not every structure will add entries the same way. FIFO can assign IDs internally, while map or forum-like structures may require caller-provided IDs.
 
 #### Decision
 
@@ -245,7 +245,7 @@ ContentSystem needs one shared structure abstraction, but not every structure wi
 
 #### Reasoning
 
-This keeps the common structure API honest. It avoids forcing keyed/manual-ID structures to expose an unsupported generated-ID append method while still allowing normal consumers to read records and look them up consistently.
+This keeps the common structure API honest. It avoids forcing map/manual-ID structures to expose an unsupported generated-ID append method while still allowing normal consumers to read records and look them up consistently.
 
 #### Consequences
 
@@ -257,15 +257,15 @@ Concrete structures may expose natural lookup overloads for their ID model. The 
 
 #### Context
 
-Keyed structures need caller-provided IDs, but different hosts may prefer string IDs, integer-like IDs, or other stable ID shapes.
+Map structures need caller-provided IDs, but different hosts may prefer string IDs, integer-like IDs, or other stable ID shapes.
 
 #### Decision
 
 ContentSystem uses `IContentEntryIdStrategy<TId>` to validate and normalize typed caller-provided IDs and to validate normalized stored IDs restored from snapshots. The first built-in strategies are `StringContentEntryIdStrategy` and `IntegerContentEntryIdStrategy`.
 
-`KeyedContentStructure<TId>` is the first strategy-backed structure. It requires callers to provide IDs and rejects invalid or duplicate IDs through structured failures.
+`ContentMapStructure<TId>` is the first strategy-backed structure. It requires callers to provide IDs and rejects invalid or duplicate IDs through structured failures.
 
-Default keyed structure constructors resolve built-in strategies for `string` and `long`. Custom ID types require an explicit custom strategy.
+Default map structure constructors resolve built-in strategies for `string` and `long`. Custom ID types require an explicit custom strategy.
 
 #### Reasoning
 
@@ -273,19 +273,19 @@ This proves configurable identity with a simple structure before introducing ric
 
 #### Consequences
 
-FIFO remains internally generated and strategy-free. Keyed structures get clean typed ID APIs while preserving `ContentEntryId` as the shared structure-agnostic ID value.
+FIFO remains internally generated and strategy-free. Map structures get clean typed ID APIs while preserving `ContentEntryId` as the shared structure-agnostic ID value.
 
 ### D-013: Manager Workflows Follow ID Ownership
 
 #### Context
 
-`IContentStructure` is intentionally read and lookup focused because structures do not all add entries the same way. FIFO-style structures assign IDs when entries are added, while keyed structures require caller-provided typed IDs.
+`IContentStructure` is intentionally read and lookup focused because structures do not all add entries the same way. FIFO-style structures assign IDs when entries are added, while map structures require caller-provided typed IDs.
 
 #### Decision
 
 ContentSystem exposes separate manager workflows for the two implemented write categories.
 
-The original Stage 6 shape exposed separate manager workflows for structure-assigned IDs and keyed IDs. D-029 later replaces the broad manager shape with structure-created tailored managers.
+The original Stage 6 shape exposed separate manager workflows for structure-assigned IDs and map IDs. D-029 later replaces the broad manager shape with structure-created tailored managers.
 
 `ContentManagerBase` is a public abstract base for shared read and lookup behavior across already-created managers.
 
@@ -359,7 +359,7 @@ Core should not add built-in chat, log, notification, forum, or metadata entry t
 
 #### Context
 
-ID strategies make keyed structures ergonomic, but every built-in strategy implies package support for an ID shape.
+ID strategies make map structures ergonomic, but every built-in strategy implies package support for an ID shape.
 
 #### Decision
 
@@ -486,7 +486,7 @@ The next roadmap stage needs a way to express what structures can do beyond the 
 
 ContentSystem should mirror InventorySystem's contract style: `IContentStructure` remains the base minimum useful contract, and additional structure behavior is represented by focused opt-in interfaces.
 
-Existing examples include `IStructureAssignedIdContentStructure`, `IKeyedContentStructure<TId>`, `IContentChangeSource`, `IContentRetentionPolicyStructure`, and `IContentReadOrderStructure`. Future mutation, snapshot, sorting, searching, or export behavior should follow the same pattern unless a later concrete requirement proves metadata is needed.
+Existing examples include `IStructureAssignedIdContentStructure`, `IContentMapStructure<TId>`, `IContentChangeSource`, `IContentRetentionPolicyStructure`, and `IContentReadOrderStructure`. Future mutation, snapshot, sorting, searching, or export behavior should follow the same pattern unless a later concrete requirement proves metadata is needed.
 
 #### Reasoning
 
@@ -506,7 +506,7 @@ After clear, remove, and runtime structure configuration were promoted into the 
 
 The original Stage 12 shape put shared mutation APIs for clearing, removing by `ContentEntryId`, and setting structure parameters on `ContentManagerBase`. D-029 later narrows this: retained-state mutations belong on tailored managers whose structure family guarantees or deliberately exposes those operations.
 
-Concrete managers can add natural typed overloads where the workflow owns a natural ID shape, such as sequence numeric IDs or keyed `TId` values. Typed keyed removal is itself opt-in through `IKeyedContentRecordRemovalStructure<TId>`, so custom keyed structures are not forced to support removal.
+Concrete managers can add natural typed overloads where the workflow owns a natural ID shape, such as sequence numeric IDs or map `TId` values. Typed map removal is itself opt-in through `IContentMapRecordRemovalStructure<TId>`, so custom map structures are not forced to support removal.
 
 #### Reasoning
 
@@ -584,7 +584,7 @@ The active structure's factory keeps the normal restore path low-friction withou
 
 #### Consequences
 
-Unsupported custom structures fail with `SnapshotUnsupportedStructure`. Missing entry factories fail with `SnapshotFactoryMissing`; conflicting factory registration fails with `SnapshotFactoryDuplicate`. Failed restore leaves the active manager state unchanged and emits no event. Built-in sequence and keyed structures can round-trip exact retained state while applications remain responsible for choosing how snapshots are serialized or stored.
+Unsupported custom structures fail with `SnapshotUnsupportedStructure`. Missing entry factories fail with `SnapshotFactoryMissing`; conflicting factory registration fails with `SnapshotFactoryDuplicate`. Failed restore leaves the active manager state unchanged and emits no event. Built-in sequence and map structures can round-trip exact retained state while applications remain responsible for choosing how snapshots are serialized or stored.
 
 ### D-028: Structure Extension Authoring Uses Helpers Without Mandatory Inheritance
 
@@ -597,7 +597,7 @@ After built-in structure snapshot restore was implemented, custom structure auth
 ContentSystem provides public helper APIs for structure extension authors:
 
 - `ContentStructureSnapshotFactoryBase<TStructure>` for common structure factory restore plumbing;
-- sequence and keyed family snapshot factory bases for shared family restore invariants, including generic generated-ID sequence restore and the long-ID convenience path;
+- sequence and map family snapshot factory bases for shared family restore invariants, including generic generated-ID sequence restore and the long-ID convenience path;
 - `ContentSnapshotRecords` for retained record capture, restore, duplicate ID validation, and positive numeric ID validation;
 - `ContentSnapshotProperties` for named structure-owned snapshot data and scalar decoding.
 
@@ -625,7 +625,7 @@ Every `IContentStructure` creates its tailored manager through `CreateManager()`
 
 The preferred normal construction path is `ContentManagers.ForStructure(structure)`, which calls `structure.CreateManager()`. A typed expected-manager path, `ContentManagers.ForStructure<TManager>(structure)`, exists for callers that want validation instead of manual casts.
 
-Built-in structures create built-in managers directly: `ContentSequenceStructure` creates `ContentSequenceManager`, and `KeyedContentStructure<TId>` creates `KeyedContentManager<TId>`. Custom structures can return custom managers without global registry setup.
+Built-in structures create built-in managers directly: `ContentSequenceStructure` creates `ContentSequenceManager`, and `ContentMapStructure<TId>` creates `ContentMapManager<TId>`. Custom structures can return custom managers without global registry setup.
 
 Direct manager constructors remain legal for explicit/manual use.
 
@@ -633,13 +633,13 @@ Direct manager constructors remain legal for explicit/manual use.
 
 The structure already owns ID meaning, retention, lookup, and focused operation contracts. Letting the structure create its manager keeps the user path close to "create a structure, ask the package for the right manager" while making the coupling honest: a useful manager is tailored to the structure's operations.
 
-This removes a separate factory registry and avoids a misleading middle layer. Actual optional behavior remains discoverable and usable through focused interfaces such as keyed add, structure-assigned add, change source, mutation, parameterization, and snapshots.
+This removes a separate factory registry and avoids a misleading middle layer. Actual optional behavior remains discoverable and usable through focused interfaces such as map add, structure-assigned add, change source, mutation, parameterization, and snapshots.
 
 #### Consequences
 
 Pre-17.2 was split into smaller prerelease stages after this decision and released together as the `0.6.0` manager/structure redo. The rejected workflow descriptor and manager factory registry are removed, snapshot layering follows the family/concrete split, and flexible generated sequence IDs sit on the same foundation. Existing direct construction remains valid, but `ContentManagers.ForStructure(...)` is the preferred documented path. Typed manager mismatches use structured failures and expected-success exceptions instead of hidden nulls or invalid casts.
 
-`ContentManagerBase` stays small: shared read/lookup, event forwarding, and snapshot lifecycle. Retained-state mutations move to concrete tailored managers such as `ContentSequenceManager` and `KeyedContentManager<TId>`.
+`ContentManagerBase` stays small: shared read/lookup, event forwarding, and snapshot lifecycle. Retained-state mutations move to concrete tailored managers such as `ContentSequenceManager` and `ContentMapManager<TId>`.
 
 ### D-030: Content Structures Own Retained Content State
 
@@ -647,7 +647,7 @@ Pre-17.2 was split into smaller prerelease stages after this decision and releas
 
 ContentSystem originally borrowed some language from InventorySystem, especially around manager-owned workflows and layout-like structure contracts. That comparison is useful for failure style, opt-in contracts, snapshots, and event discipline, but the ownership model is not the same.
 
-InventorySystem has a stable core shape: an inventory owns item instances, while layouts place those item instances. ContentSystem can become more varied. A sequence owns an ordered stream, a keyed structure owns keyed retained records, a stack owns stack order, and future grouped or threaded structures may own nested relationships such as groups, threads, replies, or other structure-specific content graphs.
+InventorySystem has a stable core shape: an inventory owns item instances, while layouts place those item instances. ContentSystem can become more varied. A sequence owns an ordered stream, a map structure owns map retained records, a stack owns stack order, and future grouped or threaded structures may own nested relationships such as groups, threads, replies, or other structure-specific content graphs.
 
 #### Decision
 
@@ -675,15 +675,15 @@ Documentation should describe InventorySystem as an inspiration for style and co
 
 #### Context
 
-The direct structure-created-manager model was cleaner than workflow descriptors, but it did not fully capture the intended instruction-set shape. A reusable family such as sequence, keyed, stack, or single-entry content needs shared structure and manager behavior, while concrete structures still need room to expose concrete capabilities without forcing those capabilities onto every family member.
+The direct structure-created-manager model was cleaner than workflow descriptors, but it did not fully capture the intended instruction-set shape. A reusable family such as sequence, map, stack, or single-entry content needs shared structure and manager behavior, while concrete structures still need room to expose concrete capabilities without forcing those capabilities onto every family member.
 
 #### Decision
 
 ContentSystem uses structure-family bases and manager-family bases where a workflow family is reusable.
 
-For the implemented families, `ContentSequenceStructureBase<TId>` and `KeyedContentStructureBase<TId>` define the shared family structure surface. `ContentSequenceManagerBase<TId>` and `KeyedContentManagerBase<TId>` define shared manager behavior for those family surfaces.
+For the implemented families, `ContentSequenceStructureBase<TId>` and `ContentMapStructureBase<TId>` define the shared family structure surface. `ContentSequenceManagerBase<TId>` and `ContentMapManagerBase<TId>` define shared manager behavior for those family surfaces.
 
-Concrete structures still create dedicated concrete managers. `ContentSequenceStructure` creates `ContentSequenceManager`, and `KeyedContentStructure<TId>` creates `KeyedContentManager<TId>`.
+Concrete structures still create dedicated concrete managers. `ContentSequenceStructure` creates `ContentSequenceManager`, and `ContentMapStructure<TId>` creates `ContentMapManager<TId>`.
 
 #### Reasoning
 
@@ -701,7 +701,7 @@ Snapshot layering and flexible generated ID sources were completed in the follow
 
 #### Context
 
-After structure-family bases were introduced, the snapshot restore code still had the shared sequence and keyed restore rules embedded in the concrete built-in factories. That worked for built-ins, but extension authors would have had to copy package internals to restore records, validate generated numeric IDs, and validate keyed normalized IDs consistently.
+After structure-family bases were introduced, the snapshot restore code still had the shared sequence and map restore rules embedded in the concrete built-in factories. That worked for built-ins, but extension authors would have had to copy package internals to restore records, validate generated numeric IDs, and validate map normalized IDs consistently.
 
 #### Decision
 
@@ -713,9 +713,9 @@ Reusable family snapshot factory bases now handle family invariants:
 
 - `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` restores retained records, generated ID source state, and restored-ID source observations before concrete restore code runs.
 - `ContentSequenceStructureSnapshotFactoryBase<TStructure>` remains the long-ID convenience helper and exposes the maximum positive numeric retained ID before concrete restore code runs.
-- `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` restores retained records and validates every stored normalized ID through the configured `IContentEntryIdStrategy<TId>`.
+- `ContentMapStructureSnapshotFactoryBase<TId, TStructure>` restores retained records and validates every stored normalized ID through the configured `IContentEntryIdStrategy<TId>`.
 
-Built-in sequence and keyed factories use those family bases without changing their snapshot DTO wire shape.
+Built-in sequence and map factories use those family bases without changing their snapshot DTO wire shape.
 
 #### Reasoning
 
@@ -723,7 +723,7 @@ This keeps the easy path small for users while giving extension authors first-cl
 
 #### Consequences
 
-Family manager bases may accept restored structures from their family by default. Concrete managers remain narrower: `ContentSequenceManager` accepts only `ContentSequenceStructure`, and `KeyedContentManager<TId>` accepts only `KeyedContentStructure<TId>`.
+Family manager bases may accept restored structures from their family by default. Concrete managers remain narrower: `ContentSequenceManager` accepts only `ContentSequenceStructure`, and `ContentMapManager<TId>` accepts only `ContentMapStructure<TId>`.
 
 The snapshot system still does not own disk I/O, serializer choice, or global structure factory registration.
 
@@ -743,7 +743,7 @@ Generated IDs use separate `IContentGeneratedIdSource<TId>` implementations. A s
 
 #### Consequences
 
-The default sequence path stays clean: callers can add entries without IDs and look up by `long`. Structures that want custom sequence IDs can opt into generic sequence types without changing keyed structures.
+The default sequence path stays clean: callers can add entries without IDs and look up by `long`. Structures that want custom sequence IDs can opt into generic sequence types without changing map structures.
 
 Manual and generated sequence IDs may be mixed. That is allowed, but source state controls how later generated IDs advance.
 
@@ -771,3 +771,84 @@ Custom sequence structures should be able to support snapshots in the same capac
 #### Consequences
 
 Extension authors with custom sequence ID models can use the generic helper. Long-ID sequence-like extensions can keep using the simpler numeric helper. Built-in generic sequence restore uses the public helper path while preserving legacy long `nextId` snapshot compatibility.
+
+### D-035: Simple Built-In Structures Prefer Configurable State
+
+#### Context
+
+Stage 17 adds more built-in structures after the manager/structure redo. Earlier discussions repeatedly risked splitting structures into bounded/unbounded or replacing/rejecting variants even when those differences were configuration state, not different workflow languages.
+
+#### Decision
+
+Built-in simple structures should prefer configurable state over separate types.
+
+`ContentSequenceStructure` keeps one sequence workflow and uses `ContentOverflowPolicy.None`, `DropOldest(capacity)`, or `Reject(capacity)` for retention behavior.
+
+The direct ID-addressed structure is named and documented as map content: `ContentMapStructure<TId>` and `ContentMapManager<TId>`. The previous keyed naming is removed because the package is still prerelease.
+
+Single-entry content is represented by `ContentSingleStructure<TId>` with `ContentSingleReplacementPolicy.Replace` or `Reject`.
+
+Stack content is represented by `ContentStackStructure<TId>` with `ContentStackReadOrder` and supported overflow policies `None` and `Reject(capacity)`. `DropOldest` is not supported for stack because silently dropping the bottom retained record would make stack behavior surprising.
+
+#### Reasoning
+
+This keeps the user-facing surface smaller and more configurable while still acknowledging real workflow differences. A sequence, map, single-entry store, and stack have different operation vocabularies, so they deserve distinct structures and managers. Bounded versus unbounded, replacement versus rejection, and top-first versus bottom-first are configuration choices inside those workflows.
+
+#### Consequences
+
+Future built-ins should follow the same rule: split structures when the workflow vocabulary changes, not merely when a policy value changes. Replacement events use `ContentChangeKind.Replaced`, and reject-at-capacity failures use `ContentFailureCodes.StructureCapacityReached`.
+
+### D-036: Compound Content Starts As An Owned Tree
+
+#### Context
+
+Grouped and threaded content can easily pull the package toward chat, forum, user, channel, or role assumptions. The package needs a more general hierarchy-shaped built-in that can cover simple grouping and thread-like layouts without claiming those domains directly.
+
+#### Decision
+
+`ContentCompoundStructure<TId>` models owned tree content.
+
+Each node stores one retained record, has zero or one parent, and can have children. The structure exposes hierarchy-native operations through `ContentCompoundManager<TId>`: root creation, child creation, node lookup, root traversal, child traversal, subtree-aware removal, clear, and depth-first flattened `Records`.
+
+Child removal is configurable through `ContentCompoundChildRemovalPolicy.Reject` or `RemoveSubtree`. Sibling read direction is configurable through `ContentCompoundSiblingReadOrder.OldestFirst` or `NewestFirst`.
+
+Compound snapshots are implemented in Stage 18B after the in-memory workflow landed cleanly.
+
+#### Reasoning
+
+A tree is expressive enough for simple grouped feeds, topic/post layouts, nested notes, scene-like hierarchies, and many thread-like presentations while staying domain-neutral. A DAG or multi-parent model would make removal, events, restore validation, and user expectations much more complex.
+
+#### Consequences
+
+Applications that need true multi-parent links should build that as a higher-level concept or a later alias/reference system. Compound content is useful in memory, through change events, and through manager-level snapshot round trips.
+
+### D-037: Compound Snapshots Store Explicit Relationships
+
+Date: 2026-09-20
+
+#### Context
+
+Compound structures own a tree of retained records. A snapshot must preserve not only the flattened retained records, but also which records are roots, which records are children, the insertion order used to rebuild root and child lists, generated ID source state, and the compound structure policies.
+
+#### Decision
+
+Compound structure snapshots use stable kind `workes.content.structure.compound` and data version `1`.
+
+The snapshot record list stores retained records in internal node insertion order. Structure data stores:
+
+- generated ID source kind and source data;
+- `ContentCompoundChildRemovalPolicy`;
+- `ContentCompoundSiblingReadOrder`;
+- an ordered relationship list where each entry contains a retained node ID plus either no parent or one parent ID.
+
+Restore validates that every retained record has exactly one relationship entry, every relationship ID belongs to a retained record, every parent ID belongs to a retained record, roots do not carry parent text, no node is its own parent, no parent cycle exists, restored IDs are valid for the configured ID source strategy, and restored IDs are observed by the source before construction.
+
+`ContentCompoundStructureSnapshotFactoryBase<TId, TStructure>` is the public helper for custom compound-family structures so extensions can share the same record/source/relationship validation used by the built-in compound structure.
+
+#### Consequences
+
+The serializer object remains plain data while still preserving hierarchy faithfully enough for save/load scenarios.
+
+The normal user path stays manager-owned: `CaptureSnapshot()` and `RestoreSnapshot(snapshot)`.
+
+Custom compound structures can add their own structure-owned data on top of the shared relationship model without reimplementing the fragile validation rules.

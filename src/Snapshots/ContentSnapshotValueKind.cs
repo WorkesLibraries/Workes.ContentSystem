@@ -26,7 +26,7 @@ public enum ContentSnapshotValueKind
     List = 3,
 
     /// <summary>
-    /// A string-keyed object of encoded values.
+    /// An object of named encoded values.
     /// </summary>
     Object = 4
 }

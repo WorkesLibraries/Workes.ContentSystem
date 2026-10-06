@@ -249,9 +249,9 @@ public sealed class ContentManagerTests
     [Test]
     public void BaseManager_RestoreSnapshot_RejectsIncompatibleStructureWithoutChangingState()
     {
-        var keyed = new KeyedContentStructure<string>();
-        keyed.Add("entry-1", Entry("Keyed"));
-        ContentStructureSnapshot keyedSnapshot = keyed.CaptureSnapshot();
+        var map = new ContentMapStructure<string>();
+        map.Add("entry-1", Entry("Map"));
+        ContentStructureSnapshot mapSnapshot = map.CaptureSnapshot();
 
         var manager = new ContentSequenceManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
         ContentEntryRecord original = manager.Add(Entry("Original"));
@@ -259,8 +259,8 @@ public sealed class ContentManagerTests
         manager.Changed += (_, _) => eventCount++;
 
         bool restored = manager.TryRestoreSnapshot(
-            keyedSnapshot,
-            KeyedContentStructure<string>.CreateSnapshotFactory(),
+            mapSnapshot,
+            ContentMapStructure<string>.CreateSnapshotFactory(),
             out ContentFailure? failure);
 
         Assert.That(restored, Is.False);
@@ -294,13 +294,13 @@ public sealed class ContentManagerTests
     }
 
     [Test]
-    public void KeyedContentManager_RestoreSnapshot_PreservesTypedWorkflow()
+    public void ContentMapManager_RestoreSnapshot_PreservesTypedWorkflow()
     {
-        var source = new KeyedContentManager<string>();
+        var source = new ContentMapManager<string>();
         source.Add("entry-1", Entry("One"));
         ContentStructureSnapshot snapshot = source.CaptureSnapshot();
 
-        var target = new KeyedContentManager<string>();
+        var target = new ContentMapManager<string>();
         target.RestoreSnapshot(snapshot);
         target.Add("entry-2", Entry("Two"));
 
@@ -309,14 +309,14 @@ public sealed class ContentManagerTests
     }
 
     [Test]
-    public void KeyedContentManager_RestoreSnapshot_InvalidStoredIdLeavesStateUnchangedAndEmitsNoEvent()
+    public void ContentMapManager_RestoreSnapshot_InvalidStoredIdLeavesStateUnchangedAndEmitsNoEvent()
     {
-        var source = new KeyedContentManager<long>();
+        var source = new ContentMapManager<long>();
         source.Add(1, Entry("One"));
         ContentStructureSnapshot snapshot = source.CaptureSnapshot();
         snapshot.Records[0].EntryId = "abc";
 
-        var target = new KeyedContentManager<long>();
+        var target = new ContentMapManager<long>();
         ContentEntryRecord original = target.Add(2, Entry("Original"));
         int eventCount = 0;
         target.Changed += (_, _) => eventCount++;

@@ -1,10 +1,10 @@
 namespace Workes.ContentSystem.Core;
 
 /// <summary>
-/// Represents a keyed content structure that can remove retained records by caller-facing ID.
+/// Represents a map content structure that can remove retained records by caller-facing ID.
 /// </summary>
 /// <typeparam name="TId">The caller-facing ID type.</typeparam>
-public interface IKeyedContentRecordRemovalStructure<TId> : IKeyedContentStructure<TId>, IContentRecordRemovalStructure
+public interface IContentMapRecordRemovalStructure<TId> : IContentMapStructure<TId>, IContentRecordRemovalStructure
 {
     /// <summary>
     /// Attempts to remove a retained record by caller-facing ID.

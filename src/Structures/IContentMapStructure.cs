@@ -4,7 +4,7 @@ namespace Workes.ContentSystem.Core;
 /// Represents a content structure that uses caller-provided typed IDs.
 /// </summary>
 /// <typeparam name="TId">The caller-facing ID type.</typeparam>
-public interface IKeyedContentStructure<TId> : IContentStructure
+public interface IContentMapStructure<TId> : IContentStructure
 {
     /// <summary>
     /// Attempts to add an entry with a caller-provided ID.
@@ -24,6 +24,26 @@ public interface IKeyedContentStructure<TId> : IContentStructure
     /// <returns>The retained record.</returns>
     /// <exception cref="ContentOperationException">Thrown when the ID is rejected.</exception>
     ContentEntryRecord Add(TId id, IContentEntry entry);
+
+    /// <summary>
+    /// Attempts to set an entry with a caller-provided ID, replacing an existing record when present.
+    /// </summary>
+    /// <param name="id">The caller-provided entry ID.</param>
+    /// <param name="entry">The entry to set.</param>
+    /// <param name="record">The retained record when accepted; otherwise <see langword="null"/>.</param>
+    /// <param name="replacedRecord">The replaced record when one existed; otherwise <see langword="null"/>.</param>
+    /// <param name="failure">The structured failure when rejected; otherwise <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> when the entry is set.</returns>
+    bool TrySet(TId id, IContentEntry entry, out ContentEntryRecord? record, out ContentEntryRecord? replacedRecord, out ContentFailure? failure);
+
+    /// <summary>
+    /// Sets an entry with a caller-provided ID, replacing an existing record when present.
+    /// </summary>
+    /// <param name="id">The caller-provided entry ID.</param>
+    /// <param name="entry">The entry to set.</param>
+    /// <returns>The retained record.</returns>
+    /// <exception cref="ContentOperationException">Thrown when the ID is rejected.</exception>
+    ContentEntryRecord Set(TId id, IContentEntry entry);
 
     /// <summary>
     /// Attempts to get a retained record by caller-facing ID.

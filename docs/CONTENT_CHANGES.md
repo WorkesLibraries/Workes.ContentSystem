@@ -18,7 +18,10 @@ public interface IContentChangeSource
 The built-in structures are observable:
 
 - `ContentSequenceStructure`;
-- `KeyedContentStructure<TId>`.
+- `ContentMapStructure<TId>`;
+- `ContentSingleStructure<TId>`;
+- `ContentStackStructure<TId>`;
+- `ContentCompoundStructure<TId>`.
 
 Custom structures do not need to implement `IContentChangeSource`. They remain valid content structures without change hooks.
 
@@ -43,6 +46,8 @@ For `ContentOverflowPolicy.DropOldest(capacity)` overflow, one event is raised w
 - the dropped oldest record in `RemovedRecords`.
 
 For removal, `Kind` is `ContentChangeKind.Removed` and `RemovedRecords` contains the removed record.
+
+For replacement, `Kind` is `ContentChangeKind.Replaced`, `AddedRecords` contains the newly retained record, and `RemovedRecords` contains the record it replaced.
 
 For clear, `Kind` is `ContentChangeKind.Cleared`, `Cleared` is true, `RemovedRecords` contains all cleared records, and `RequiresFullRefresh` is true.
 
@@ -73,11 +78,11 @@ void OnContentChanged(object? sender, ContentChangedEventArgs args)
 
 Forwarded manager events use the manager as `sender` and preserve the original `ContentChangedEventArgs`.
 
-This also works for keyed managers:
+This also works for map managers:
 
 ```csharp
-var content = ContentManagers.ForStructure<KeyedContentManager<string>>(
-    new KeyedContentStructure<string>());
+var content = ContentManagers.ForStructure<ContentMapManager<string>>(
+    new ContentMapStructure<string>());
 
 content.Changed += OnContentChanged;
 content.Add("thread-main", new PlainContentEntry(DateTimeOffset.UtcNow, "First post."));
@@ -89,8 +94,11 @@ Rejected or no-op operations do not raise change events.
 
 For example:
 
-- a duplicate keyed ID returns `EntryIdDuplicate` and emits no event;
-- an invalid keyed ID returns `EntryIdInvalid` and emits no event;
+- a duplicate map ID returns `EntryIdDuplicate` and emits no event;
+- an invalid map ID returns `EntryIdInvalid` and emits no event;
+- a sequence or stack add rejected by `ContentOverflowPolicy.Reject(capacity)` returns `StructureCapacityReached` and emits no event;
+- a single-entry set rejected by `ContentSingleReplacementPolicy.Reject` returns `StructureCapacityReached` and emits no event;
+- a compound node removal rejected by `ContentCompoundChildRemovalPolicy.Reject` emits no event;
 - removing a missing record returns `EntryNotFound` and emits no event;
 - clearing an already-empty structure succeeds and emits no event;
 - setting a structure parameter to the already-committed value succeeds and emits no event;

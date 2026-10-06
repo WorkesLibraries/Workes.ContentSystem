@@ -134,6 +134,11 @@ public class ContentSequenceStructure<TId> :
         }
 
         record = null;
+        if (!TryValidateCapacityForAdd(out failure))
+        {
+            return false;
+        }
+
         if (!IdSource.TryCreateNext(out TId id, out failure))
         {
             return false;
@@ -356,6 +361,14 @@ public class ContentSequenceStructure<TId> :
         }
 
         ContentEntryRecord[] retained = _records.ToArray();
+        if (overflowPolicy.Kind == ContentOverflowPolicyKind.Reject && retained.Length > overflowPolicy.Capacity!.Value)
+        {
+            failure = ContentFailures.StructureCapacityReached(
+                $"Cannot apply reject overflow capacity {overflowPolicy.Capacity.Value} while retaining {retained.Length} records.",
+                overflowPolicy.Capacity.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            return false;
+        }
+
         ContentEntryRecord[] removed = TrimForOverflowPolicy(overflowPolicy, ref retained);
         removedRecords = removed;
         structure = CreateReplacement(clonedSource!, overflowPolicy, ReadOrder, retained);
@@ -434,6 +447,11 @@ public class ContentSequenceStructure<TId> :
             return false;
         }
 
+        if (!TryValidateCapacityForAdd(out failure))
+        {
+            return false;
+        }
+
         if (observeId && !IdSource.TryObserve(id, out failure))
         {
             return false;
@@ -479,6 +497,12 @@ public class ContentSequenceStructure<TId> :
         ContentOverflowPolicy overflowPolicy,
         ref ContentEntryRecord[] retained)
     {
+        if (overflowPolicy.Kind == ContentOverflowPolicyKind.Reject
+            && retained.Length > overflowPolicy.Capacity!.Value)
+        {
+            throw new InvalidOperationException("Reject overflow policy cannot trim retained records.");
+        }
+
         if (overflowPolicy.Kind != ContentOverflowPolicyKind.DropOldest || retained.Length <= overflowPolicy.Capacity!.Value)
         {
             return Array.Empty<ContentEntryRecord>();
@@ -488,6 +512,20 @@ public class ContentSequenceStructure<TId> :
         ContentEntryRecord[] removed = retained.Take(removeCount).ToArray();
         retained = retained.Skip(removeCount).ToArray();
         return removed;
+    }
+
+    private bool TryValidateCapacityForAdd(out ContentFailure? failure)
+    {
+        if (OverflowPolicy.Kind == ContentOverflowPolicyKind.Reject && _records.Count >= OverflowPolicy.Capacity!.Value)
+        {
+            failure = ContentFailures.StructureCapacityReached(
+                $"Content sequence capacity {OverflowPolicy.Capacity.Value} has been reached.",
+                OverflowPolicy.Capacity.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            return false;
+        }
+
+        failure = null;
+        return true;
     }
 
     private bool TryCloneIdSource(out IContentGeneratedIdSource<TId>? idSource, out ContentFailure? failure)
@@ -531,6 +569,12 @@ public class ContentSequenceStructure<TId> :
             if (overflowPolicy.Kind == ContentOverflowPolicyKind.DropOldest && records.Length > overflowPolicy.Capacity!.Value)
             {
                 failure = ContentFailures.SnapshotMalformed("Sequence structure snapshot retains more records than its overflow policy allows.");
+                return false;
+            }
+
+            if (overflowPolicy.Kind == ContentOverflowPolicyKind.Reject && records.Length > overflowPolicy.Capacity!.Value)
+            {
+                failure = ContentFailures.SnapshotMalformed("Sequence structure snapshot retains more records than its reject overflow policy allows.");
                 return false;
             }
 
@@ -669,6 +713,18 @@ public class ContentSequenceStructure<TId> :
                 }
 
                 overflowPolicy = ContentOverflowPolicy.DropOldest(overflowCapacity);
+                return true;
+            }
+
+            if (overflowKind == ContentOverflowPolicyKind.Reject)
+            {
+                if (overflowCapacity <= 0)
+                {
+                    failure = ContentFailures.SnapshotMalformed("Reject sequence snapshots must use a positive overflow capacity.");
+                    return false;
+                }
+
+                overflowPolicy = ContentOverflowPolicy.Reject(overflowCapacity);
                 return true;
             }
 

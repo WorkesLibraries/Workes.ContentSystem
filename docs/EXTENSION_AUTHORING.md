@@ -11,9 +11,9 @@ It must expose retained `ContentEntryRecord` values in its chosen read order, im
 Add only the focused contracts that the structure truly supports:
 
 - `IStructureAssignedIdContentStructure` or `IStructureAssignedIdContentStructure<TId>` for structure-assigned add workflows;
-- `IKeyedContentStructure<TId>` for caller-provided typed IDs;
+- `IContentMapStructure<TId>` for caller-provided typed IDs;
 - `IContentChangeSource` for synchronous committed-change events;
-- `IContentClearableStructure`, `IContentRecordRemovalStructure`, and keyed/natural removal contracts for mutation support;
+- `IContentClearableStructure`, `IContentRecordRemovalStructure`, and map/natural removal contracts for mutation support;
 - `IParameterizedContentStructure` for manager-coordinated runtime configuration;
 - `IContentRetentionPolicyStructure` and `IContentReadOrderStructure` for readable configuration;
 - `IContentStructureSnapshotRoundTrippable` for whole-structure snapshot round trips.
@@ -122,7 +122,8 @@ The helper APIs reduce boilerplate:
 - `ContentStructureSnapshotFactoryBase<TStructure>` validates kind/version/data, wraps unexpected exceptions into snapshot failures, and implements throwing restore.
 - `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` adds sequence-family record restore, generated ID source restore, restored-ID validation through the source strategy, and source observation before concrete restore code runs.
 - `ContentSequenceStructureSnapshotFactoryBase<TStructure>` is the long-ID convenience helper for sequence-family structures that only need restored records plus the maximum positive numeric ID.
-- `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` adds keyed-family record restore plus normalized ID validation through the configured `IContentEntryIdStrategy<TId>`.
+- `ContentMapStructureSnapshotFactoryBase<TId, TStructure>` adds map-family record restore plus normalized ID validation through the configured `IContentEntryIdStrategy<TId>`.
+- `ContentCompoundStructureSnapshotFactoryBase<TId, TStructure>` adds compound-family record restore, generated ID source restore, relationship restore, restored-ID validation, source observation, duplicate relationship rejection, unknown parent rejection, and cycle rejection before concrete restore code runs.
 - `ContentSnapshotRecords` captures and restores retained records through registered entry factories, preserves order, rejects duplicate IDs, and can validate positive numeric generated IDs.
 - `ContentSnapshotProperties` builds and decodes object-shaped structure data.
 
@@ -167,7 +168,7 @@ public sealed class QuestLogSnapshotFactory
 }
 ```
 
-For keyed-family structures, use `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>`. The keyed base restores records and calls `TryValidateNormalized` for every stored ID before your concrete restore method runs. Your concrete factory should then restore any extra structure-owned data and construct the structure with the same ID strategy used by future operations.
+For map-family structures, use `ContentMapStructureSnapshotFactoryBase<TId, TStructure>`. The map base restores records and calls `TryValidateNormalized` for every stored ID before your concrete restore method runs. Your concrete factory should then restore any extra structure-owned data and construct the structure with the same ID strategy used by future operations.
 
 For sequence-family structures with custom generated ID sources, use `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>`. The generic sequence base restores the source snapshot, validates every restored stored ID through `idSource.IdStrategy.TryValidateNormalized(...)`, and calls `idSource.TryObserveNormalized(...)` before your concrete restore method runs. Your concrete factory should restore any extra structure-owned data and construct the structure with the restored source:
 
@@ -200,6 +201,32 @@ public sealed class QuestLogSnapshotFactory
 }
 ```
 
+For compound-family structures, use `ContentCompoundStructureSnapshotFactoryBase<TId, TStructure>`. The compound base restores records, restores the generated ID source, restores each node's parent relationship, verifies that every relationship points at a retained record, rejects duplicates and cycles, validates stored IDs through the source strategy, and observes retained IDs before your concrete restore method runs. Your concrete factory should restore extra structure-owned data such as hierarchy policy or presentation state, then construct the structure from the restored records and parent map:
+
+```csharp
+public sealed class QuestTreeSnapshotFactory
+    : ContentCompoundStructureSnapshotFactoryBase<QuestEntryId, QuestTreeStructure>
+{
+    public QuestTreeSnapshotFactory(IContentGeneratedIdSourceFactory<QuestEntryId> sourceFactory)
+        : base(QuestTreeStructure.SnapshotKind, QuestTreeStructure.SnapshotDataVersion, sourceFactory)
+    {
+    }
+
+    protected override bool TryRestoreValidatedCompoundSnapshot(
+        ContentStructureSnapshot snapshot,
+        ContentEntryRecord[] records,
+        IReadOnlyDictionary<ContentEntryId, ContentEntryId?> parentIds,
+        IContentGeneratedIdSource<QuestEntryId> idSource,
+        out QuestTreeStructure? structure,
+        out ContentFailure? failure)
+    {
+        structure = new QuestTreeStructure(idSource, records, parentIds);
+        failure = null;
+        return true;
+    }
+}
+```
+
 The structure should expose the same factory from `SnapshotFactory`:
 
 ```csharp
@@ -224,12 +251,12 @@ Capture does not require registration because the entry instance captures itself
 
 Stored record IDs must remain reachable through the structure's normal lookup workflow.
 
-For keyed structures, `IContentEntryIdStrategy<TId>` has two responsibilities:
+For map structures, `IContentEntryIdStrategy<TId>` has two responsibilities:
 
 - `TryNormalize` validates caller-facing IDs and converts them to `ContentEntryId`;
 - `TryValidateNormalized` validates IDs loaded from snapshots.
 
-Both methods must describe the same stored ID language. A keyed structure should reject a snapshot ID that the typed API can never address.
+Both methods must describe the same stored ID language. A map structure should reject a snapshot ID that the typed API can never address.
 
 For generated-ID structures, restore should validate retained IDs and generated ID source state before constructing the restored structure. Use `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` when the structure uses an `IContentGeneratedIdSource<TId>`. `ContentSnapshotRecords.TryGetMaximumPositiveNumericId(...)` and `ContentSequenceStructureSnapshotFactoryBase<TStructure>` remain useful for simple long-ID sequence-like structures.
 

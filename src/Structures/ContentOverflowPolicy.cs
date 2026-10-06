@@ -45,6 +45,21 @@ public sealed class ContentOverflowPolicy : IEquatable<ContentOverflowPolicy>
         return new ContentOverflowPolicy(ContentOverflowPolicyKind.DropOldest, capacity);
     }
 
+    /// <summary>
+    /// Creates a policy that rejects new records when capacity is full.
+    /// </summary>
+    /// <param name="capacity">The maximum number of records to retain.</param>
+    /// <returns>The overflow policy.</returns>
+    public static ContentOverflowPolicy Reject(int capacity)
+    {
+        if (capacity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "Capacity values must be greater than zero.");
+        }
+
+        return new ContentOverflowPolicy(ContentOverflowPolicyKind.Reject, capacity);
+    }
+
     /// <inheritdoc />
     public bool Equals(ContentOverflowPolicy? other)
     {

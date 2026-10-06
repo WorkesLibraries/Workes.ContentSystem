@@ -4,18 +4,18 @@ using Workes.ContentSystem.Core;
 
 namespace Workes.ContentSystem.Tests.Core;
 
-public sealed class KeyedContentStructureTests
+public sealed class ContentMapStructureTests
 {
     [Test]
     public void Constructor_NullStrategyThrows()
     {
-        Assert.Throws<ArgumentNullException>(() => new KeyedContentStructure<string>(null!));
+        Assert.Throws<ArgumentNullException>(() => new ContentMapStructure<string>(null!));
     }
 
     [Test]
     public void Constructor_DefaultStringStrategyWorks()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
 
         ContentEntryRecord record = structure.Add("thread-main", Entry("First"));
 
@@ -25,7 +25,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void Constructor_DefaultLongStrategyWorks()
     {
-        var structure = new KeyedContentStructure<long>();
+        var structure = new ContentMapStructure<long>();
 
         ContentEntryRecord record = structure.Add(8, Entry("Eighth"));
 
@@ -35,13 +35,13 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void Constructor_UnsupportedDefaultStrategyThrows()
     {
-        Assert.Throws<NotSupportedException>(() => new KeyedContentStructure<Guid>());
+        Assert.Throws<NotSupportedException>(() => new ContentMapStructure<Guid>());
     }
 
     [Test]
     public void TryAdd_WithStringStrategy_AddsRecord()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         var entry = Entry("First");
 
         bool accepted = structure.TryAdd("thread-main", entry, out ContentEntryRecord? record, out ContentFailure? failure);
@@ -56,7 +56,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void Add_EmitsChangedWithAddedRecord()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         ContentChangedEventArgs? changedArgs = null;
         object? sender = null;
         structure.Changed += (eventSender, args) =>
@@ -75,9 +75,39 @@ public sealed class KeyedContentStructureTests
     }
 
     [Test]
+    public void Set_WhenIdIsMissing_AddsRecord()
+    {
+        var structure = new ContentMapStructure<string>();
+
+        ContentEntryRecord record = structure.Set("entry", Entry("First"));
+
+        Assert.That(record.Id, Is.EqualTo(new ContentEntryId("entry")));
+        Assert.That(structure.Get("entry"), Is.SameAs(record));
+    }
+
+    [Test]
+    public void Set_WhenIdExists_ReplacesRecordAndEmitsReplacedEvent()
+    {
+        var structure = new ContentMapStructure<string>();
+        ContentEntryRecord original = structure.Add("entry", Entry("First"));
+        ContentChangedEventArgs? changedArgs = null;
+        structure.Changed += (_, args) => changedArgs = args;
+
+        ContentEntryRecord replacement = structure.Set("entry", Entry("Second"));
+
+        Assert.That(replacement.Id, Is.EqualTo(original.Id));
+        Assert.That(structure.Get("entry"), Is.SameAs(replacement));
+        Assert.That(structure.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "Second" }));
+        Assert.That(changedArgs, Is.Not.Null);
+        Assert.That(changedArgs!.Kind, Is.EqualTo(ContentChangeKind.Replaced));
+        Assert.That(changedArgs.AddedRecords, Is.EqualTo(new[] { replacement }));
+        Assert.That(changedArgs.RemovedRecords, Is.EqualTo(new[] { original }));
+    }
+
+    [Test]
     public void Records_AreReadInInsertionOrder()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
 
         structure.Add("first", Entry("First"));
         structure.Add("second", Entry("Second"));
@@ -89,7 +119,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void Get_WithStringStrategy_ReturnsRecordByStringId()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         ContentEntryRecord added = structure.Add("thread-main", Entry("First"));
 
         ContentEntryRecord found = structure.Get("thread-main");
@@ -100,7 +130,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void Add_WithIntegerStrategy_AddsRecordByLongId()
     {
-        var structure = new KeyedContentStructure<long>();
+        var structure = new ContentMapStructure<long>();
 
         ContentEntryRecord added = structure.Add(8, Entry("Eighth"));
         ContentEntryRecord found = structure.Get(8);
@@ -112,7 +142,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void ExplicitCustomStrategy_CanSupportCustomIdType()
     {
-        var structure = new KeyedContentStructure<CustomId>(new CustomIdStrategy());
+        var structure = new ContentMapStructure<CustomId>(new CustomIdStrategy());
 
         ContentEntryRecord added = structure.Add(new CustomId("quest-main"), Entry("Quest"));
 
@@ -123,7 +153,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void TryAdd_DuplicateIdReturnsFailure()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         structure.Add("duplicate", Entry("First"));
         int eventCount = 0;
         structure.Changed += (_, _) => eventCount++;
@@ -141,7 +171,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void Add_DuplicateIdThrowsContentOperationException()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         structure.Add("duplicate", Entry("First"));
 
         ContentOperationException? exception = Assert.Throws<ContentOperationException>(() => structure.Add("duplicate", Entry("Second")));
@@ -155,7 +185,7 @@ public sealed class KeyedContentStructureTests
     [TestCase(null)]
     public void TryAdd_InvalidStringIdReturnsFailure(string? id)
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         int eventCount = 0;
         structure.Changed += (_, _) => eventCount++;
 
@@ -171,7 +201,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void TryAdd_IntegerStrategyRejectsInvalidNumericId()
     {
-        var structure = new KeyedContentStructure<long>();
+        var structure = new ContentMapStructure<long>();
 
         bool accepted = structure.TryAdd(0, Entry("Entry"), out ContentEntryRecord? record, out ContentFailure? failure);
 
@@ -184,7 +214,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void TryGet_MissingIdReturnsEntryNotFoundFailure()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
 
         bool found = structure.TryGet("missing", out ContentEntryRecord? record, out ContentFailure? failure);
 
@@ -197,7 +227,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void TryRemove_WithStringId_RemovesRecordAndEmitsEvent()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         ContentEntryRecord first = structure.Add("first", Entry("First"));
         ContentEntryRecord second = structure.Add("second", Entry("Second"));
         ContentChangedEventArgs? changedArgs = null;
@@ -217,7 +247,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void TryRemove_WithLongId_RemovesRecord()
     {
-        var structure = new KeyedContentStructure<long>();
+        var structure = new ContentMapStructure<long>();
         ContentEntryRecord record = structure.Add(8, Entry("Eighth"));
 
         bool removed = structure.TryRemove(8, out ContentEntryRecord? removedRecord, out ContentFailure? failure);
@@ -231,7 +261,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void TryRemove_InvalidIdReturnsFailureAndEmitsNoEvent()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         int eventCount = 0;
         structure.Changed += (_, _) => eventCount++;
 
@@ -247,7 +277,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void TryRemove_MissingIdReturnsEntryNotFoundAndEmitsNoEvent()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         int eventCount = 0;
         structure.Changed += (_, _) => eventCount++;
 
@@ -263,7 +293,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void Remove_MissingIdThrowsContentOperationException()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
 
         ContentOperationException? exception = Assert.Throws<ContentOperationException>(() => structure.Remove("missing"));
 
@@ -274,7 +304,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void Clear_RemovesAllRecordsAndEmitsEvent()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         ContentEntryRecord first = structure.Add("first", Entry("First"));
         ContentEntryRecord second = structure.Add("second", Entry("Second"));
         ContentChangedEventArgs? changedArgs = null;
@@ -293,7 +323,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void Clear_WhenEmptyEmitsNoEvent()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         int eventCount = 0;
         structure.Changed += (_, _) => eventCount++;
 
@@ -306,7 +336,7 @@ public sealed class KeyedContentStructureTests
     [Test]
     public void Add_NullEntryThrows()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
 
         Assert.Throws<ArgumentNullException>(() => structure.Add("entry", null!));
     }

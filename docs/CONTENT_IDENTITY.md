@@ -20,7 +20,7 @@ ContentEntryId id = record.Id;
 
 ContentSystem currently supports two ID ownership models, plus generated ID sources for structures that can create IDs automatically.
 
-Structure-assigned IDs are used when the structure decides the stored ID. `ContentSequenceStructure` is the normal long-ID path:
+Structure-assigned IDs are used when the structure decides the stored ID. `ContentSequenceStructure`, `ContentSingleStructure`, `ContentStackStructure`, and `ContentCompoundStructure` are normal long-ID paths:
 
 ```csharp
 var content = ContentManagers.ForStructure<ContentSequenceManager>(
@@ -30,11 +30,11 @@ ContentEntryRecord record = content.Add(
     new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
 ```
 
-Caller-provided IDs are used when the caller decides the ID and the structure validates it:
+Caller-provided IDs are used when the caller decides the ID and the structure validates it. Map structures are the direct ID-addressed built-in workflow:
 
 ```csharp
-var content = ContentManagers.ForStructure<KeyedContentManager<string>>(
-    new KeyedContentStructure<string>());
+var content = ContentManagers.ForStructure<ContentMapManager<string>>(
+    new ContentMapStructure<string>());
 
 ContentEntryRecord record = content.Add(
     "entry-1",
@@ -57,20 +57,20 @@ The 1.0 direction is to add `Guid` and `ContentEntryId` identity/fallback suppor
 Built-in strategies are resolved for supported ID types:
 
 ```csharp
-var stringKeyed = ContentManagers.ForStructure<KeyedContentManager<string>>(
-    new KeyedContentStructure<string>());
-var numberKeyed = ContentManagers.ForStructure<KeyedContentManager<long>>(
-    new KeyedContentStructure<long>());
+var stringMap = ContentManagers.ForStructure<ContentMapManager<string>>(
+    new ContentMapStructure<string>());
+var numberMap = ContentManagers.ForStructure<ContentMapManager<long>>(
+    new ContentMapStructure<long>());
 ```
 
-Custom ID types need an explicit strategy or keyed structure:
+Custom ID types need an explicit strategy or map structure:
 
 ```csharp
-var structure = new KeyedContentStructure<MyEntryId>(new MyEntryIdStrategy());
-var content = ContentManagers.ForStructure<KeyedContentManager<MyEntryId>>(structure);
+var structure = new ContentMapStructure<MyEntryId>(new MyEntryIdStrategy());
+var content = ContentManagers.ForStructure<ContentMapManager<MyEntryId>>(structure);
 ```
 
-ID strategies validate caller-provided IDs through `TryNormalize(...)`. They validate restored stored IDs through `TryValidateNormalized(...)`. Both methods must describe the same stored ID language so snapshots cannot restore IDs that the typed keyed API can never address.
+ID strategies validate caller-provided IDs through `TryNormalize(...)`. They validate restored stored IDs through `TryValidateNormalized(...)`. Both methods must describe the same stored ID language so snapshots cannot restore IDs that the typed map API can never address.
 
 ID strategies do not generate IDs.
 
@@ -108,6 +108,8 @@ var structure = new ContentSequenceStructure<MyEntryId>(
 var content = ContentManagers.ForStructure<ContentSequenceManager<MyEntryId>>(structure);
 ```
 
+Single, stack, and compound structures follow the same pattern with `ContentSingleStructure<TId>` / `ContentSingleManager<TId>`, `ContentStackStructure<TId>` / `ContentStackManager<TId>`, and `ContentCompoundStructure<TId>` / `ContentCompoundManager<TId>`.
+
 Mixing manual and generated IDs is allowed, but source state decides how future generated IDs advance. Prefer one approach consistently unless you intentionally want the source to observe manual IDs.
 
 Generated ID sources also participate in sequence snapshots. Sequence restore validates every restored stored ID through the source strategy and observes those IDs before future generated IDs are created. Custom sequence extensions can use `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` to get the same restore behavior as built-in generic sequence structures.
@@ -118,7 +120,7 @@ Structure-specific and typed-manager code should use natural lookup methods:
 
 ```csharp
 ContentEntryRecord sequenceRecord = sequence.Get(1);
-ContentEntryRecord keyedRecord = keyed.Get("entry-1");
+ContentEntryRecord mapRecord = map.Get("entry-1");
 ```
 
 For structure-assigned IDs, the structure resolves to a manager with the natural ID type:
@@ -136,4 +138,4 @@ Structure-agnostic code can use `ContentEntryId`:
 ContentEntryRecord record = content.Get(storedId);
 ```
 
-Missing IDs use `ContentFailureCodes.EntryNotFound`. Invalid or duplicate keyed IDs use `EntryIdInvalid` or `EntryIdDuplicate`.
+Missing IDs use `ContentFailureCodes.EntryNotFound`. Invalid or duplicate map, sequence, single, stack, or compound IDs use `EntryIdInvalid` or `EntryIdDuplicate` where the operation accepts explicit IDs.

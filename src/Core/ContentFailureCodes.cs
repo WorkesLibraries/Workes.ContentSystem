@@ -61,6 +61,11 @@ public static class ContentFailureCodes
     public const string StructureUnsupportedOperation = PackagePrefix + "structure.unsupported_operation";
 
     /// <summary>
+    /// Structure capacity has been reached.
+    /// </summary>
+    public const string StructureCapacityReached = PackagePrefix + "structure.capacity_reached";
+
+    /// <summary>
     /// Structure resolved to a manager that does not match the requested manager type.
     /// </summary>
     public const string ManagerMismatch = PackagePrefix + "manager.mismatch";

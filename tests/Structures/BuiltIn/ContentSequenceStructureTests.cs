@@ -184,6 +184,23 @@ public sealed class ContentSequenceStructureTests
     }
 
     [Test]
+    public void OverflowPolicy_Reject_StoresCapacity()
+    {
+        ContentOverflowPolicy policy = ContentOverflowPolicy.Reject(3);
+
+        Assert.That(policy.Kind, Is.EqualTo(ContentOverflowPolicyKind.Reject));
+        Assert.That(policy.Capacity, Is.EqualTo(3));
+        Assert.That(policy.ToString(), Is.EqualTo("Reject(3)"));
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void OverflowPolicy_Reject_InvalidCapacityThrows(int capacity)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => ContentOverflowPolicy.Reject(capacity));
+    }
+
+    [Test]
     public void OverflowPolicy_EqualityIsValueBased()
     {
         ContentOverflowPolicy none = ContentOverflowPolicy.None;
@@ -197,6 +214,43 @@ public sealed class ContentSequenceStructureTests
         Assert.That(bounded.GetHashCode(), Is.EqualTo(sameBounded.GetHashCode()));
         Assert.That(bounded, Is.Not.EqualTo(differentBounded));
         Assert.That(bounded, Is.Not.EqualTo(none));
+    }
+
+    [Test]
+    public void Add_WhenRejectCapacityReached_ReturnsCapacityFailureAndEmitsNoEvent()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.Reject(1));
+        structure.Add(Entry("First"));
+        int eventCount = 0;
+        structure.Changed += (_, _) => eventCount++;
+
+        bool accepted = structure.TryAdd(Entry("Second"), out ContentEntryRecord? record, out ContentFailure? failure);
+
+        Assert.That(accepted, Is.False);
+        Assert.That(record, Is.Null);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.StructureCapacityReached));
+        Assert.That(eventCount, Is.EqualTo(0));
+        Assert.That(structure.Records.Select(item => item.PlainText), Is.EqualTo(new[] { "First" }));
+    }
+
+    [Test]
+    public void SetStructureParameter_ToRejectBelowRetainedCountFailsAtomically()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+        structure.Add(Entry("First"));
+        structure.Add(Entry("Second"));
+        var manager = new ContentSequenceManager(structure);
+
+        bool accepted = manager.TrySetStructureParameter(
+            ContentSequenceStructure.OverflowPolicyParameterId,
+            ContentOverflowPolicy.Reject(1),
+            out IReadOnlyList<ContentEntryRecord> removed,
+            out ContentFailure? failure);
+
+        Assert.That(accepted, Is.False);
+        Assert.That(removed, Is.Empty);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.StructureCapacityReached));
+        Assert.That(manager.Records.Select(item => item.PlainText), Is.EqualTo(new[] { "First", "Second" }));
     }
 
     [Test]

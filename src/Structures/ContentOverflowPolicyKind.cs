@@ -13,5 +13,10 @@ public enum ContentOverflowPolicyKind
     /// <summary>
     /// Drop the oldest retained record when capacity is full.
     /// </summary>
-    DropOldest
+    DropOldest,
+
+    /// <summary>
+    /// Reject new records when capacity is full.
+    /// </summary>
+    Reject
 }

@@ -52,6 +52,11 @@ internal static class ContentFailures
         return Create(ContentFailureKind.Structure, ContentFailureCodes.StructureUnsupportedOperation, message);
     }
 
+    public static ContentFailure StructureCapacityReached(string? message = null, string? source = null)
+    {
+        return Create(ContentFailureKind.Structure, ContentFailureCodes.StructureCapacityReached, message, source: source);
+    }
+
     public static ContentFailure ManagerMismatch(string? message = null, string? source = null)
     {
         return Create(ContentFailureKind.Structure, ContentFailureCodes.ManagerMismatch, message, source: source);

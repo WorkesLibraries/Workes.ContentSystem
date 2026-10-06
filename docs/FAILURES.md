@@ -10,6 +10,7 @@ Examples:
 
 - an entry cannot be added because a structure is read-only;
 - an entry ID cannot be found;
+- a structure with a reject capacity policy is full;
 - an export attachment cannot handle the active structure;
 - a persistence operation fails in a recoverable way;
 - a bridge rejects an entry because it cannot map the entry type.
@@ -59,7 +60,9 @@ Manager workflow resolution uses structured failures for expected rejection:
 
 - `ManagerMismatch` when typed manager resolution expects a different manager type than the structure creates.
 
-Snapshot capture and restore use `ContentFailureKind.Snapshot` for expected rejection such as unsupported entries or structures, missing or duplicate restore factories, malformed snapshot payloads, unsupported snapshot versions, or codec rejection. Keyed snapshot restore can also surface `EntryIdInvalid` when a restored stored ID is rejected by the configured ID strategy.
+Structure capacity rejection uses `ContentFailureCodes.StructureCapacityReached`. Built-in sequence and stack structures return it when `ContentOverflowPolicy.Reject(capacity)` is full, and single-entry structures return it when `ContentSingleReplacementPolicy.Reject` blocks replacement.
+
+Snapshot capture and restore use `ContentFailureKind.Snapshot` for expected rejection such as unsupported entries or structures, missing or duplicate restore factories, malformed snapshot payloads, unsupported snapshot versions, or codec rejection. Map snapshot restore can also surface `EntryIdInvalid` when a restored stored ID is rejected by the configured ID strategy.
 
 ## Why This Matters
 

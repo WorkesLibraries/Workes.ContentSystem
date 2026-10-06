@@ -31,6 +31,11 @@ public enum ContentChangeKind
     ConfigurationChanged,
 
     /// <summary>
+    /// One or more records were replaced.
+    /// </summary>
+    Replaced,
+
+    /// <summary>
     /// The active content source was restored from a snapshot.
     /// </summary>
     SnapshotRestored

@@ -18,15 +18,17 @@ See [Content Identity](CONTENT_IDENTITY.md) for stored IDs, caller-provided IDs,
 
 A content structure owns storage behavior.
 
-The first implementation is a configurable sequence structure: new entries are appended, retention is controlled by `ContentOverflowPolicy`, and consumers can choose oldest-first or newest-first read order.
+The sequence structure appends entries, retention is controlled by `ContentOverflowPolicy`, and consumers can choose oldest-first or newest-first read order.
 
-A keyed structure is also available for callers that want to provide typed IDs directly. It uses an ID strategy to validate and normalize those IDs.
+A map structure is also available for callers that want to provide typed IDs directly. It uses an ID strategy to validate and normalize those IDs.
+
+Single-entry, stack, and compound structures cover current-state, last-in-first-out, and tree-shaped workflows. They use configurable state such as replacement policy, overflow policy, read order, child-removal policy, and sibling order instead of splitting into separate policy-specific types.
 
 Other structures can behave very differently. A forum-like structure might group entries by thread. A chat structure might group by channel. A searchable structure might maintain indexes. A snapshot-aware structure might capture and restore portable state.
 
 ### Why Structures Own Content
 
-ContentSystem intentionally differs from Workes.InventorySystem here. In InventorySystem, the inventory owns item instances and layouts decide where those instances are placed. Content can be more structurally varied: a sequence, keyed map, stack, group tree, or threaded forum may each own a different retained content model.
+ContentSystem intentionally differs from Workes.InventorySystem here. In InventorySystem, the inventory owns item instances and layouts decide where those instances are placed. Content can be more structurally varied: a sequence, map, stack, group tree, or threaded forum may each own a different retained content model.
 
 For that reason, ContentSystem structures own retained content state. Managers provide the normal public workflow over a structure, but they do not keep a separate canonical record store. This keeps future grouped and threaded structures from being forced into a flat storage-plus-placement model.
 
@@ -34,9 +36,9 @@ For that reason, ContentSystem structures own retained content state. Managers p
 
 Manager workflows are created by structures.
 
-Use `ContentManagers.ForStructure(...)` to resolve a manager from a structure. `ContentSequenceStructure` creates `ContentSequenceManager` with natural numeric lookup. `KeyedContentStructure<TId>` creates `KeyedContentManager<TId>`.
+Use `ContentManagers.ForStructure(...)` to resolve a manager from a structure. `ContentSequenceStructure` creates `ContentSequenceManager` with natural numeric lookup. `ContentMapStructure<TId>` creates `ContentMapManager<TId>`. `ContentSingleStructure`, `ContentStackStructure`, and `ContentCompoundStructure` create managers tailored to their state, stack, and hierarchy workflows.
 
-Direct manager constructors remain available for explicit setup, tests, and advanced scenarios. Built-in ID strategies are resolved for supported keyed ID types, and custom ID types can provide custom strategies.
+Direct manager constructors remain available for explicit setup, tests, and advanced scenarios. Built-in ID strategies are resolved for supported map ID types, and custom ID types can provide custom strategies.
 
 `ContentManagerBase` provides shared read and lookup plumbing for code that can work with existing managers from any workflow. It is common infrastructure, not a construction path. Tailored managers coordinate operations by delegating to structures that support the relevant focused contracts.
 
@@ -52,7 +54,7 @@ See [Content Changes](CONTENT_CHANGES.md) for event payloads and hook semantics.
 
 ## Snapshots And Attachments
 
-Portable snapshots are the serialization foundation. Entry snapshots are implemented for `PlainContentEntry` and custom opt-in entries. Record and structure snapshot DTOs describe retained IDs, entry payload snapshots, and structure-owned state. Built-in sequence and keyed structures can capture and restore whole-structure snapshots through their round-trippable snapshot factories.
+Portable snapshots are the serialization foundation. Entry snapshots are implemented for `PlainContentEntry` and custom opt-in entries. Record and structure snapshot DTOs describe retained IDs, entry payload snapshots, and structure-owned state. Built-in sequence, map, single, stack, and compound structures can capture and restore whole-structure snapshots through their round-trippable snapshot factories.
 
 Export, file appenders, log bridges, and platform integrations should be optional. The core package should make those capabilities possible without forcing every structure or every user to support them.
 

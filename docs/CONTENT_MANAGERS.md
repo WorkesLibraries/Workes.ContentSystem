@@ -49,18 +49,50 @@ var content = new ContentSequenceManager(
 
 The generic type argument does not choose the manager; it asserts what the structure should create. The explicit constructor form is legal, but `ContentManagers.ForStructure(...)` is the recommended path because the structure creates its correct manager.
 
-Use keyed structures for caller-provided typed IDs.
+Use map structures for caller-provided typed IDs.
 
 ```csharp
-var content = ContentManagers.ForStructure<KeyedContentManager<string>>(
-    new KeyedContentStructure<string>());
+var content = ContentManagers.ForStructure<ContentMapManager<string>>(
+    new ContentMapStructure<string>());
 
 ContentEntryRecord record = content.Add(
     "server-started",
     new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
 ```
 
-`KeyedContentManager<TId>` supports the same typed ID shapes as the built-in `KeyedContentStructure<TId>`. Built-in ID strategies are resolved for `string` and `long`. For custom ID types, pass a fully configured keyed structure or a custom `IContentEntryIdStrategy<TId>`.
+`ContentMapManager<TId>` supports the same typed ID shapes as the built-in `ContentMapStructure<TId>`. Built-in ID strategies are resolved for `string` and `long`. For custom ID types, pass a fully configured map structure or a custom `IContentEntryIdStrategy<TId>`.
+
+Use single-entry managers for current-state workflows:
+
+```csharp
+var current = ContentManagers.ForStructure<ContentSingleManager>(
+    new ContentSingleStructure(ContentSingleReplacementPolicy.Replace));
+
+current.Set(new PlainContentEntry(DateTimeOffset.UtcNow, "Current objective"));
+ContentEntryRecord active = current.GetCurrent();
+```
+
+Use stack managers for last-in-first-out workflows:
+
+```csharp
+var stack = ContentManagers.ForStructure<ContentStackManager>(
+    new ContentStackStructure(ContentOverflowPolicy.Reject(capacity: 20)));
+
+stack.Push(new PlainContentEntry(DateTimeOffset.UtcNow, "Opened menu"));
+ContentEntryRecord top = stack.Peek();
+ContentEntryRecord popped = stack.Pop();
+```
+
+Use compound managers for owned-tree workflows:
+
+```csharp
+var tree = ContentManagers.ForStructure<ContentCompoundManager>(
+    new ContentCompoundStructure(ContentCompoundChildRemovalPolicy.RemoveSubtree));
+
+ContentCompoundNode topic = tree.AddRoot(
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Topic"));
+tree.AddChild(1, new PlainContentEntry(DateTimeOffset.UtcNow, "Reply"));
+```
 
 ## Shared Base
 
@@ -76,7 +108,7 @@ It exposes:
 - `TryRestoreSnapshot(...)` and `RestoreSnapshot(...)`;
 - `Changed`.
 
-This is useful when code receives `ContentSequenceManager`, `KeyedContentManager<TId>`, or a custom manager and only needs to read records or look up records by the normalized `ContentEntryId`:
+This is useful when code receives `ContentSequenceManager`, `ContentMapManager<TId>`, or a custom manager and only needs to read records or look up records by the normalized `ContentEntryId`:
 
 ```csharp
 void Render(ContentManagerBase content)
@@ -90,7 +122,7 @@ void Render(ContentManagerBase content)
 
 Most application code should resolve managers from structures. `ContentManagerBase` is abstract, so it is not constructed directly; it exists so multiple manager workflows can be processed through their common read and lookup surface.
 
-Reusable workflow families can also have manager bases. `ContentSequenceManagerBase` and `KeyedContentManagerBase<TId>` hold shared family behavior such as add, typed lookup, typed removal, and clear. The concrete managers remain the normal user-facing types because they can expose concrete structure features without forcing those features onto the whole family.
+Reusable workflow families can also have manager bases. `ContentSequenceManagerBase`, `ContentMapManagerBase<TId>`, `ContentSingleManagerBase<TId>`, `ContentStackManagerBase<TId>`, and `ContentCompoundManagerBase<TId>` hold shared family behavior such as add/set/push/tree operations, typed lookup, typed removal, and clear. The concrete managers remain the normal user-facing types because they can expose concrete structure features without forcing those features onto the whole family.
 
 ## Runtime Mutation
 
@@ -111,13 +143,15 @@ content.Clear();
 
 Parameterized mutation mirrors InventorySystem's runtime configuration style: structures expose stable parameter IDs, and managers coordinate the commit. The first built-in parameter is `ContentSequenceStructure.OverflowPolicyParameterId`, whose value must be a `ContentOverflowPolicy`.
 
-`KeyedContentManager<TId>` exposes typed keyed add, lookup, removal, and clear for the built-in keyed structure:
+`ContentMapManager<TId>` exposes typed map add, lookup, removal, and clear for the built-in map structure:
 
 ```csharp
-var keyed = ContentManagers.ForStructure<KeyedContentManager<string>>(
-    new KeyedContentStructure<string>());
-keyed.Remove("thread-main");
+var map = ContentManagers.ForStructure<ContentMapManager<string>>(
+    new ContentMapStructure<string>());
+map.Remove("thread-main");
 ```
+
+`ContentSingleManager<TId>` exposes set, get-current, remove, and clear. `ContentStackManager<TId>` exposes push, peek, pop, typed lookup/removal, and clear. `ContentCompoundManager<TId>` exposes root/child creation, node traversal, subtree-aware removal, and clear.
 
 Custom structures should expose their own manager when their mutation vocabulary differs from the built-ins.
 
@@ -205,7 +239,7 @@ This split keeps the API explicit. It avoids one broad manager with add methods 
 
 Structures create their normal manager through `IContentStructure.CreateManager()`.
 
-This keeps manager selection close to the structure-owned content model without adding a registry or broad capability metadata. Focused contracts such as keyed add, structure-assigned add, mutation, change hooks, and snapshots still describe the behavior a structure supports.
+This keeps manager selection close to the structure-owned content model without adding a registry or broad capability metadata. Focused contracts such as map add, structure-assigned add, mutation, change hooks, and snapshots still describe the behavior a structure supports.
 
 The untyped path resolves the structure's natural manager:
 

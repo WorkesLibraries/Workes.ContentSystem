@@ -427,13 +427,13 @@ public sealed class ContentSnapshotTests
     }
 
     [Test]
-    public void KeyedContentStructure_ExposesSnapshotFactoryForConfiguredStrategy()
+    public void ContentMapStructure_ExposesSnapshotFactoryForConfiguredStrategy()
     {
-        var structure = new KeyedContentStructure<CustomSnapshotId>(new PrefixIdStrategy());
+        var structure = new ContentMapStructure<CustomSnapshotId>(new PrefixIdStrategy());
         structure.Add(new CustomSnapshotId("good"), Entry("Good"));
         ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
 
-        var restored = (KeyedContentStructure<CustomSnapshotId>)structure.SnapshotFactory.Restore(snapshot);
+        var restored = (ContentMapStructure<CustomSnapshotId>)structure.SnapshotFactory.Restore(snapshot);
 
         Assert.That(restored.Get(new CustomSnapshotId("good")).Entry.PlainText, Is.EqualTo("Good"));
     }
@@ -464,36 +464,36 @@ public sealed class ContentSnapshotTests
     }
 
     [Test]
-    public void KeyedContentStructure_CapturesAndRestoresStringState()
+    public void ContentMapStructure_CapturesAndRestoresStringState()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         structure.Add("entry-1", Entry("One"));
         structure.Add("entry-2", Entry("Two"));
 
         ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
-        var restored = (KeyedContentStructure<string>)ContentStructureSnapshots.Restore(
+        var restored = (ContentMapStructure<string>)ContentStructureSnapshots.Restore(
             snapshot,
-            KeyedContentStructure<string>.CreateSnapshotFactory());
+            ContentMapStructure<string>.CreateSnapshotFactory());
 
         restored.Add("entry-3", Entry("Three"));
 
-        Assert.That(snapshot.Kind, Is.EqualTo(KeyedContentStructure<string>.SnapshotKind));
+        Assert.That(snapshot.Kind, Is.EqualTo(ContentMapStructure<string>.SnapshotKind));
         Assert.That(restored.Records.Select(record => record.Id.Value), Is.EqualTo(new[] { "entry-1", "entry-2", "entry-3" }));
         Assert.That(restored.Get("entry-1").Entry.PlainText, Is.EqualTo("One"));
         Assert.Throws<ContentOperationException>(() => restored.Add("entry-1", Entry("Duplicate")));
     }
 
     [Test]
-    public void KeyedContentStructure_CapturesAndRestoresLongState()
+    public void ContentMapStructure_CapturesAndRestoresLongState()
     {
-        var structure = new KeyedContentStructure<long>();
+        var structure = new ContentMapStructure<long>();
         structure.Add(10, Entry("Ten"));
         structure.Add(20, Entry("Twenty"));
 
         ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
-        var restored = (KeyedContentStructure<long>)ContentStructureSnapshots.Restore(
+        var restored = (ContentMapStructure<long>)ContentStructureSnapshots.Restore(
             snapshot,
-            KeyedContentStructure<long>.CreateSnapshotFactory());
+            ContentMapStructure<long>.CreateSnapshotFactory());
 
         restored.Add(30, Entry("Thirty"));
 
@@ -504,13 +504,13 @@ public sealed class ContentSnapshotTests
     [Test]
     public void StructureRestore_ReturnsMissingFactoryFailureForCustomEntry()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         structure.Add("custom", new UnregisteredSerializableCustomEntry("Custom"));
         ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
 
         bool restored = ContentStructureSnapshots.TryRestore(
             snapshot,
-            KeyedContentStructure<string>.CreateSnapshotFactory(),
+            ContentMapStructure<string>.CreateSnapshotFactory(),
             out IContentStructure? restoredStructure,
             out ContentFailure? failure);
 
@@ -522,30 +522,30 @@ public sealed class ContentSnapshotTests
     [Test]
     public void StructureRestore_UsesCustomEntryFactoryFromRegistry()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         structure.Add("custom", new SerializableCustomEntry("Custom"));
         ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
         ContentEntrySnapshotFactories.Register(SerializableCustomEntry.Factory);
 
-        var restored = (KeyedContentStructure<string>)ContentStructureSnapshots.Restore(
+        var restored = (ContentMapStructure<string>)ContentStructureSnapshots.Restore(
             snapshot,
-            KeyedContentStructure<string>.CreateSnapshotFactory());
+            ContentMapStructure<string>.CreateSnapshotFactory());
 
         Assert.That(restored.Get("custom").Entry, Is.TypeOf<SerializableCustomEntry>());
         Assert.That(restored.Get("custom").Entry.PlainText, Is.EqualTo("Custom"));
     }
 
     [Test]
-    public void KeyedRestore_RejectsLongSnapshotIdOutsideConfiguredStrategy()
+    public void MapRestore_RejectsLongSnapshotIdOutsideConfiguredStrategy()
     {
-        var structure = new KeyedContentStructure<long>();
+        var structure = new ContentMapStructure<long>();
         structure.Add(1, Entry("One"));
         ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
         snapshot.Records[0].EntryId = "abc";
 
         bool restored = ContentStructureSnapshots.TryRestore(
             snapshot,
-            KeyedContentStructure<long>.CreateSnapshotFactory(),
+            ContentMapStructure<long>.CreateSnapshotFactory(),
             out IContentStructure? restoredStructure,
             out ContentFailure? failure);
 
@@ -555,16 +555,16 @@ public sealed class ContentSnapshotTests
     }
 
     [Test]
-    public void KeyedRestore_UsesCustomStrategyNormalizedValidation()
+    public void MapRestore_UsesCustomStrategyNormalizedValidation()
     {
-        var structure = new KeyedContentStructure<CustomSnapshotId>(new PrefixIdStrategy());
+        var structure = new ContentMapStructure<CustomSnapshotId>(new PrefixIdStrategy());
         structure.Add(new CustomSnapshotId("good"), Entry("Good"));
         ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
         snapshot.Records[0].EntryId = "bad";
 
         bool restored = ContentStructureSnapshots.TryRestore(
             snapshot,
-            KeyedContentStructure<CustomSnapshotId>.CreateSnapshotFactory(new PrefixIdStrategy()),
+            ContentMapStructure<CustomSnapshotId>.CreateSnapshotFactory(new PrefixIdStrategy()),
             out IContentStructure? restoredStructure,
             out ContentFailure? failure);
 
@@ -595,7 +595,7 @@ public sealed class ContentSnapshotTests
     [Test]
     public void StructureRestore_RejectsDuplicateRecordIds()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
         structure.Add("entry-1", Entry("One"));
         structure.Add("entry-2", Entry("Two"));
         ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
@@ -603,7 +603,7 @@ public sealed class ContentSnapshotTests
 
         bool restored = ContentStructureSnapshots.TryRestore(
             snapshot,
-            KeyedContentStructure<string>.CreateSnapshotFactory(),
+            ContentMapStructure<string>.CreateSnapshotFactory(),
             out IContentStructure? restoredStructure,
             out ContentFailure? failure);
 
@@ -830,16 +830,16 @@ public sealed class ContentSnapshotTests
     }
 
     [Test]
-    public void CustomKeyedStructure_UsesStrategyValidationDuringSnapshotRestore()
+    public void CustomMapStructure_UsesStrategyValidationDuringSnapshotRestore()
     {
-        var structure = new ExampleKeyedStructure(new PrefixIdStrategy());
+        var structure = new ExampleMapStructure(new PrefixIdStrategy());
         structure.Add(new CustomSnapshotId("good"), Entry("Good"));
         ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
         snapshot.Records[0].EntryId = "bad";
 
         bool restored = ContentStructureSnapshots.TryRestore(
             snapshot,
-            new ExampleKeyedStructure.Factory(new PrefixIdStrategy()),
+            new ExampleMapStructure.Factory(new PrefixIdStrategy()),
             out IContentStructure? restoredStructure,
             out ContentFailure? failure);
 
@@ -849,14 +849,14 @@ public sealed class ContentSnapshotTests
     }
 
     [Test]
-    public void CustomKeyedStructure_RestoresThroughManagerWithoutExplicitFactory()
+    public void CustomMapStructure_RestoresThroughManagerWithoutExplicitFactory()
     {
-        var sourceStructure = new ExampleKeyedStructure(new PrefixIdStrategy());
-        var source = new ExampleKeyedManager(sourceStructure);
+        var sourceStructure = new ExampleMapStructure(new PrefixIdStrategy());
+        var source = new ExampleMapManager(sourceStructure);
         source.Add(new CustomSnapshotId("quest"), Entry("Quest"));
         ContentStructureSnapshot snapshot = source.CaptureSnapshot();
 
-        var target = new ExampleKeyedManager(new ExampleKeyedStructure(new PrefixIdStrategy()));
+        var target = new ExampleMapManager(new ExampleMapStructure(new PrefixIdStrategy()));
 
         target.RestoreSnapshot(snapshot);
 
@@ -1880,21 +1880,21 @@ public sealed class ContentSnapshotTests
         }
     }
 
-    private sealed class ExampleKeyedStructure : KeyedContentStructureBase<CustomSnapshotId>, IContentStructureSnapshotRoundTrippable
+    private sealed class ExampleMapStructure : ContentMapStructureBase<CustomSnapshotId>, IContentStructureSnapshotRoundTrippable
     {
-        public const string SnapshotKind = "test.structure.keyed";
+        public const string SnapshotKind = "test.structure.map";
 
         public const int SnapshotDataVersion = 1;
 
         private readonly PrefixIdStrategy _strategy;
         private readonly List<ContentEntryRecord> _records;
 
-        public ExampleKeyedStructure(PrefixIdStrategy strategy)
+        public ExampleMapStructure(PrefixIdStrategy strategy)
             : this(strategy, Enumerable.Empty<ContentEntryRecord>())
         {
         }
 
-        private ExampleKeyedStructure(PrefixIdStrategy strategy, IEnumerable<ContentEntryRecord> records)
+        private ExampleMapStructure(PrefixIdStrategy strategy, IEnumerable<ContentEntryRecord> records)
         {
             _strategy = strategy;
             _records = records.ToList();
@@ -1906,7 +1906,7 @@ public sealed class ContentSnapshotTests
 
         public override ContentManagerBase CreateManager()
         {
-            return new ExampleKeyedManager(this);
+            return new ExampleMapManager(this);
         }
 
         public override bool TryAdd(CustomSnapshotId id, IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
@@ -1944,6 +1944,50 @@ public sealed class ContentSnapshotTests
             throw new ContentOperationException(failure!);
         }
 
+        public override bool TrySet(
+            CustomSnapshotId id,
+            IContentEntry entry,
+            out ContentEntryRecord? record,
+            out ContentEntryRecord? replacedRecord,
+            out ContentFailure? failure)
+        {
+            if (entry is null)
+            {
+                throw new ArgumentNullException(nameof(entry));
+            }
+
+            record = null;
+            replacedRecord = null;
+            if (!_strategy.TryNormalize(id, out ContentEntryId normalizedId, out failure))
+            {
+                return false;
+            }
+
+            record = new ContentEntryRecord(normalizedId, entry);
+            replacedRecord = _records.FirstOrDefault(candidate => candidate.Id.Equals(normalizedId));
+            if (replacedRecord is null)
+            {
+                _records.Add(record);
+            }
+            else
+            {
+                int index = _records.IndexOf(replacedRecord);
+                _records[index] = record;
+            }
+
+            failure = null;
+            return true;
+        }
+
+        public override ContentEntryRecord Set(CustomSnapshotId id, IContentEntry entry)
+        {
+            if (TrySet(id, entry, out ContentEntryRecord? record, out _, out ContentFailure? failure) && record is not null)
+            {
+                return record;
+            }
+
+            throw new ContentOperationException(failure!);
+        }
         public override bool TryGet(CustomSnapshotId id, out ContentEntryRecord? record, out ContentFailure? failure)
         {
             record = null;
@@ -2076,43 +2120,43 @@ public sealed class ContentSnapshotTests
             return removedRecords;
         }
 
-        public sealed class Factory : KeyedContentStructureSnapshotFactoryBase<CustomSnapshotId, ExampleKeyedStructure>
+        public sealed class Factory : ContentMapStructureSnapshotFactoryBase<CustomSnapshotId, ExampleMapStructure>
         {
             public Factory(PrefixIdStrategy strategy)
                 : base(SnapshotKind, SnapshotDataVersion, strategy)
             {
             }
 
-            protected override bool TryRestoreValidatedKeyedSnapshot(
+            protected override bool TryRestoreValidatedMapSnapshot(
                 ContentStructureSnapshot snapshot,
                 ContentEntryRecord[] records,
-                out ExampleKeyedStructure? structure,
+                out ExampleMapStructure? structure,
                 out ContentFailure? failure)
             {
                 structure = null;
-                structure = new ExampleKeyedStructure((PrefixIdStrategy)IdStrategy, records);
+                structure = new ExampleMapStructure((PrefixIdStrategy)IdStrategy, records);
                 failure = null;
                 return true;
             }
         }
     }
 
-    private sealed class ExampleKeyedManager : KeyedContentManagerBase<CustomSnapshotId>
+    private sealed class ExampleMapManager : ContentMapManagerBase<CustomSnapshotId>
     {
-        public ExampleKeyedManager(ExampleKeyedStructure structure)
+        public ExampleMapManager(ExampleMapStructure structure)
             : base(structure)
         {
         }
 
         protected override bool TryAcceptStructureReplacement(IContentStructure structure, out ContentFailure? failure)
         {
-            if (structure is ExampleKeyedStructure)
+            if (structure is ExampleMapStructure)
             {
                 failure = null;
                 return true;
             }
 
-            failure = ContentFailure.Create(ContentFailureKind.Structure, ContentFailureCodes.StructureUnsupportedOperation, "Replacement structure is not an example keyed structure.");
+            failure = ContentFailure.Create(ContentFailureKind.Structure, ContentFailureCodes.StructureUnsupportedOperation, "Replacement structure is not an example map structure.");
             return false;
         }
     }

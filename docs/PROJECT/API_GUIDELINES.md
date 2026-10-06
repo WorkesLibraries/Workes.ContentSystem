@@ -32,11 +32,11 @@ Represent shared read and lookup behavior through `IContentStructure`.
 
 `IContentStructure` exposes `CreateManager()`. This is a deliberate prerelease breaking change so every structure can participate in package-owned manager resolution without a separate workflow registry.
 
-Avoid baking FIFO assumptions into the whole package. `ContentSequenceStructure` provides the first sequence behavior, with unbounded retention and bounded drop-oldest retention expressed through `ContentOverflowPolicy`.
+Avoid baking FIFO assumptions into the whole package. `ContentSequenceStructure` provides sequence behavior, with unbounded retention, bounded drop-oldest retention, and bounded reject retention expressed through `ContentOverflowPolicy`.
 
 Use focused opt-in contracts to expose inspectable structure behavior and supported mutations. For example, retention policy belongs on `IContentRetentionPolicyStructure`, read order belongs on `IContentReadOrderStructure`, clear/remove support belongs on mutation-specific contracts, and runtime configuration belongs on `IParameterizedContentStructure`.
 
-Use structure-family bases when a workflow family has a real shared instruction set. `ContentSequenceStructureBase<TId>` and `KeyedContentStructureBase<TId>` are the current examples, with non-generic long-ID sequence wrappers kept for normal use. Do not create a family base for one-off structures unless it removes real duplication or represents a planned reusable family.
+Use structure-family bases when a workflow family has a real shared instruction set. `ContentSequenceStructureBase<TId>`, `ContentMapStructureBase<TId>`, `ContentSingleStructureBase<TId>`, `ContentStackStructureBase<TId>`, and `ContentCompoundStructureBase<TId>` are current examples, with non-generic long-ID wrappers kept for normal use. Do not create a family base for one-off structures unless it removes real duplication or represents a planned reusable family.
 
 A structure should own:
 
@@ -50,7 +50,9 @@ A structure should own:
 
 Do not force one append method into the base structure abstraction. Structure-assigned-ID structures and caller-provided-ID structures should expose their own write workflows through focused interfaces.
 
-Concrete structures should expose natural lookup and removal overloads for their ID model when removal is supported. For example, sequence generated-ID structures can support `Get(1)` and `Remove(1)` while generic code can continue using `ContentEntryId`. Keyed structures that support typed removal should opt into `IKeyedContentRecordRemovalStructure<TId>`.
+Concrete structures should expose natural lookup and removal overloads for their ID model when removal is supported. For example, sequence, single, and stack generated-ID structures can support `Get(1)` and `Remove(1)` while generic code can continue using `ContentEntryId`. Map structures that support typed removal should opt into `IContentMapRecordRemovalStructure<TId>`.
+
+Prefer configurable structure state over splitting types. For example, use `ContentOverflowPolicy.None`, `DropOldest`, or `Reject` rather than separate bounded/unbounded sequence types, use `ContentSingleReplacementPolicy.Replace` or `Reject` rather than separate replacing/rejecting single-entry structures, and use compound child-removal/read-order policies rather than separate grouped/threaded first-pass types. Split structures only when the workflow vocabulary changes.
 
 ID strategies should validate and normalize typed caller-provided IDs and validate normalized stored IDs restored from snapshots. Generated ID sources should own automatic ID generation and source state. Keep these concepts separate: a source can use a strategy, but a strategy should not generate IDs.
 
@@ -104,7 +106,7 @@ Change hooks should use ordinary synchronous .NET events. Raise them only after 
 
 Snapshots should be serializer-friendly DTOs rather than direct file I/O. Entry snapshot capture should be opt-in on the entry instance, while restore should use a factory object registered in `ContentEntrySnapshotFactories`. Structure snapshot round trips should be opt-in on the structure through `IContentStructureSnapshotRoundTrippable`, and normal manager restore should use the active structure's `SnapshotFactory`. Explicit structure factories remain available for migration and advanced restore targets. Record and structure snapshots should keep stored IDs and structure data in serializer-friendly forms. Unsupported custom entries or structures should fail snapshot capture or restore with structured failures unless they opt in.
 
-Structure extension helpers should reduce boilerplate without making inheritance mandatory. `ContentStructureSnapshotFactoryBase<TStructure>`, `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>`, `ContentSequenceStructureSnapshotFactoryBase<TStructure>`, `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>`, `ContentSnapshotRecords`, and `ContentSnapshotProperties` are convenience APIs for extension authors; direct implementation of the snapshot interfaces remains valid.
+Structure extension helpers should reduce boilerplate without making inheritance mandatory. `ContentStructureSnapshotFactoryBase<TStructure>`, `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>`, `ContentSequenceStructureSnapshotFactoryBase<TStructure>`, `ContentMapStructureSnapshotFactoryBase<TId, TStructure>`, `ContentCompoundStructureSnapshotFactoryBase<TId, TStructure>`, `ContentSnapshotRecords`, and `ContentSnapshotProperties` are convenience APIs for extension authors; direct implementation of the snapshot interfaces remains valid.
 
 Custom manager workflows should follow the same pattern: a custom structure returns its custom manager from `CreateManager()`, and callers can use `ContentManagers.ForStructure<TManager>(structure)` when they want typed validation. A typed mismatch fails through structured ContentSystem failures.
 

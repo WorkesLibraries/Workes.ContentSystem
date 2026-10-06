@@ -4,12 +4,12 @@ using Workes.ContentSystem.Core;
 
 namespace Workes.ContentSystem.Tests.Core;
 
-public sealed class KeyedContentManagerTests
+public sealed class ContentMapManagerTests
 {
     [Test]
-    public void DefaultStringManager_UsesKeyedStrategy()
+    public void DefaultStringManager_UsesMapStrategy()
     {
-        var manager = new KeyedContentManager<string>();
+        var manager = new ContentMapManager<string>();
 
         ContentEntryRecord added = manager.Add("entry-1", Entry("First"));
 
@@ -18,9 +18,9 @@ public sealed class KeyedContentManagerTests
     }
 
     [Test]
-    public void DefaultLongManager_UsesKeyedStrategy()
+    public void DefaultLongManager_UsesMapStrategy()
     {
-        var manager = new KeyedContentManager<long>();
+        var manager = new ContentMapManager<long>();
 
         ContentEntryRecord added = manager.Add(8, Entry("Eighth"));
 
@@ -31,25 +31,25 @@ public sealed class KeyedContentManagerTests
     [Test]
     public void Constructor_NullStrategyThrows()
     {
-        Assert.Throws<ArgumentNullException>(() => new KeyedContentManager<string>((IContentEntryIdStrategy<string>)null!));
+        Assert.Throws<ArgumentNullException>(() => new ContentMapManager<string>((IContentEntryIdStrategy<string>)null!));
     }
 
     [Test]
     public void Constructor_UnsupportedDefaultStrategyThrows()
     {
-        Assert.Throws<NotSupportedException>(() => new KeyedContentManager<Guid>());
+        Assert.Throws<NotSupportedException>(() => new ContentMapManager<Guid>());
     }
 
     [Test]
     public void Constructor_NullStructureThrows()
     {
-        Assert.Throws<ArgumentNullException>(() => new KeyedContentManager<string>((KeyedContentStructure<string>)null!));
+        Assert.Throws<ArgumentNullException>(() => new ContentMapManager<string>((ContentMapStructure<string>)null!));
     }
 
     [Test]
-    public void Changed_ForwardsKeyedStructureEventsWithManagerSender()
+    public void Changed_ForwardsMapStructureEventsWithManagerSender()
     {
-        var manager = new KeyedContentManager<string>();
+        var manager = new ContentMapManager<string>();
         ContentChangedEventArgs? changedArgs = null;
         object? sender = null;
         manager.Changed += (eventSender, args) =>
@@ -66,9 +66,9 @@ public sealed class KeyedContentManagerTests
     }
 
     [Test]
-    public void KeyedManagerBase_DelegatesSharedKeyedOperations()
+    public void MapManagerBase_DelegatesSharedMapOperations()
     {
-        KeyedContentManagerBase<string> manager = new KeyedContentManager<string>();
+        ContentMapManagerBase<string> manager = new ContentMapManager<string>();
 
         ContentEntryRecord added = manager.Add("entry", Entry("Stored"));
         bool found = manager.TryGet("entry", out ContentEntryRecord? foundRecord, out ContentFailure? getFailure);
@@ -89,7 +89,7 @@ public sealed class KeyedContentManagerTests
     [Test]
     public void TryAdd_DuplicateIdReturnsFailure()
     {
-        var manager = new KeyedContentManager<string>();
+        var manager = new ContentMapManager<string>();
         manager.Add("duplicate", Entry("First"));
 
         bool accepted = manager.TryAdd("duplicate", Entry("Second"), out ContentEntryRecord? record, out ContentFailure? failure);
@@ -103,7 +103,7 @@ public sealed class KeyedContentManagerTests
     [Test]
     public void Add_InvalidIdThrowsContentOperationException()
     {
-        var manager = new KeyedContentManager<string>();
+        var manager = new ContentMapManager<string>();
 
         ContentOperationException? exception = Assert.Throws<ContentOperationException>(() => manager.Add("   ", Entry("Invalid")));
 
@@ -114,7 +114,7 @@ public sealed class KeyedContentManagerTests
     [Test]
     public void TryGet_MissingIdReturnsEntryNotFoundFailure()
     {
-        var manager = new KeyedContentManager<string>();
+        var manager = new ContentMapManager<string>();
 
         bool found = manager.TryGet("missing", out ContentEntryRecord? record, out ContentFailure? failure);
 
@@ -127,7 +127,7 @@ public sealed class KeyedContentManagerTests
     [Test]
     public void TryRemove_WithTypedId_RemovesRecord()
     {
-        var manager = new KeyedContentManager<string>();
+        var manager = new ContentMapManager<string>();
         ContentEntryRecord added = manager.Add("entry", Entry("Stored"));
 
         bool removed = manager.TryRemove("entry", out ContentEntryRecord? removedRecord, out ContentFailure? failure);
@@ -141,7 +141,7 @@ public sealed class KeyedContentManagerTests
     [Test]
     public void TryRemove_DuplicateOrMissingSemanticsArePreserved()
     {
-        var manager = new KeyedContentManager<string>();
+        var manager = new ContentMapManager<string>();
 
         bool removed = manager.TryRemove("missing", out ContentEntryRecord? removedRecord, out ContentFailure? failure);
 
@@ -154,7 +154,7 @@ public sealed class KeyedContentManagerTests
     [Test]
     public void Remove_InvalidIdThrowsContentOperationException()
     {
-        var manager = new KeyedContentManager<string>();
+        var manager = new ContentMapManager<string>();
 
         ContentOperationException? exception = Assert.Throws<ContentOperationException>(() => manager.Remove("   "));
 
@@ -165,7 +165,7 @@ public sealed class KeyedContentManagerTests
     [Test]
     public void Clear_UsesBaseManagerMutation()
     {
-        var manager = new KeyedContentManager<string>();
+        var manager = new ContentMapManager<string>();
         ContentEntryRecord first = manager.Add("first", Entry("First"));
         ContentEntryRecord second = manager.Add("second", Entry("Second"));
 
@@ -176,9 +176,9 @@ public sealed class KeyedContentManagerTests
     }
 
     [Test]
-    public void Changed_ForwardsKeyedRemovalEventWithManagerSender()
+    public void Changed_ForwardsMapRemovalEventWithManagerSender()
     {
-        var manager = new KeyedContentManager<string>();
+        var manager = new ContentMapManager<string>();
         manager.Add("entry", Entry("Stored"));
         ContentChangedEventArgs? changedArgs = null;
         object? sender = null;
@@ -198,7 +198,7 @@ public sealed class KeyedContentManagerTests
     [Test]
     public void Get_MissingIdThrowsContentOperationException()
     {
-        var manager = new KeyedContentManager<string>();
+        var manager = new ContentMapManager<string>();
 
         ContentOperationException? exception = Assert.Throws<ContentOperationException>(() => manager.Get("missing"));
 
@@ -209,7 +209,7 @@ public sealed class KeyedContentManagerTests
     [Test]
     public void Add_NullEntryThrows()
     {
-        var manager = new KeyedContentManager<string>();
+        var manager = new ContentMapManager<string>();
 
         Assert.Throws<ArgumentNullException>(() => manager.Add("entry", null!));
     }

@@ -10,8 +10,8 @@ It is intended to be useful anywhere an application needs an ordered or structur
 ## Highlights
 
 - Extensible content entries instead of one fixed message shape.
-- Pluggable content structures, starting with a configurable sequence structure.
-- Structure-driven manager resolution for sequence, keyed, and custom workflows.
+- Pluggable content structures for sequences, maps, single-entry state, stacks, compound trees, and custom workflows.
+- Structure-driven manager resolution for each built-in structure family.
 - Structure-owned entry identity so different storage models can use the IDs that fit them.
 - Optional change hooks for observing committed mutations.
 - Entry, record, and built-in structure snapshots for portable serialization.
@@ -23,13 +23,13 @@ It is intended to be useful anywhere an application needs an ordered or structur
 Install the package from [NuGet](https://www.nuget.org/packages/Workes.ContentSystem):
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.6.0
+dotnet add package Workes.ContentSystem --version 0.7.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.6.0" />
+<PackageReference Include="Workes.ContentSystem" Version="0.7.0" />
 ```
 
 The package targets .NET Standard 2.1.
@@ -64,15 +64,45 @@ ContentSequenceManager sequence =
         new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(capacity: 200)));
 ```
 
-For caller-provided IDs, resolve a keyed structure:
+For caller-provided IDs, resolve a map structure:
 
 ```csharp
-var content = ContentManagers.ForStructure<KeyedContentManager<string>>(
-    new KeyedContentStructure<string>());
+var content = ContentManagers.ForStructure<ContentMapManager<string>>(
+    new ContentMapStructure<string>());
 
 content.Add("server-started", new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
 
 ContentEntryRecord record = content.Get("server-started");
+```
+
+For state that should retain only one current entry, use a single-entry structure:
+
+```csharp
+var current = ContentManagers.ForStructure<ContentSingleManager>(
+    new ContentSingleStructure(ContentSingleReplacementPolicy.Replace));
+
+current.Set(new PlainContentEntry(DateTimeOffset.UtcNow, "Current objective"));
+```
+
+For last-in-first-out workflows, use a stack:
+
+```csharp
+var stack = ContentManagers.ForStructure<ContentStackManager>(
+    new ContentStackStructure(ContentOverflowPolicy.Reject(capacity: 20)));
+
+stack.Push(new PlainContentEntry(DateTimeOffset.UtcNow, "Opened menu"));
+ContentEntryRecord top = stack.Peek();
+```
+
+For hierarchy-like content, use a compound structure:
+
+```csharp
+var tree = ContentManagers.ForStructure<ContentCompoundManager>(
+    new ContentCompoundStructure(ContentCompoundChildRemovalPolicy.RemoveSubtree));
+
+ContentCompoundNode topic = tree.AddRoot(
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Topic"));
+tree.AddChild(1, new PlainContentEntry(DateTimeOffset.UtcNow, "Reply"));
 ```
 
 See the [Quick Start](docs/QUICK_START.md) for the beginner-first walkthrough.

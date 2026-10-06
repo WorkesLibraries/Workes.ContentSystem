@@ -4,21 +4,21 @@ using System.Collections.Generic;
 namespace Workes.ContentSystem.Core;
 
 /// <summary>
-/// Stores content records keyed by caller-provided IDs validated by an ID strategy.
+/// Stores content records in a map keyed by caller-provided IDs validated by an ID strategy.
 /// </summary>
 /// <typeparam name="TId">The caller-facing ID type.</typeparam>
-public sealed class KeyedContentStructure<TId> :
-    KeyedContentStructureBase<TId>,
+public sealed class ContentMapStructure<TId> :
+    ContentMapStructureBase<TId>,
     IContentStructureSnapshotRoundTrippable,
     IContentChangeSource
 {
     /// <summary>
-    /// Stable structure snapshot kind for <see cref="KeyedContentStructure{TId}"/>.
+    /// Stable structure snapshot kind for <see cref="ContentMapStructure{TId}"/>.
     /// </summary>
-    public const string SnapshotKind = ContentFailureCodes.PackagePrefix + "structure.keyed";
+    public const string SnapshotKind = ContentFailureCodes.PackagePrefix + "structure.map";
 
     /// <summary>
-    /// Current keyed structure snapshot data version.
+    /// Current map structure snapshot data version.
     /// </summary>
     public const int SnapshotDataVersion = 1;
 
@@ -26,23 +26,23 @@ public sealed class KeyedContentStructure<TId> :
     private readonly List<ContentEntryRecord> _records = new List<ContentEntryRecord>();
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="KeyedContentStructure{TId}"/> class with the default strategy for <typeparamref name="TId"/>.
+    /// Initializes a new instance of the <see cref="ContentMapStructure{TId}"/> class with the default strategy for <typeparamref name="TId"/>.
     /// </summary>
-    public KeyedContentStructure()
+    public ContentMapStructure()
         : this(ContentEntryIdStrategies.GetDefault<TId>())
     {
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="KeyedContentStructure{TId}"/> class.
+    /// Initializes a new instance of the <see cref="ContentMapStructure{TId}"/> class.
     /// </summary>
     /// <param name="idStrategy">The strategy used to validate and normalize caller-provided IDs.</param>
-    public KeyedContentStructure(IContentEntryIdStrategy<TId> idStrategy)
+    public ContentMapStructure(IContentEntryIdStrategy<TId> idStrategy)
     {
         IdStrategy = idStrategy ?? throw new ArgumentNullException(nameof(idStrategy));
     }
 
-    private KeyedContentStructure(
+    private ContentMapStructure(
         IContentEntryIdStrategy<TId> idStrategy,
         IEnumerable<ContentEntryRecord> records)
         : this(idStrategy)
@@ -55,7 +55,7 @@ public sealed class KeyedContentStructure<TId> :
     }
 
     /// <summary>
-    /// Creates a snapshot factory for <see cref="KeyedContentStructure{TId}"/> using the default ID strategy for <typeparamref name="TId"/>.
+    /// Creates a snapshot factory for <see cref="ContentMapStructure{TId}"/> using the default ID strategy for <typeparamref name="TId"/>.
     /// </summary>
     /// <returns>The created snapshot factory.</returns>
     public static IContentStructureSnapshotFactory CreateSnapshotFactory()
@@ -64,13 +64,13 @@ public sealed class KeyedContentStructure<TId> :
     }
 
     /// <summary>
-    /// Creates a snapshot factory for <see cref="KeyedContentStructure{TId}"/>.
+    /// Creates a snapshot factory for <see cref="ContentMapStructure{TId}"/>.
     /// </summary>
     /// <param name="idStrategy">The ID strategy to use for future operations on restored structures.</param>
     /// <returns>The created snapshot factory.</returns>
     public static IContentStructureSnapshotFactory CreateSnapshotFactory(IContentEntryIdStrategy<TId> idStrategy)
     {
-        return new KeyedContentStructureSnapshotFactory(idStrategy);
+        return new ContentMapStructureSnapshotFactory(idStrategy);
     }
 
     /// <summary>
@@ -81,7 +81,7 @@ public sealed class KeyedContentStructure<TId> :
     /// <inheritdoc />
     public override ContentManagerBase CreateManager()
     {
-        return new KeyedContentManager<TId>(this);
+        return new ContentMapManager<TId>(this);
     }
 
     /// <inheritdoc />
@@ -144,6 +144,58 @@ public sealed class KeyedContentStructure<TId> :
     public override ContentEntryRecord Add(TId id, IContentEntry entry)
     {
         if (TryAdd(id, entry, out ContentEntryRecord? record, out ContentFailure? failure))
+        {
+            return record!;
+        }
+
+        throw new ContentOperationException(failure!);
+    }
+
+    /// <inheritdoc />
+    public override bool TrySet(
+        TId id,
+        IContentEntry entry,
+        out ContentEntryRecord? record,
+        out ContentEntryRecord? replacedRecord,
+        out ContentFailure? failure)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        record = null;
+        replacedRecord = null;
+        if (!TryNormalize(id, out ContentEntryId normalizedId, out failure))
+        {
+            return false;
+        }
+
+        record = new ContentEntryRecord(normalizedId, entry);
+        if (_recordsById.TryGetValue(normalizedId, out replacedRecord))
+        {
+            int index = _records.IndexOf(replacedRecord);
+            _records[index] = record;
+            _recordsById[normalizedId] = record;
+            failure = null;
+            OnChanged(new ContentChangedEventArgs(
+                addedRecords: new[] { record },
+                removedRecords: new[] { replacedRecord },
+                kind: ContentChangeKind.Replaced));
+            return true;
+        }
+
+        _recordsById.Add(normalizedId, record);
+        _records.Add(record);
+        failure = null;
+        OnChanged(new ContentChangedEventArgs(new[] { record }, kind: ContentChangeKind.Added));
+        return true;
+    }
+
+    /// <inheritdoc />
+    public override ContentEntryRecord Set(TId id, IContentEntry entry)
+    {
+        if (TrySet(id, entry, out ContentEntryRecord? record, out _, out ContentFailure? failure))
         {
             return record!;
         }
@@ -365,17 +417,17 @@ public sealed class KeyedContentStructure<TId> :
         Changed?.Invoke(this, args);
     }
 
-    private sealed class KeyedContentStructureSnapshotFactory : KeyedContentStructureSnapshotFactoryBase<TId, KeyedContentStructure<TId>>
+    private sealed class ContentMapStructureSnapshotFactory : ContentMapStructureSnapshotFactoryBase<TId, ContentMapStructure<TId>>
     {
-        public KeyedContentStructureSnapshotFactory(IContentEntryIdStrategy<TId> idStrategy)
+        public ContentMapStructureSnapshotFactory(IContentEntryIdStrategy<TId> idStrategy)
             : base(SnapshotKind, SnapshotDataVersion, idStrategy)
         {
         }
 
-        protected override bool TryRestoreValidatedKeyedSnapshot(
+        protected override bool TryRestoreValidatedMapSnapshot(
             ContentStructureSnapshot snapshot,
             ContentEntryRecord[] records,
-            out KeyedContentStructure<TId>? structure,
+            out ContentMapStructure<TId>? structure,
             out ContentFailure? failure)
         {
             structure = null;
@@ -383,11 +435,11 @@ public sealed class KeyedContentStructure<TId> :
 
             if (snapshot.Data is null || snapshot.Data.Kind != ContentSnapshotValueKind.Object)
             {
-                failure = ContentFailures.SnapshotMalformed("Keyed structure snapshot data must be an object.");
+                failure = ContentFailures.SnapshotMalformed("Map structure snapshot data must be an object.");
                 return false;
             }
 
-            structure = new KeyedContentStructure<TId>(IdStrategy, records);
+            structure = new ContentMapStructure<TId>(IdStrategy, records);
             return true;
         }
     }

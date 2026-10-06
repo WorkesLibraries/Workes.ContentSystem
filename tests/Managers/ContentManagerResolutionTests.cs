@@ -23,18 +23,18 @@ public sealed class ContentManagerResolutionTests
     }
 
     [Test]
-    public void KeyedStructure_CreatesKeyedManager()
+    public void MapStructure_CreatesMapManager()
     {
-        var structure = new KeyedContentStructure<string>();
+        var structure = new ContentMapStructure<string>();
 
         ContentManagerBase manager = structure.CreateManager();
 
-        Assert.That(structure, Is.InstanceOf<KeyedContentStructureBase<string>>());
-        Assert.That(manager, Is.TypeOf<KeyedContentManager<string>>());
-        Assert.That(manager, Is.InstanceOf<KeyedContentManagerBase<string>>());
-        var keyed = (KeyedContentManager<string>)manager;
-        ContentEntryRecord record = keyed.Add("entry", new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
-        Assert.That(keyed.Get("entry"), Is.EqualTo(record));
+        Assert.That(structure, Is.InstanceOf<ContentMapStructureBase<string>>());
+        Assert.That(manager, Is.TypeOf<ContentMapManager<string>>());
+        Assert.That(manager, Is.InstanceOf<ContentMapManagerBase<string>>());
+        var map = (ContentMapManager<string>)manager;
+        ContentEntryRecord record = map.Add("entry", new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
+        Assert.That(map.Get("entry"), Is.EqualTo(record));
     }
 
     [Test]
@@ -62,12 +62,12 @@ public sealed class ContentManagerResolutionTests
     {
         var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
 
-        bool resolved = ContentManagers.TryForStructure<KeyedContentManager<string>>(
+        bool resolved = ContentManagers.TryForStructure<ContentMapManager<string>>(
             structure,
-            out KeyedContentManager<string>? manager,
+            out ContentMapManager<string>? manager,
             out ContentFailure? failure);
         ContentOperationException exception = Assert.Throws<ContentOperationException>(
-            () => ContentManagers.ForStructure<KeyedContentManager<string>>(structure))!;
+            () => ContentManagers.ForStructure<ContentMapManager<string>>(structure))!;
 
         Assert.That(resolved, Is.False);
         Assert.That(manager, Is.Null);

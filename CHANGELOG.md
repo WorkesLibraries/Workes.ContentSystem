@@ -2,7 +2,27 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
-## 0.6.0 - 20-09-2026
+## 0.7.0 - 07-10-2026
+
+Added:
+
+- Added `ContentOverflowPolicy.Reject(capacity)` and `ContentFailureCodes.StructureCapacityReached`.
+- Added `ContentSingleStructure<TId>` / `ContentSingleManager<TId>` plus long-ID convenience types for single-entry state.
+- Added `ContentStackStructure<TId>` / `ContentStackManager<TId>` plus long-ID convenience types for last-in-first-out workflows.
+- Added `ContentCompoundStructure<TId>` / `ContentCompoundManager<TId>` plus long-ID convenience types for in-memory owned-tree content.
+- Added compound structure snapshot capture and restore, including hierarchy relationships, generated ID source state, child-removal policy, and sibling read order.
+- Added `ContentCompoundStructureSnapshotFactoryBase<TId, TStructure>` for custom compound-family snapshot restore helpers.
+- Added `ContentChangeKind.Replaced` for coherent replacement events.
+
+Changed:
+
+- Renamed and reframed keyed built-ins as map built-ins: `ContentMapStructure<TId>`, `ContentMapManager<TId>`, map family bases, map contracts, and map snapshot helpers.
+- Changed the direct ID-addressed structure snapshot kind to `workes.content.structure.map`.
+- Sequence add now supports reject-at-capacity retention in addition to unbounded and drop-oldest retention.
+- Compound structures support generated and explicit node IDs, root/child creation, hierarchy traversal, configurable child-removal policy, configurable sibling read direction, and depth-first flattened records.
+- Compound managers now support the same manager-level `CaptureSnapshot()` and factory-less `RestoreSnapshot(snapshot)` path as the other built-in round-trippable structures.
+
+## 0.6.0 - 21-09-2026
 
 Added:
 
@@ -22,12 +42,12 @@ Changed:
 Added:
 
 - Added `ContentSequenceStructureSnapshotFactoryBase<TStructure>` for sequence-family snapshot restore helpers.
-- Added `KeyedContentStructureSnapshotFactoryBase<TId, TStructure>` for keyed-family snapshot restore helpers with normalized ID validation.
+- Added `ContentMapStructureSnapshotFactoryBase<TId, TStructure>` for map-family snapshot restore helpers with normalized ID validation.
 
 Changed:
 
-- Refactored built-in sequence and keyed snapshot factories to use the family snapshot factory bases without changing the snapshot DTO wire shape.
-- `ContentSequenceManagerBase` and `KeyedContentManagerBase<TId>` now accept compatible family replacement structures by default, while concrete managers keep narrow concrete restore compatibility.
+- Refactored built-in sequence and map snapshot factories to use the family snapshot factory bases without changing the snapshot DTO wire shape.
+- `ContentSequenceManagerBase` and `ContentMapManagerBase<TId>` now accept compatible family replacement structures by default, while concrete managers keep narrow concrete restore compatibility.
 
 ## 0.5.2 - 20-09-2026
 
@@ -36,8 +56,8 @@ Added:
 - Added `IContentStructure.CreateManager()` so each structure can create its tailored manager.
 - Added `ContentManagers.ForStructure(...)` and typed manager resolution over structure-created managers.
 - Added `ContentSequenceManager` as the tailored manager for `ContentSequenceStructure`.
-- Added `ContentSequenceStructureBase` and `KeyedContentStructureBase<TId>` as structure-family bases.
-- Added `ContentSequenceManagerBase` and `KeyedContentManagerBase<TId>` as manager-family bases.
+- Added `ContentSequenceStructureBase` and `ContentMapStructureBase<TId>` as structure-family bases.
+- Added `ContentSequenceManagerBase` and `ContentMapManagerBase<TId>` as manager-family bases.
 - Added `ManagerMismatch` structured failures for typed manager resolution mismatches.
 
 Changed:
@@ -46,7 +66,7 @@ Changed:
 - Replaced broad `ContentManager` / `ContentManager<TId>` usage with tailored managers.
 - Removed workflow descriptors and package-owned manager factory registration.
 - Moved clear, remove, and structure-parameter mutation off `ContentManagerBase` and onto tailored managers.
-- `ContentSequenceStructure` and `KeyedContentStructure<TId>` now inherit family bases while still resolving to dedicated concrete managers.
+- `ContentSequenceStructure` and `ContentMapStructure<TId>` now inherit family bases while still resolving to dedicated concrete managers.
 - Updated docs to make structure-created manager resolution the preferred construction path.
 - Documented that ContentSystem structures own retained content state, while managers coordinate workflows over the active structure.
 
@@ -72,10 +92,10 @@ Added:
 Added:
 
 - Added structure snapshot capture and restore contracts, helpers, and package-wide entry factory registration.
-- Added built-in structure snapshot round trips for `ContentSequenceStructure` and `KeyedContentStructure<TId>`.
+- Added built-in structure snapshot round trips for `ContentSequenceStructure` and `ContentMapStructure<TId>`.
 - Added manager-coordinated atomic structure snapshot restore and `ContentChangeKind.SnapshotRestored`.
 - Added snapshot failures for unsupported structures and missing restore factories.
-- Added package-wide entry snapshot factory registration and keyed snapshot restore validation through ID strategies.
+- Added package-wide entry snapshot factory registration and map snapshot restore validation through ID strategies.
 
 ## 0.4.2 - 18-09-2026
 
@@ -95,7 +115,7 @@ Added:
 
 - Added `IContentRetentionPolicyStructure` and `IContentReadOrderStructure` as focused opt-in structure contracts.
 - Added manager-coordinated runtime mutation for clear, remove, and generic structure parameter changes.
-- Added focused mutation contracts for clear, record removal, typed keyed record removal, and parameterized structures.
+- Added focused mutation contracts for clear, record removal, typed map record removal, and parameterized structures.
 - Added richer content change event metadata for change kind, clear events, configuration changes with previous/current components, and full-refresh guidance.
 - Added inferred natural-ID managers for structure-assigned-ID structures.
 
@@ -122,7 +142,7 @@ Documentation:
 Added:
 
 - Added optional committed-change hooks through `IContentChangeSource`, `ContentChangedEventArgs`, and `ContentManagerBase.Changed`.
-- Built-in FIFO and keyed structures now emit change events after successful adds.
+- Built-in FIFO and map structures now emit change events after successful adds.
 
 Documentation:
 
@@ -139,8 +159,8 @@ This release introduces the first useful ContentSystem core:
 
 - content entries as the core extension model;
 - a bounded FIFO content structure;
-- keyed content structures with typed ID strategies;
-- manager-coordinated workflows for normal and keyed use;
+- map content structures with typed ID strategies;
+- manager-coordinated workflows for normal and map use;
 - a shared failure and exception model;
 - focused docs and examples for normal usage.
 
@@ -148,6 +168,6 @@ Included:
 
 - package-wide `ContentFailure` and content exception types for structured expected failures.
 - `ContentEntryId`, `ContentEntryRecord`, `IContentEntry`, and `PlainContentEntry` as the first entry foundation.
-- `IContentStructure`, `IStructureAssignedIdContentStructure`, `IKeyedContentStructure<TId>`, and `BoundedFifoContentStructure` for retained-record lookup and bounded FIFO storage.
-- ID strategies and `KeyedContentStructure` for caller-provided entry IDs.
-- `ContentManagerBase`, `ContentSequenceManager`, and `KeyedContentManager<TId>` for shared read/lookup behavior and workflow-specific entry adds.
+- `IContentStructure`, `IStructureAssignedIdContentStructure`, `IContentMapStructure<TId>`, and `BoundedFifoContentStructure` for retained-record lookup and bounded FIFO storage.
+- ID strategies and `ContentMapStructure` for caller-provided entry IDs.
+- `ContentManagerBase`, `ContentSequenceManager`, and `ContentMapManager<TId>` for shared read/lookup behavior and workflow-specific entry adds.
