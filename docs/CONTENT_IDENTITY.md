@@ -50,9 +50,9 @@ The stored record still exposes a `ContentEntryId` in both cases.
 Built-in strategies are:
 
 - `StringContentEntryIdStrategy`, which accepts non-empty strings;
-- `IntegerContentEntryIdStrategy`, which accepts positive `long` values and normalizes them to invariant decimal strings.
-
-The 1.0 direction is to add `Guid` and `ContentEntryId` identity/fallback support while keeping the built-in strategy set narrow.
+- `IntegerContentEntryIdStrategy`, which accepts positive `long` values and normalizes them to invariant decimal strings;
+- `GuidContentEntryIdStrategy`, which accepts non-empty `Guid` values and normalizes them to canonical lowercase D-format strings;
+- `ContentEntryIdContentEntryIdStrategy`, which accepts already-normalized `ContentEntryId` values as an identity/fallback path.
 
 Built-in strategies are resolved for supported ID types:
 
@@ -61,6 +61,10 @@ var stringMap = ContentManagers.ForStructure<ContentMapManager<string>>(
     new ContentMapStructure<string>());
 var numberMap = ContentManagers.ForStructure<ContentMapManager<long>>(
     new ContentMapStructure<long>());
+var guidMap = ContentManagers.ForStructure<ContentMapManager<Guid>>(
+    new ContentMapStructure<Guid>());
+var storedIdMap = ContentManagers.ForStructure<ContentMapManager<ContentEntryId>>(
+    new ContentMapStructure<ContentEntryId>());
 ```
 
 Custom ID types need an explicit strategy or map structure:
@@ -85,7 +89,10 @@ Generated ID sources:
 - observe manual or restored IDs so future generated IDs do not collide;
 - capture and restore source-owned snapshot state.
 
-The built-in `LongContentGeneratedIdSource` starts at `1`, generates positive `long` IDs, and advances past observed manual or restored IDs.
+Built-in generated ID sources are:
+
+- `LongContentGeneratedIdSource`, which starts at `1`, generates positive `long` IDs, and advances past observed manual or restored IDs;
+- `GuidContentGeneratedIdSource`, which generates non-empty `Guid` IDs and has no ordering state to advance.
 
 Normal sequence usage does not require seeing the source:
 
@@ -109,6 +116,16 @@ var content = ContentManagers.ForStructure<ContentSequenceManager<MyEntryId>>(st
 ```
 
 Single, stack, and compound structures follow the same pattern with `ContentSingleStructure<TId>` / `ContentSingleManager<TId>`, `ContentStackStructure<TId>` / `ContentStackManager<TId>`, and `ContentCompoundStructure<TId>` / `ContentCompoundManager<TId>`.
+
+GUID-generated structures can use the built-in GUID source:
+
+```csharp
+var structure = new ContentSequenceStructure<Guid>(
+    new GuidContentGeneratedIdSource(),
+    ContentOverflowPolicy.None);
+
+var content = ContentManagers.ForStructure<ContentSequenceManager<Guid>>(structure);
+```
 
 Mixing manual and generated IDs is allowed, but source state decides how future generated IDs advance. Prefer one approach consistently unless you intentionally want the source to observe manual IDs.
 

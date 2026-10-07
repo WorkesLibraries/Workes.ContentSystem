@@ -30,6 +30,22 @@ public sealed class ContentSingleStructureTests
     }
 
     [Test]
+    public void GenericSingle_CanUseGuidGeneratedIdSource()
+    {
+        var structure = new ContentSingleStructure<Guid>(
+            new GuidContentGeneratedIdSource(),
+            ContentSingleReplacementPolicy.Replace);
+        Guid explicitId = Guid.Parse("9fd3efda-747d-4a60-81c1-c38ed2d60774");
+
+        ContentEntryRecord generated = structure.Set(Entry("Generated"));
+        ContentEntryRecord explicitRecord = structure.Set(explicitId, Entry("Explicit"));
+
+        Assert.That(Guid.Parse(generated.Id.Value), Is.Not.EqualTo(Guid.Empty));
+        Assert.That(explicitRecord.Id, Is.EqualTo(new ContentEntryId("9fd3efda-747d-4a60-81c1-c38ed2d60774")));
+        Assert.That(structure.Get(explicitId), Is.SameAs(explicitRecord));
+    }
+
+    [Test]
     public void Set_WhenPolicyIsReplace_ReplacesCurrentRecordAndEmitsReplacedEvent()
     {
         var structure = new ContentSingleStructure(ContentSingleReplacementPolicy.Replace);

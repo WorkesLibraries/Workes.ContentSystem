@@ -2,6 +2,14 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
+## 0.7.1 - 07-10-2026
+
+Added:
+
+- Added `GuidContentEntryIdStrategy` and default map strategy resolution for `Guid`.
+- Added `ContentEntryIdContentEntryIdStrategy` and default map strategy resolution for `ContentEntryId`.
+- Added `GuidContentGeneratedIdSource` for generic generated-ID structures.
+
 ## 0.7.0 - 07-10-2026
 
 Added:

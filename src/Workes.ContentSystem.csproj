@@ -7,8 +7,8 @@
     <LangVersion>10.0</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Workes.ContentSystem</PackageId>
-    <Version>0.7.0</Version>
-    <PackageReleaseNotes>Adds configurable built-in structures for map, single-entry, stack, and compound workflows, including compound snapshot round trips.</PackageReleaseNotes>
+    <Version>0.7.1</Version>
+    <PackageReleaseNotes>Adds GUID and ContentEntryId built-in ID support plus GUID generated IDs.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Workes</Authors>
     <Company>Workes</Company>

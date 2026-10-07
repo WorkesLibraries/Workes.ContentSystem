@@ -78,6 +78,22 @@ public sealed class ContentStackStructureTests
     }
 
     [Test]
+    public void GenericStack_CanUseGuidGeneratedIdSource()
+    {
+        var structure = new ContentStackStructure<Guid>(
+            new GuidContentGeneratedIdSource(),
+            ContentOverflowPolicy.None);
+        Guid explicitId = Guid.Parse("9fd3efda-747d-4a60-81c1-c38ed2d60774");
+
+        ContentEntryRecord generated = structure.Push(Entry("Generated"));
+        ContentEntryRecord explicitRecord = structure.Push(explicitId, Entry("Explicit"));
+
+        Assert.That(Guid.Parse(generated.Id.Value), Is.Not.EqualTo(Guid.Empty));
+        Assert.That(explicitRecord.Id, Is.EqualTo(new ContentEntryId("9fd3efda-747d-4a60-81c1-c38ed2d60774")));
+        Assert.That(structure.Get(explicitId), Is.SameAs(explicitRecord));
+    }
+
+    [Test]
     public void CaptureAndRestore_PreservesOrderPolicyAndGeneratedIdState()
     {
         var structure = new ContentStackStructure(ContentOverflowPolicy.Reject(3), ContentStackReadOrder.BottomFirst);

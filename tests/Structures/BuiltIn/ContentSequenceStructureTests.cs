@@ -78,6 +78,80 @@ public sealed class ContentSequenceStructureTests
     }
 
     [Test]
+    public void GuidGeneratedIdSource_GeneratesNonEmptyGuidIds()
+    {
+        var source = new GuidContentGeneratedIdSource();
+
+        bool generated = source.TryCreateNext(out Guid id, out ContentFailure? failure);
+
+        Assert.That(generated, Is.True);
+        Assert.That(id, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(failure, Is.Null);
+    }
+
+    [Test]
+    public void GuidGeneratedIdSource_RejectsInvalidObservedIds()
+    {
+        var source = new GuidContentGeneratedIdSource();
+
+        bool observed = source.TryObserve(Guid.Empty, out ContentFailure? failure);
+
+        Assert.That(observed, Is.False);
+        Assert.That(failure, Is.Not.Null);
+        Assert.That(failure!.Code, Is.EqualTo(ContentFailureCodes.EntryIdInvalid));
+    }
+
+    [Test]
+    public void GuidGeneratedIdSource_RestoresStatelessSnapshot()
+    {
+        var source = new GuidContentGeneratedIdSource();
+        source.TryCaptureSnapshot(out ContentSnapshotValue? snapshot, out _);
+
+        bool restored = GuidContentGeneratedIdSource.Factory.TryRestore(
+            snapshot!,
+            out IContentGeneratedIdSource<Guid>? restoredSource,
+            out ContentFailure? failure);
+
+        Assert.That(restored, Is.True);
+        Assert.That(restoredSource, Is.TypeOf<GuidContentGeneratedIdSource>());
+        Assert.That(failure, Is.Null);
+    }
+
+    [Test]
+    public void GuidGeneratedIdSource_RestoreRejectsUnsupportedVersion()
+    {
+        ContentSnapshotValue snapshot = ContentSnapshotValue.Object(new[]
+        {
+            ContentSnapshotProperties.Named("dataVersion", ContentSnapshotCodecs.Encode(999))
+        });
+
+        bool restored = GuidContentGeneratedIdSource.Factory.TryRestore(
+            snapshot,
+            out IContentGeneratedIdSource<Guid>? source,
+            out ContentFailure? failure);
+
+        Assert.That(restored, Is.False);
+        Assert.That(source, Is.Null);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.SnapshotUnsupportedVersion));
+    }
+
+    [Test]
+    public void GenericSequence_CanUseGuidGeneratedIdSource()
+    {
+        var structure = new ContentSequenceStructure<Guid>(
+            new GuidContentGeneratedIdSource(),
+            ContentOverflowPolicy.None);
+
+        ContentEntryRecord generated = structure.Add(Entry("Generated"));
+        Guid explicitId = Guid.Parse("9fd3efda-747d-4a60-81c1-c38ed2d60774");
+        ContentEntryRecord explicitRecord = structure.Add(explicitId, Entry("Explicit"));
+
+        Assert.That(Guid.Parse(generated.Id.Value), Is.Not.EqualTo(Guid.Empty));
+        Assert.That(explicitRecord.Id, Is.EqualTo(new ContentEntryId("9fd3efda-747d-4a60-81c1-c38ed2d60774")));
+        Assert.That(structure.Get(explicitId), Is.SameAs(explicitRecord));
+    }
+
+    [Test]
     public void ContentSequenceStructure_ImplementsRetentionPolicyContract()
     {
         ContentOverflowPolicy overflowPolicy = ContentOverflowPolicy.DropOldest(3);

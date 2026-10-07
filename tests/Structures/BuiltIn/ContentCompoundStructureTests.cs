@@ -200,6 +200,20 @@ public sealed class ContentCompoundStructureTests
     }
 
     [Test]
+    public void GenericCompound_CanUseGuidGeneratedIdSource()
+    {
+        var structure = new ContentCompoundStructure<Guid>(new GuidContentGeneratedIdSource());
+        Guid childId = Guid.Parse("9fd3efda-747d-4a60-81c1-c38ed2d60774");
+
+        ContentCompoundNode root = structure.AddRoot(Entry("Root"));
+        ContentCompoundNode child = structure.AddChild(Guid.Parse(root.Record.Id.Value), childId, Entry("Child"));
+
+        Assert.That(Guid.Parse(root.Record.Id.Value), Is.Not.EqualTo(Guid.Empty));
+        Assert.That(child.Record.Id, Is.EqualTo(new ContentEntryId("9fd3efda-747d-4a60-81c1-c38ed2d60774")));
+        Assert.That(child.ParentId, Is.EqualTo(root.Record.Id));
+    }
+
+    [Test]
     public void TypedManagerMismatch_StillReturnsManagerMismatch()
     {
         bool resolved = ContentManagers.TryForStructure<ContentSequenceManager>(

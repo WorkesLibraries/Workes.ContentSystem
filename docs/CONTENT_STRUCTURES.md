@@ -96,9 +96,11 @@ It uses an `IContentEntryIdStrategy<TId>` to validate and normalize typed IDs be
 Built-in strategies include:
 
 - `StringContentEntryIdStrategy`, for non-empty string IDs;
-- `IntegerContentEntryIdStrategy`, for positive integer IDs normalized as invariant decimal strings.
+- `IntegerContentEntryIdStrategy`, for positive integer IDs normalized as invariant decimal strings;
+- `GuidContentEntryIdStrategy`, for non-empty GUID IDs normalized as canonical lowercase D-format strings;
+- `ContentEntryIdContentEntryIdStrategy`, for already-normalized stored IDs.
 
-Built-in default strategies are available for `string` and `long`.
+Built-in default strategies are available for `string`, `long`, `Guid`, and `ContentEntryId`.
 
 String-map usage:
 

@@ -33,9 +33,25 @@ public sealed class ContentMapStructureTests
     }
 
     [Test]
-    public void Constructor_UnsupportedDefaultStrategyThrows()
+    public void Constructor_DefaultGuidStrategyWorks()
     {
-        Assert.Throws<NotSupportedException>(() => new ContentMapStructure<Guid>());
+        var structure = new ContentMapStructure<Guid>();
+        Guid id = Guid.Parse("9fd3efda-747d-4a60-81c1-c38ed2d60774");
+
+        ContentEntryRecord record = structure.Add(id, Entry("Guid"));
+
+        Assert.That(record.Id, Is.EqualTo(new ContentEntryId("9fd3efda-747d-4a60-81c1-c38ed2d60774")));
+    }
+
+    [Test]
+    public void Constructor_DefaultContentEntryIdStrategyWorks()
+    {
+        var structure = new ContentMapStructure<ContentEntryId>();
+        var id = new ContentEntryId("entry-1");
+
+        ContentEntryRecord record = structure.Add(id, Entry("Identity"));
+
+        Assert.That(record.Id, Is.EqualTo(id));
     }
 
     [Test]
@@ -137,6 +153,58 @@ public sealed class ContentMapStructureTests
 
         Assert.That(added.Id, Is.EqualTo(new ContentEntryId("8")));
         Assert.That(found, Is.SameAs(added));
+    }
+
+    [Test]
+    public void Add_WithGuidStrategy_AddsRecordByGuidId()
+    {
+        var structure = new ContentMapStructure<Guid>();
+        Guid id = Guid.Parse("9fd3efda-747d-4a60-81c1-c38ed2d60774");
+
+        ContentEntryRecord added = structure.Add(id, Entry("Guid"));
+        ContentEntryRecord found = structure.Get(id);
+
+        Assert.That(added.Id, Is.EqualTo(new ContentEntryId("9fd3efda-747d-4a60-81c1-c38ed2d60774")));
+        Assert.That(found, Is.SameAs(added));
+    }
+
+    [Test]
+    public void Add_WithContentEntryIdStrategy_AddsRecordByStoredId()
+    {
+        var structure = new ContentMapStructure<ContentEntryId>();
+        var id = new ContentEntryId("stored");
+
+        ContentEntryRecord added = structure.Add(id, Entry("Stored"));
+        ContentEntryRecord found = structure.Get(id);
+
+        Assert.That(added.Id, Is.EqualTo(id));
+        Assert.That(found, Is.SameAs(added));
+    }
+
+    [Test]
+    public void CaptureAndRestore_WithGuidDefaultStrategy_PreservesLookup()
+    {
+        var structure = new ContentMapStructure<Guid>();
+        Guid id = Guid.Parse("9fd3efda-747d-4a60-81c1-c38ed2d60774");
+        structure.Add(id, Entry("Guid"));
+
+        ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
+        var restored = (ContentMapStructure<Guid>)ContentMapStructure<Guid>.CreateSnapshotFactory().Restore(snapshot);
+
+        Assert.That(restored.Get(id).PlainText, Is.EqualTo("Guid"));
+    }
+
+    [Test]
+    public void CaptureAndRestore_WithContentEntryIdDefaultStrategy_PreservesLookup()
+    {
+        var structure = new ContentMapStructure<ContentEntryId>();
+        var id = new ContentEntryId("stored");
+        structure.Add(id, Entry("Stored"));
+
+        ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
+        var restored = (ContentMapStructure<ContentEntryId>)ContentMapStructure<ContentEntryId>.CreateSnapshotFactory().Restore(snapshot);
+
+        Assert.That(restored.Get(id).PlainText, Is.EqualTo("Stored"));
     }
 
     [Test]

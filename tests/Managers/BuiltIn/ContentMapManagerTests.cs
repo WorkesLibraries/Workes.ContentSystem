@@ -35,9 +35,27 @@ public sealed class ContentMapManagerTests
     }
 
     [Test]
-    public void Constructor_UnsupportedDefaultStrategyThrows()
+    public void DefaultGuidManager_UsesMapStrategy()
     {
-        Assert.Throws<NotSupportedException>(() => new ContentMapManager<Guid>());
+        var manager = new ContentMapManager<Guid>();
+        Guid id = Guid.Parse("9fd3efda-747d-4a60-81c1-c38ed2d60774");
+
+        ContentEntryRecord added = manager.Add(id, Entry("Guid"));
+
+        Assert.That(added.Id, Is.EqualTo(new ContentEntryId("9fd3efda-747d-4a60-81c1-c38ed2d60774")));
+        Assert.That(manager.Get(id), Is.SameAs(added));
+    }
+
+    [Test]
+    public void DefaultContentEntryIdManager_UsesMapStrategy()
+    {
+        var manager = new ContentMapManager<ContentEntryId>();
+        var id = new ContentEntryId("stored");
+
+        ContentEntryRecord added = manager.Add(id, Entry("Stored"));
+
+        Assert.That(added.Id, Is.EqualTo(id));
+        Assert.That(manager.Get(id), Is.SameAs(added));
     }
 
     [Test]

@@ -261,11 +261,11 @@ Map structures need caller-provided IDs, but different hosts may prefer string I
 
 #### Decision
 
-ContentSystem uses `IContentEntryIdStrategy<TId>` to validate and normalize typed caller-provided IDs and to validate normalized stored IDs restored from snapshots. The first built-in strategies are `StringContentEntryIdStrategy` and `IntegerContentEntryIdStrategy`.
+ContentSystem uses `IContentEntryIdStrategy<TId>` to validate and normalize typed caller-provided IDs and to validate normalized stored IDs restored from snapshots. Built-in strategies cover `string`, positive `long`, `Guid`, and `ContentEntryId`.
 
 `ContentMapStructure<TId>` is the first strategy-backed structure. It requires callers to provide IDs and rejects invalid or duplicate IDs through structured failures.
 
-Default map structure constructors resolve built-in strategies for `string` and `long`. Custom ID types require an explicit custom strategy.
+Default map structure constructors resolve built-in strategies for `string`, `long`, `Guid`, and `ContentEntryId`. Other custom ID types require an explicit custom strategy.
 
 #### Reasoning
 
@@ -364,6 +364,8 @@ ID strategies make map structures ergonomic, but every built-in strategy implies
 #### Decision
 
 The selected 1.0 direction is to keep the built-in ID strategy set narrow: `string`, positive `long`, `Guid`, and `ContentEntryId` identity/fallback support.
+
+Stage 19 completes that direction. `GuidContentEntryIdStrategy` uses canonical lowercase D-format strings and rejects `Guid.Empty`. `ContentEntryIdContentEntryIdStrategy` is an identity/fallback strategy for already-normalized IDs. `GuidContentGeneratedIdSource` is included because GUID generation is stateless, low-assumption, and useful for generic generated-ID structures.
 
 #### Reasoning
 

@@ -76,33 +76,37 @@ Completed implementation adds compound structure snapshot capture/restore, compo
 
 ### Stage 19: Add additional built-in ID strategies
 
-Add selected low-assumption ID strategies after core structure and snapshot contracts are stable.
+Completed implementation adds the remaining selected low-assumption ID support: GUID ID strategy, `ContentEntryId` identity strategy, GUID generated ID source, default map strategy resolution for `Guid` and `ContentEntryId`, and docs/tests for the narrow built-in ID set.
 
-### Stage 20: Add validation and preflight APIs
+### Stage 20: Add convenience methods for all implemented structures
+
+Add ergonomic helper APIs across the implemented structures. Base manager helpers should stay read-only and universal; mutation and navigation helpers should remain on structure-specific managers where semantics differ.
+
+### Stage 21: Add validation and preflight APIs
 
 Add preflight APIs for mutation and snapshot workflows. Preflight should not mutate state or emit events, and final commit should still revalidate.
 
-### Stage 21: Add manager read-query helpers
+### Stage 22: Add manager read-query helpers
 
 Add manager-side helpers for materialized filtered and sorted record views without mutating the active structure.
 
-### Stage 22: Add bulk operations and mutation helper APIs
+### Stage 23: Add bulk operations and mutation helper APIs
 
 Add high-value helper operations such as range workflows and predicate-based removal while preserving atomicity and event semantics.
 
-### Stage 23: Add optional structure sorting support
+### Stage 24: Add optional structure sorting support
 
 Add opt-in structure-owned sorting only for structures where reordering retained records is meaningful.
 
-### Stage 24: Add export helpers and attachment abstractions
+### Stage 25: Add export helpers and attachment abstractions
 
 Add optional export helpers and attachment abstractions after portable snapshots exist. Export and attachments should not become the serialization foundation.
 
-### Stage 25: Add example tests and usage docs
+### Stage 26: Add example tests and usage docs
 
 Add examples and focused usage docs for the implemented 1.0 feature set.
 
-### Stage 26: Prepare 1.0.0 release
+### Stage 27: Prepare 1.0.0 release
 
 Audit API names, docs, examples, XML docs, metadata, changelog, compatibility notes, package build, release branch, and tag.
 
