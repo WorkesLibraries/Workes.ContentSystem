@@ -60,6 +60,74 @@ public abstract class ContentSequenceManagerBase<TId> : ContentManagerBase
     }
 
     /// <summary>
+    /// Determines whether the sequence retains a record with the supplied natural ID.
+    /// </summary>
+    public bool Contains(TId id)
+    {
+        return TryGet(id, out _, out _);
+    }
+
+    /// <summary>
+    /// Attempts to get the first retained record in the sequence's configured read order.
+    /// </summary>
+    public bool TryGetFirst(out ContentEntryRecord? record, out ContentFailure? failure)
+    {
+        if (Records.Count > 0)
+        {
+            record = Records[0];
+            failure = null;
+            return true;
+        }
+
+        record = null;
+        failure = ContentFailures.EntryNotFound("The sequence contains no retained records.");
+        return false;
+    }
+
+    /// <summary>
+    /// Gets the first retained record in the sequence's configured read order.
+    /// </summary>
+    public ContentEntryRecord GetFirst()
+    {
+        if (TryGetFirst(out ContentEntryRecord? record, out ContentFailure? failure))
+        {
+            return record!;
+        }
+
+        throw new ContentOperationException(failure!);
+    }
+
+    /// <summary>
+    /// Attempts to get the last retained record in the sequence's configured read order.
+    /// </summary>
+    public bool TryGetLast(out ContentEntryRecord? record, out ContentFailure? failure)
+    {
+        if (Records.Count > 0)
+        {
+            record = Records[Records.Count - 1];
+            failure = null;
+            return true;
+        }
+
+        record = null;
+        failure = ContentFailures.EntryNotFound("The sequence contains no retained records.");
+        return false;
+    }
+
+    /// <summary>
+    /// Gets the last retained record in the sequence's configured read order.
+    /// </summary>
+    public ContentEntryRecord GetLast()
+    {
+        if (TryGetLast(out ContentEntryRecord? record, out ContentFailure? failure))
+        {
+            return record!;
+        }
+
+        throw new ContentOperationException(failure!);
+    }
+
+    /// <summary>
     /// Attempts to get a retained record by sequence ID.
     /// </summary>
     public bool TryGet(TId id, out ContentEntryRecord? record, out ContentFailure? failure)

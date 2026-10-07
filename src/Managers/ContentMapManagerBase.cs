@@ -60,6 +60,65 @@ public abstract class ContentMapManagerBase<TId> : ContentManagerBase
     }
 
     /// <summary>
+    /// Attempts to get an existing record, or creates one with the supplied factory when the ID is missing.
+    /// </summary>
+    public bool TryGetOrSet(
+        TId id,
+        Func<IContentEntry> entryFactory,
+        out ContentEntryRecord? record,
+        out bool added,
+        out ContentFailure? failure)
+    {
+        if (entryFactory is null)
+        {
+            throw new ArgumentNullException(nameof(entryFactory));
+        }
+
+        if (TryGet(id, out record, out failure))
+        {
+            added = false;
+            return true;
+        }
+
+        if (failure is not null && failure.Code != ContentFailureCodes.EntryNotFound)
+        {
+            added = false;
+            return false;
+        }
+
+        IContentEntry entry = entryFactory() ?? throw new InvalidOperationException("The entry factory returned null.");
+        if (TryAdd(id, entry, out record, out failure))
+        {
+            added = true;
+            return true;
+        }
+
+        added = false;
+        return false;
+    }
+
+    /// <summary>
+    /// Gets an existing record, or creates one with the supplied factory when the ID is missing.
+    /// </summary>
+    public ContentEntryRecord GetOrSet(TId id, Func<IContentEntry> entryFactory)
+    {
+        if (TryGetOrSet(id, entryFactory, out ContentEntryRecord? record, out _, out ContentFailure? failure))
+        {
+            return record!;
+        }
+
+        throw new ContentOperationException(failure!);
+    }
+
+    /// <summary>
+    /// Determines whether the map retains a record with the supplied caller-facing ID.
+    /// </summary>
+    public bool Contains(TId id)
+    {
+        return TryGet(id, out _, out _);
+    }
+
+    /// <summary>
     /// Attempts to get a retained record by caller-facing ID.
     /// </summary>
     public bool TryGet(TId id, out ContentEntryRecord? record, out ContentFailure? failure)

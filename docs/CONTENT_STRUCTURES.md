@@ -83,6 +83,8 @@ Because the normal sequence uses generated positive long IDs, `ContentSequenceSt
 ContentEntryRecord record = sequence.Get(1);
 ```
 
+Sequence managers also expose `GetFirst` and `GetLast` convenience helpers over the current read order. These mean first and last visible retained record, not always oldest and newest when the sequence is configured `NewestFirst`.
+
 Advanced users can use `ContentSequenceStructure<TId>` with a custom `IContentGeneratedIdSource<TId>` when a sequence needs a different ID model. The matching manager is `ContentSequenceManager<TId>`.
 
 The shared `ContentEntryId` lookup remains available for code that works through `IContentStructure`.
@@ -141,6 +143,8 @@ Successful map adds, removals, and clears raise `Changed`. Duplicate IDs, invali
 
 Map also exposes `Set`, which adds a missing ID or replaces an existing record in place. Replacements emit `ContentChangeKind.Replaced` with the new record in `AddedRecords` and the replaced record in `RemovedRecords`.
 
+Map managers also expose `GetOrSet`, which returns an existing record without invoking the factory or adds a missing record through the normal add workflow.
+
 ## Single-Entry Structure
 
 `ContentSingleStructure<TId>` stores at most one retained record.
@@ -165,6 +169,8 @@ ContentEntryRecord record = current.Set(
 Advanced users can use `ContentSingleStructure<TId>` with a custom generated ID source. Both generated-ID `Set(entry)` and explicit-ID `Set(id, entry)` are supported.
 
 Successful replacement emits `ContentChangeKind.Replaced`. Rejected replacement uses `StructureCapacityReached`, preserves state, and emits no event.
+
+Single managers expose `HasCurrent` as a convenience for checking whether a current record exists before calling `GetCurrent`.
 
 ## Stack Structure
 
@@ -196,6 +202,8 @@ ContentEntryRecord removed = stack.Pop();
 ```
 
 Advanced users can use `ContentStackStructure<TId>` with a custom generated ID source. Both generated-ID `Push(entry)` and explicit-ID `Push(id, entry)` are supported.
+
+Stack managers expose `CanPeek` and `CanPop` as small state checks before calling `Peek` or `Pop`.
 
 ## Compound Structure
 
@@ -231,6 +239,21 @@ ContentCompoundNode reply = tree.AddChild(
 ```
 
 Compound structures expose hierarchy-native operations such as `AddRoot`, `AddChild`, `GetNode`, `GetRoots`, `GetChildren`, `Remove`, and `Clear`. `Records` is a deterministic depth-first flattened view of retained records using the configured sibling order.
+
+Compound managers also support node-based `AddChild`, `GetChildren`, and `GetParent` helpers:
+
+```csharp
+ContentCompoundNode topic = tree.AddRoot(
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Topic"));
+
+ContentCompoundNode reply = tree.AddChild(
+    topic,
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Reply"));
+
+ContentCompoundNode parent = tree.GetParent(reply);
+```
+
+Use `GetRecordViews()` when a UI needs the flattened record list with simple hierarchy metadata such as `Depth`, `ParentId`, `ChildIds`, `IsRoot`, and `HasChildren`.
 
 Advanced users can use `ContentCompoundStructure<TId>` with a custom generated ID source. Both generated-ID and explicit-ID root/child creation are supported.
 

@@ -102,7 +102,14 @@ var tree = ContentManagers.ForStructure<ContentCompoundManager>(
 
 ContentCompoundNode topic = tree.AddRoot(
     new PlainContentEntry(DateTimeOffset.UtcNow, "Topic"));
-tree.AddChild(1, new PlainContentEntry(DateTimeOffset.UtcNow, "Reply"));
+ContentCompoundNode reply = tree.AddChild(
+    topic,
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Reply"));
+
+foreach (ContentCompoundRecordView view in tree.GetRecordViews())
+{
+    Console.WriteLine($"{new string(' ', view.Depth * 2)}{view.Record.PlainText}");
+}
 ```
 
 See the [Quick Start](docs/QUICK_START.md) for the beginner-first walkthrough.

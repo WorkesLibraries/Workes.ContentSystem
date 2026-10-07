@@ -55,6 +55,19 @@ public abstract class ContentSingleManagerBase<TId> : ContentManagerBase
     }
 
     /// <summary>
+    /// Gets a value indicating whether the single-entry structure currently retains a record.
+    /// </summary>
+    public bool HasCurrent => Count > 0;
+
+    /// <summary>
+    /// Determines whether the single-entry structure retains a record with the supplied natural ID.
+    /// </summary>
+    public bool Contains(TId id)
+    {
+        return TryGet(id, out _, out _);
+    }
+
+    /// <summary>
     /// Attempts to get the current record.
     /// </summary>
     public bool TryGetCurrent(out ContentEntryRecord? record, out ContentFailure? failure)

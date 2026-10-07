@@ -200,6 +200,36 @@ public class ContentCompoundStructure<TId> :
     }
 
     /// <inheritdoc />
+    public override bool TryAddChild(ContentEntryId parentId, IContentEntry entry, out ContentCompoundNode? node, out ContentFailure? failure)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        EnsureValidId(parentId);
+        node = null;
+        if (!TryValidateExistingParent(parentId, out failure)
+            || !IdSource.TryCreateNext(out TId id, out failure))
+        {
+            return false;
+        }
+
+        return TryAddAcceptedNode(id, entry, parentId, observeId: false, out node, out failure);
+    }
+
+    /// <inheritdoc />
+    public override ContentCompoundNode AddChild(ContentEntryId parentId, IContentEntry entry)
+    {
+        if (TryAddChild(parentId, entry, out ContentCompoundNode? node, out ContentFailure? failure))
+        {
+            return node!;
+        }
+
+        throw new ContentOperationException(failure!);
+    }
+
+    /// <inheritdoc />
     public override bool TryAddChild(TId parentId, TId id, IContentEntry entry, out ContentCompoundNode? node, out ContentFailure? failure)
     {
         if (entry is null)
@@ -219,6 +249,35 @@ public class ContentCompoundStructure<TId> :
 
     /// <inheritdoc />
     public override ContentCompoundNode AddChild(TId parentId, TId id, IContentEntry entry)
+    {
+        if (TryAddChild(parentId, id, entry, out ContentCompoundNode? node, out ContentFailure? failure))
+        {
+            return node!;
+        }
+
+        throw new ContentOperationException(failure!);
+    }
+
+    /// <inheritdoc />
+    public override bool TryAddChild(ContentEntryId parentId, TId id, IContentEntry entry, out ContentCompoundNode? node, out ContentFailure? failure)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        EnsureValidId(parentId);
+        node = null;
+        if (!TryValidateExistingParent(parentId, out failure))
+        {
+            return false;
+        }
+
+        return TryAddAcceptedNode(id, entry, parentId, observeId: true, out node, out failure);
+    }
+
+    /// <inheritdoc />
+    public override ContentCompoundNode AddChild(ContentEntryId parentId, TId id, IContentEntry entry)
     {
         if (TryAddChild(parentId, id, entry, out ContentCompoundNode? node, out ContentFailure? failure))
         {
@@ -294,6 +353,29 @@ public class ContentCompoundStructure<TId> :
         }
 
         return parent!.ChildIds.Select(id => CreateNode(_nodes[id])).ToArray();
+    }
+
+    /// <inheritdoc />
+    public override IReadOnlyList<ContentCompoundNode> GetChildren(ContentEntryId parentId)
+    {
+        if (!TryGetNode(parentId, out ContentCompoundNode? parent, out ContentFailure? failure))
+        {
+            throw new ContentOperationException(failure!);
+        }
+
+        return parent!.ChildIds.Select(id => CreateNode(_nodes[id])).ToArray();
+    }
+
+    /// <inheritdoc />
+    public override IReadOnlyList<ContentCompoundRecordView> GetRecordViews()
+    {
+        var views = new List<ContentCompoundRecordView>();
+        foreach (ContentEntryId rootId in ApplySiblingOrder(_rootIds))
+        {
+            AddRecordViews(rootId, depth: 0, views);
+        }
+
+        return views;
     }
 
     /// <inheritdoc />
@@ -541,6 +623,17 @@ public class ContentCompoundStructure<TId> :
         foreach (ContentEntryId childId in ApplySiblingOrder(state.ChildIds))
         {
             AddFlattenedRecords(childId, records);
+        }
+    }
+
+    private void AddRecordViews(ContentEntryId id, int depth, List<ContentCompoundRecordView> views)
+    {
+        CompoundNodeState state = _nodes[id];
+        ContentEntryId[] childIds = ApplySiblingOrder(state.ChildIds).ToArray();
+        views.Add(new ContentCompoundRecordView(state.Record, state.ParentId, childIds, depth));
+        foreach (ContentEntryId childId in childIds)
+        {
+            AddRecordViews(childId, depth + 1, views);
         }
     }
 

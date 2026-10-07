@@ -105,6 +105,99 @@ public sealed class ContentMapManagerTests
     }
 
     [Test]
+    public void MapManagerBase_ContainsUsesTypedId()
+    {
+        ContentMapManagerBase<string> manager = new ContentMapManager<string>();
+        manager.Add("entry", Entry("Stored"));
+
+        Assert.That(manager.Contains("entry"), Is.True);
+        Assert.That(manager.Contains("missing"), Is.False);
+    }
+
+    [Test]
+    public void GetOrSet_ExistingRecordDoesNotInvokeFactoryOrEmitEvent()
+    {
+        var manager = new ContentMapManager<string>();
+        ContentEntryRecord existing = manager.Add("entry", Entry("Existing"));
+        int factoryCalls = 0;
+        int eventCount = 0;
+        manager.Changed += (_, _) => eventCount++;
+
+        bool accepted = manager.TryGetOrSet(
+            "entry",
+            () =>
+            {
+                factoryCalls++;
+                return Entry("Created");
+            },
+            out ContentEntryRecord? record,
+            out bool added,
+            out ContentFailure? failure);
+
+        Assert.That(accepted, Is.True);
+        Assert.That(record, Is.SameAs(existing));
+        Assert.That(added, Is.False);
+        Assert.That(failure, Is.Null);
+        Assert.That(factoryCalls, Is.EqualTo(0));
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void GetOrSet_MissingRecordInvokesFactoryAndAddsRecord()
+    {
+        var manager = new ContentMapManager<string>();
+        int factoryCalls = 0;
+        ContentChangedEventArgs? changedArgs = null;
+        manager.Changed += (_, args) => changedArgs = args;
+
+        ContentEntryRecord record = manager.GetOrSet(
+            "entry",
+            () =>
+            {
+                factoryCalls++;
+                return Entry("Created");
+            });
+
+        Assert.That(record.Id, Is.EqualTo(new ContentEntryId("entry")));
+        Assert.That(record.PlainText, Is.EqualTo("Created"));
+        Assert.That(factoryCalls, Is.EqualTo(1));
+        Assert.That(changedArgs?.Kind, Is.EqualTo(ContentChangeKind.Added));
+        Assert.That(changedArgs?.AddedRecords, Is.EqualTo(new[] { record }));
+    }
+
+    [Test]
+    public void TryGetOrSet_InvalidIdReturnsFailureWithoutInvokingFactory()
+    {
+        var manager = new ContentMapManager<string>();
+        int factoryCalls = 0;
+
+        bool accepted = manager.TryGetOrSet(
+            "   ",
+            () =>
+            {
+                factoryCalls++;
+                return Entry("Created");
+            },
+            out ContentEntryRecord? record,
+            out bool added,
+            out ContentFailure? failure);
+
+        Assert.That(accepted, Is.False);
+        Assert.That(record, Is.Null);
+        Assert.That(added, Is.False);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.EntryIdInvalid));
+        Assert.That(factoryCalls, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TryGetOrSet_NullFactoryThrows()
+    {
+        var manager = new ContentMapManager<string>();
+
+        Assert.Throws<ArgumentNullException>(() => manager.TryGetOrSet("entry", null!, out _, out _, out _));
+    }
+
+    [Test]
     public void TryAdd_DuplicateIdReturnsFailure()
     {
         var manager = new ContentMapManager<string>();

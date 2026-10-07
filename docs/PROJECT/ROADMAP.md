@@ -80,7 +80,7 @@ Completed implementation adds the remaining selected low-assumption ID support: 
 
 ### Stage 20: Add convenience methods for all implemented structures
 
-Add ergonomic helper APIs across the implemented structures. Base manager helpers should stay read-only and universal; mutation and navigation helpers should remain on structure-specific managers where semantics differ.
+Completed implementation adds ergonomic helper APIs across the implemented structures. Base manager helpers stay read-only and universal; mutation and navigation helpers remain on structure-specific managers where semantics differ.
 
 ### Stage 21: Add validation and preflight APIs
 

@@ -33,9 +33,29 @@ public abstract class ContentManagerBase
     public IReadOnlyList<ContentEntryRecord> Records => Structure.Records;
 
     /// <summary>
+    /// Gets the number of retained records in the active structure.
+    /// </summary>
+    public int Count => Records.Count;
+
+    /// <summary>
+    /// Gets a value indicating whether the active structure retains no records.
+    /// </summary>
+    public bool IsEmpty => Count == 0;
+
+    /// <summary>
     /// Occurs after the active structure commits a content mutation.
     /// </summary>
     public event EventHandler<ContentChangedEventArgs>? Changed;
+
+    /// <summary>
+    /// Determines whether the active structure retains a record with the supplied normalized ID.
+    /// </summary>
+    /// <param name="id">The normalized entry ID to look up.</param>
+    /// <returns><see langword="true"/> when the active structure retains the ID.</returns>
+    public bool Contains(ContentEntryId id)
+    {
+        return TryGet(id, out _, out _);
+    }
 
     /// <summary>
     /// Attempts to get a retained record by ID.

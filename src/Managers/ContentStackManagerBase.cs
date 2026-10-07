@@ -43,6 +43,16 @@ public abstract class ContentStackManagerBase<TId> : ContentManagerBase
     public ContentEntryRecord Push(TId id, IContentEntry entry) => Stack.Push(id, entry);
 
     /// <summary>
+    /// Gets a value indicating whether the stack has a record that can be peeked.
+    /// </summary>
+    public bool CanPeek => Count > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the stack has a record that can be popped.
+    /// </summary>
+    public bool CanPop => Count > 0;
+
+    /// <summary>
     /// Attempts to read the top retained record without removing it.
     /// </summary>
     public bool TryPeek(out ContentEntryRecord? record, out ContentFailure? failure) => Stack.TryPeek(out record, out failure);
@@ -61,6 +71,11 @@ public abstract class ContentStackManagerBase<TId> : ContentManagerBase
     /// Removes and returns the top retained record.
     /// </summary>
     public ContentEntryRecord Pop() => Stack.Pop();
+
+    /// <summary>
+    /// Determines whether the stack retains a record with the supplied natural ID.
+    /// </summary>
+    public bool Contains(TId id) => TryGet(id, out _, out _);
 
     /// <summary>
     /// Attempts to get a retained record by the stack's natural ID type.

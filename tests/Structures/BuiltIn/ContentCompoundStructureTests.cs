@@ -214,6 +214,80 @@ public sealed class ContentCompoundStructureTests
     }
 
     [Test]
+    public void Manager_AddChild_CanUseParentNode()
+    {
+        var manager = ContentManagers.ForStructure<ContentCompoundManager>(new ContentCompoundStructure());
+        ContentCompoundNode root = manager.AddRoot(Entry("Root"));
+
+        ContentCompoundNode generated = manager.AddChild(root, Entry("Generated child"));
+        ContentCompoundNode manual = manager.AddChild(root, 10, Entry("Manual child"));
+
+        Assert.That(generated.ParentId, Is.EqualTo(root.Record.Id));
+        Assert.That(manual.ParentId, Is.EqualTo(root.Record.Id));
+        Assert.That(manager.GetChildren(root).Select(child => child.Record.PlainText), Is.EqualTo(new[] { "Generated child", "Manual child" }));
+    }
+
+    [Test]
+    public void Manager_TryAddChild_WithMissingParentNodeReturnsEntryNotFound()
+    {
+        var manager = ContentManagers.ForStructure<ContentCompoundManager>(new ContentCompoundStructure());
+        var missing = new ContentCompoundNode(
+            new ContentEntryRecord(new ContentEntryId("999"), Entry("Missing")),
+            parentId: null,
+            childIds: Array.Empty<ContentEntryId>());
+
+        bool accepted = manager.TryAddChild(missing, Entry("Child"), out ContentCompoundNode? node, out ContentFailure? failure);
+
+        Assert.That(accepted, Is.False);
+        Assert.That(node, Is.Null);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.EntryNotFound));
+        Assert.That(manager.Records, Is.Empty);
+    }
+
+    [Test]
+    public void Manager_CanTraverseParentsFromNodes()
+    {
+        var manager = ContentManagers.ForStructure<ContentCompoundManager>(new ContentCompoundStructure());
+        ContentCompoundNode root = manager.AddRoot(Entry("Root"));
+        ContentCompoundNode child = manager.AddChild(root, Entry("Child"));
+
+        bool found = manager.TryGetParent(child, out ContentCompoundNode? parent, out ContentFailure? failure);
+        bool foundRootParent = manager.TryGetParent(root, out ContentCompoundNode? rootParent, out ContentFailure? rootFailure);
+
+        Assert.That(found, Is.True);
+        Assert.That(parent?.Record.Id, Is.EqualTo(root.Record.Id));
+        Assert.That(failure, Is.Null);
+        Assert.That(manager.GetParent(child).Record.Id, Is.EqualTo(root.Record.Id));
+        Assert.That(foundRootParent, Is.False);
+        Assert.That(rootParent, Is.Null);
+        Assert.That(rootFailure?.Code, Is.EqualTo(ContentFailureCodes.EntryNotFound));
+    }
+
+    [Test]
+    public void GetRecordViews_ReturnsDepthFirstHierarchyMetadata()
+    {
+        var manager = ContentManagers.ForStructure<ContentCompoundManager>(new ContentCompoundStructure());
+        ContentCompoundNode root = manager.AddRoot(Entry("Root"));
+        ContentCompoundNode child = manager.AddChild(root, Entry("Child"));
+        ContentCompoundNode sibling = manager.AddRoot(Entry("Sibling"));
+        ContentCompoundNode grandchild = manager.AddChild(child, Entry("Grandchild"));
+
+        IReadOnlyList<ContentCompoundRecordView> views = manager.GetRecordViews();
+
+        Assert.That(views.Select(view => view.Record.PlainText), Is.EqualTo(new[] { "Root", "Child", "Grandchild", "Sibling" }));
+        Assert.That(views.Select(view => view.Depth), Is.EqualTo(new[] { 0, 1, 2, 0 }));
+        Assert.That(views[0].IsRoot, Is.True);
+        Assert.That(views[0].HasChildren, Is.True);
+        Assert.That(views[0].ChildIds, Is.EqualTo(new[] { child.Record.Id }));
+        Assert.That(views[1].ParentId, Is.EqualTo(root.Record.Id));
+        Assert.That(views[1].ChildIds, Is.EqualTo(new[] { grandchild.Record.Id }));
+        Assert.That(views[2].ParentId, Is.EqualTo(child.Record.Id));
+        Assert.That(views[2].HasChildren, Is.False);
+        Assert.That(views[3].Record.Id, Is.EqualTo(sibling.Record.Id));
+        Assert.That(views[3].IsRoot, Is.True);
+    }
+
+    [Test]
     public void TypedManagerMismatch_StillReturnsManagerMismatch()
     {
         bool resolved = ContentManagers.TryForStructure<ContentSequenceManager>(

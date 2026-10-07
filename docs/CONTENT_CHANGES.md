@@ -94,6 +94,7 @@ Rejected or no-op operations do not raise change events.
 
 For example:
 
+- a map `GetOrSet` call that finds an existing record returns it and emits no event;
 - a duplicate map ID returns `EntryIdDuplicate` and emits no event;
 - an invalid map ID returns `EntryIdInvalid` and emits no event;
 - a sequence or stack add rejected by `ContentOverflowPolicy.Reject(capacity)` returns `StructureCapacityReached` and emits no event;

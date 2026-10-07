@@ -2,6 +2,17 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
+## Unreleased
+
+Added:
+
+- Added read-only manager conveniences: `Count`, `IsEmpty`, and normalized-ID `Contains`.
+- Added typed `Contains` helpers across sequence, map, single, stack, and compound manager families.
+- Added map `GetOrSet` / `TryGetOrSet` helpers for get-or-create workflows.
+- Added sequence `GetFirst` / `TryGetFirst` and `GetLast` / `TryGetLast` helpers over configured read order.
+- Added single `HasCurrent` and stack `CanPeek` / `CanPop` helpers.
+- Added compound parent-node child creation overloads, parent/child node traversal helpers, and `ContentCompoundRecordView` hierarchy readouts.
+
 ## 0.7.1 - 07-10-2026
 
 Added:

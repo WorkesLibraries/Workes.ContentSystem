@@ -45,6 +45,16 @@ public abstract class ContentCompoundStructureBase<TId> : IContentClearableStruc
     public abstract ContentCompoundNode AddChild(TId parentId, IContentEntry entry);
 
     /// <summary>
+    /// Attempts to add a child node with a generated ID under a normalized parent ID.
+    /// </summary>
+    public abstract bool TryAddChild(ContentEntryId parentId, IContentEntry entry, out ContentCompoundNode? node, out ContentFailure? failure);
+
+    /// <summary>
+    /// Adds a child node with a generated ID under a normalized parent ID.
+    /// </summary>
+    public abstract ContentCompoundNode AddChild(ContentEntryId parentId, IContentEntry entry);
+
+    /// <summary>
     /// Attempts to add a child node with an explicit ID.
     /// </summary>
     public abstract bool TryAddChild(TId parentId, TId id, IContentEntry entry, out ContentCompoundNode? node, out ContentFailure? failure);
@@ -53,6 +63,16 @@ public abstract class ContentCompoundStructureBase<TId> : IContentClearableStruc
     /// Adds a child node with an explicit ID.
     /// </summary>
     public abstract ContentCompoundNode AddChild(TId parentId, TId id, IContentEntry entry);
+
+    /// <summary>
+    /// Attempts to add a child node with an explicit ID under a normalized parent ID.
+    /// </summary>
+    public abstract bool TryAddChild(ContentEntryId parentId, TId id, IContentEntry entry, out ContentCompoundNode? node, out ContentFailure? failure);
+
+    /// <summary>
+    /// Adds a child node with an explicit ID under a normalized parent ID.
+    /// </summary>
+    public abstract ContentCompoundNode AddChild(ContentEntryId parentId, TId id, IContentEntry entry);
 
     /// <summary>
     /// Attempts to get a node by stored ID.
@@ -83,6 +103,16 @@ public abstract class ContentCompoundStructureBase<TId> : IContentClearableStruc
     /// Gets child nodes for the parent ID in configured sibling read order.
     /// </summary>
     public abstract IReadOnlyList<ContentCompoundNode> GetChildren(TId parentId);
+
+    /// <summary>
+    /// Gets child nodes for the normalized parent ID in configured sibling read order.
+    /// </summary>
+    public abstract IReadOnlyList<ContentCompoundNode> GetChildren(ContentEntryId parentId);
+
+    /// <summary>
+    /// Gets retained records with hierarchy metadata in deterministic depth-first order.
+    /// </summary>
+    public abstract IReadOnlyList<ContentCompoundRecordView> GetRecordViews();
 
     /// <summary>
     /// Attempts to remove a node by natural ID.

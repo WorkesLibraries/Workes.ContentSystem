@@ -102,6 +102,7 @@ It exposes:
 
 - `Structure`;
 - `Records`;
+- `Count`, `IsEmpty`, and `Contains(ContentEntryId)`;
 - `TryGet(ContentEntryId, ...)`;
 - `Get(ContentEntryId)`;
 - `TryCaptureSnapshot(...)` and `CaptureSnapshot()`;
@@ -123,6 +124,49 @@ void Render(ContentManagerBase content)
 Most application code should resolve managers from structures. `ContentManagerBase` is abstract, so it is not constructed directly; it exists so multiple manager workflows can be processed through their common read and lookup surface.
 
 Reusable workflow families can also have manager bases. `ContentSequenceManagerBase`, `ContentMapManagerBase<TId>`, `ContentSingleManagerBase<TId>`, `ContentStackManagerBase<TId>`, and `ContentCompoundManagerBase<TId>` hold shared family behavior such as add/set/push/tree operations, typed lookup, typed removal, and clear. The concrete managers remain the normal user-facing types because they can expose concrete structure features without forcing those features onto the whole family.
+
+## Convenience Helpers
+
+Convenience helpers are intentionally small and live where their semantics are obvious.
+
+All managers expose `Count`, `IsEmpty`, and normalized-ID `Contains`. Manager families with natural typed IDs also expose `Contains(TId)`.
+
+Sequence managers expose first/last helpers over the configured read order:
+
+```csharp
+ContentEntryRecord firstVisible = sequence.GetFirst();
+ContentEntryRecord lastVisible = sequence.GetLast();
+```
+
+For `ContentSequenceReadOrder.NewestFirst`, `GetFirst()` returns the newest retained record because it is first in the current read order.
+
+Map managers expose get-or-create helpers:
+
+```csharp
+ContentEntryRecord record = map.GetOrSet(
+    "thread-main",
+    () => new PlainContentEntry(DateTimeOffset.UtcNow, "First post."));
+```
+
+If the record already exists, the factory is not invoked and no change event is raised. If the record is missing, the helper adds it through the normal map add workflow.
+
+Single managers expose `HasCurrent`. Stack managers expose `CanPeek` and `CanPop`.
+
+Compound managers expose node-based overloads so callers can keep useful node references instead of extracting IDs everywhere:
+
+```csharp
+ContentCompoundNode topic = tree.AddRoot(
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Topic"));
+
+ContentCompoundNode reply = tree.AddChild(
+    topic,
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Reply"));
+
+ContentCompoundNode parent = tree.GetParent(reply);
+IReadOnlyList<ContentCompoundNode> replies = tree.GetChildren(topic);
+```
+
+Compound managers also expose `GetRecordViews()` for depth-first readouts with hierarchy metadata such as depth, parent ID, child IDs, root status, and child presence. These views are read models only; they are not snapshot DTOs.
 
 ## Runtime Mutation
 

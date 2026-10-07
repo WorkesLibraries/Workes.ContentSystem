@@ -119,7 +119,9 @@ var tree = ContentManagers.ForStructure<ContentCompoundManager>(
 
 ContentCompoundNode topic = tree.AddRoot(
     new PlainContentEntry(DateTimeOffset.UtcNow, "Topic"));
-tree.AddChild(1, new PlainContentEntry(DateTimeOffset.UtcNow, "Reply"));
+ContentCompoundNode reply = tree.AddChild(
+    topic,
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Reply"));
 ```
 
 `ContentManagerBase` is the shared ancestor for manager-agnostic code. Most users should resolve a manager from a structure, then use `ContentManagerBase` only when existing managers should be processed through their common read, lookup, event, and snapshot surface.

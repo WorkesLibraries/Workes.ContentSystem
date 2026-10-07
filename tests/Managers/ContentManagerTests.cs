@@ -62,6 +62,22 @@ public sealed class ContentManagerTests
     }
 
     [Test]
+    public void BaseManager_ExposesReadOnlyConveniences()
+    {
+        ContentManagerBase manager = new ContentSequenceManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+
+        Assert.That(manager.Count, Is.EqualTo(0));
+        Assert.That(manager.IsEmpty, Is.True);
+
+        ContentEntryRecord added = ((ContentSequenceManager)manager).Add(Entry("Stored"));
+
+        Assert.That(manager.Count, Is.EqualTo(1));
+        Assert.That(manager.IsEmpty, Is.False);
+        Assert.That(manager.Contains(added.Id), Is.True);
+        Assert.That(manager.Contains(new ContentEntryId("999")), Is.False);
+    }
+
+    [Test]
     public void Changed_ForwardsStructureEventsWithManagerSender()
     {
         var manager = new ContentSequenceManager(new ContentSequenceStructure(ContentOverflowPolicy.DropOldest(200)));
@@ -127,6 +143,75 @@ public sealed class ContentManagerTests
         Assert.That(cleared, Is.True);
         Assert.That(removedRecords, Is.Empty);
         Assert.That(clearFailure, Is.Null);
+    }
+
+    [Test]
+    public void SequenceManagerBase_ContainsUsesNaturalId()
+    {
+        ContentSequenceManagerBase manager = new ContentSequenceManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        manager.Add(Entry("Stored"));
+
+        Assert.That(manager.Contains(1), Is.True);
+        Assert.That(manager.Contains(2), Is.False);
+    }
+
+    [Test]
+    public void SequenceManager_FirstAndLastFollowConfiguredReadOrder()
+    {
+        var oldestFirst = new ContentSequenceManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        oldestFirst.Add(Entry("One"));
+        oldestFirst.Add(Entry("Two"));
+
+        var newestFirst = new ContentSequenceManager(new ContentSequenceStructure(
+            ContentOverflowPolicy.None,
+            ContentSequenceReadOrder.NewestFirst));
+        newestFirst.Add(Entry("One"));
+        newestFirst.Add(Entry("Two"));
+
+        Assert.That(oldestFirst.GetFirst().PlainText, Is.EqualTo("One"));
+        Assert.That(oldestFirst.GetLast().PlainText, Is.EqualTo("Two"));
+        Assert.That(newestFirst.GetFirst().PlainText, Is.EqualTo("Two"));
+        Assert.That(newestFirst.GetLast().PlainText, Is.EqualTo("One"));
+    }
+
+    [Test]
+    public void SequenceManager_FirstAndLastOnEmptySequenceReturnEntryNotFound()
+    {
+        var manager = new ContentSequenceManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+
+        bool foundFirst = manager.TryGetFirst(out ContentEntryRecord? first, out ContentFailure? firstFailure);
+        bool foundLast = manager.TryGetLast(out ContentEntryRecord? last, out ContentFailure? lastFailure);
+
+        Assert.That(foundFirst, Is.False);
+        Assert.That(first, Is.Null);
+        Assert.That(firstFailure?.Code, Is.EqualTo(ContentFailureCodes.EntryNotFound));
+        Assert.That(foundLast, Is.False);
+        Assert.That(last, Is.Null);
+        Assert.That(lastFailure?.Code, Is.EqualTo(ContentFailureCodes.EntryNotFound));
+        Assert.Throws<ContentOperationException>(() => manager.GetFirst());
+        Assert.Throws<ContentOperationException>(() => manager.GetLast());
+    }
+
+    [Test]
+    public void SingleAndStackManagers_ExposeSmallStateConveniences()
+    {
+        var single = ContentManagers.ForStructure<ContentSingleManager>(new ContentSingleStructure());
+        Assert.That(single.HasCurrent, Is.False);
+        ContentEntryRecord current = single.Set(Entry("Current"));
+        Assert.That(single.HasCurrent, Is.True);
+        Assert.That(single.Contains(1), Is.True);
+        Assert.That(single.Contains(2), Is.False);
+
+        var stack = ContentManagers.ForStructure<ContentStackManager>(new ContentStackStructure(ContentOverflowPolicy.None));
+        Assert.That(stack.CanPeek, Is.False);
+        Assert.That(stack.CanPop, Is.False);
+        ContentEntryRecord pushed = stack.Push(Entry("Top"));
+        Assert.That(stack.CanPeek, Is.True);
+        Assert.That(stack.CanPop, Is.True);
+        Assert.That(stack.Contains(1), Is.True);
+        Assert.That(stack.Contains(2), Is.False);
+        Assert.That(current.Id, Is.EqualTo(new ContentEntryId("1")));
+        Assert.That(pushed.Id, Is.EqualTo(new ContentEntryId("1")));
     }
 
     [Test]
