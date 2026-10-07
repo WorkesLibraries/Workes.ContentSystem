@@ -31,6 +31,14 @@ public abstract class ContentSingleManagerBase<TId> : ContentManagerBase
     }
 
     /// <summary>
+    /// Assesses whether the current entry can be set with a generated ID without committing the set.
+    /// </summary>
+    public ContentPreflightResult AssessSet(IContentEntry entry)
+    {
+        return Single.AssessSet(entry);
+    }
+
+    /// <summary>
     /// Sets the current entry with a generated ID.
     /// </summary>
     public ContentEntryRecord Set(IContentEntry entry)
@@ -44,6 +52,14 @@ public abstract class ContentSingleManagerBase<TId> : ContentManagerBase
     public bool TrySet(TId id, IContentEntry entry, out ContentEntryRecord? record, out ContentEntryRecord? replacedRecord, out ContentFailure? failure)
     {
         return Single.TrySet(id, entry, out record, out replacedRecord, out failure);
+    }
+
+    /// <summary>
+    /// Assesses whether the current entry can be set with an explicit ID without committing the set.
+    /// </summary>
+    public ContentPreflightResult AssessSet(TId id, IContentEntry entry)
+    {
+        return Single.AssessSet(id, entry);
     }
 
     /// <summary>
@@ -108,6 +124,14 @@ public abstract class ContentSingleManagerBase<TId> : ContentManagerBase
     }
 
     /// <summary>
+    /// Assesses whether the current record can be removed by natural ID without committing the removal.
+    /// </summary>
+    public ContentPreflightResult AssessRemove(TId id)
+    {
+        return Single.AssessRemove(id);
+    }
+
+    /// <summary>
     /// Removes a retained record by natural ID.
     /// </summary>
     public ContentEntryRecord Remove(TId id)
@@ -121,6 +145,14 @@ public abstract class ContentSingleManagerBase<TId> : ContentManagerBase
     public bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
     {
         return Single.TryClear(out removedRecords, out failure);
+    }
+
+    /// <summary>
+    /// Assesses whether the current record can be cleared without committing the clear.
+    /// </summary>
+    public ContentPreflightResult AssessClear()
+    {
+        return Single.AssessClear();
     }
 
     /// <summary>

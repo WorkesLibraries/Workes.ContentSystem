@@ -28,6 +28,12 @@ public sealed class GuidContentGeneratedIdSource : IContentGeneratedIdSource<Gui
     /// <inheritdoc />
     public bool TryCreateNext(out Guid id, out ContentFailure? failure)
     {
+        if (!CanCreateNext(out failure))
+        {
+            id = default;
+            return false;
+        }
+
         id = Guid.NewGuid();
         if (id == Guid.Empty)
         {
@@ -40,13 +46,32 @@ public sealed class GuidContentGeneratedIdSource : IContentGeneratedIdSource<Gui
     }
 
     /// <inheritdoc />
+    public bool CanCreateNext(out ContentFailure? failure)
+    {
+        failure = null;
+        return true;
+    }
+
+    /// <inheritdoc />
     public bool TryObserve(Guid id, out ContentFailure? failure)
+    {
+        return CanObserve(id, out failure);
+    }
+
+    /// <inheritdoc />
+    public bool CanObserve(Guid id, out ContentFailure? failure)
     {
         return IdStrategy.TryNormalize(id, out _, out failure);
     }
 
     /// <inheritdoc />
     public bool TryObserveNormalized(ContentEntryId id, out ContentFailure? failure)
+    {
+        return CanObserveNormalized(id, out failure);
+    }
+
+    /// <inheritdoc />
+    public bool CanObserveNormalized(ContentEntryId id, out ContentFailure? failure)
     {
         return IdStrategy.TryValidateNormalized(id, out failure);
     }

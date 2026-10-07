@@ -126,6 +126,18 @@ public class ContentSequenceStructure<TId> :
     public event EventHandler<ContentChangedEventArgs>? Changed;
 
     /// <inheritdoc />
+    public override ContentPreflightResult AssessAdd(IContentEntry entry)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        return ToPreflight(TryValidateCapacityForAdd(out ContentFailure? failure)
+            && IdSource.CanCreateNext(out failure), failure);
+    }
+
+    /// <inheritdoc />
     public override bool TryAdd(IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
     {
         if (entry is null)
@@ -167,6 +179,25 @@ public class ContentSequenceStructure<TId> :
         }
 
         return TryAddAcceptedId(id, entry, observeId: true, out record, out failure);
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessAdd(TId id, IContentEntry entry)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        if (!IdSource.IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out ContentFailure? failure)
+            || !AssessDuplicateFree(normalizedId, out failure)
+            || !TryValidateCapacityForAdd(out failure)
+            || !IdSource.CanObserve(id, out failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return ContentPreflightResult.Success();
     }
 
     /// <inheritdoc />
@@ -256,6 +287,12 @@ public class ContentSequenceStructure<TId> :
     }
 
     /// <inheritdoc />
+    public override ContentPreflightResult AssessClear()
+    {
+        return ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
     public override IReadOnlyList<ContentEntryRecord> Clear()
     {
         if (TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure))
@@ -292,6 +329,13 @@ public class ContentSequenceStructure<TId> :
     }
 
     /// <inheritdoc />
+    public override ContentPreflightResult AssessRemove(ContentEntryId id)
+    {
+        EnsureValidId(id);
+        return ToPreflight(_records.Any(candidate => candidate.Id == id), ContentFailures.EntryNotFound($"Entry '{id}' was not found.", id.ToString()));
+    }
+
+    /// <inheritdoc />
     public override bool TryRemove(TId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
     {
         if (!IdSource.IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out failure))
@@ -301,6 +345,17 @@ public class ContentSequenceStructure<TId> :
         }
 
         return TryRemove(normalizedId, out removedRecord, out failure);
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessRemove(TId id)
+    {
+        if (!IdSource.IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out ContentFailure? failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return AssessRemove(normalizedId);
     }
 
     /// <inheritdoc />
@@ -472,6 +527,23 @@ public class ContentSequenceStructure<TId> :
             removedRecord is null ? null : new[] { removedRecord },
             ContentChangeKind.Added));
         return true;
+    }
+
+    private bool AssessDuplicateFree(ContentEntryId normalizedId, out ContentFailure? failure)
+    {
+        if (_records.Any(candidate => candidate.Id.Equals(normalizedId)))
+        {
+            failure = ContentFailures.EntryIdDuplicate($"Entry ID '{normalizedId}' already exists.", normalizedId.ToString());
+            return false;
+        }
+
+        failure = null;
+        return true;
+    }
+
+    private static ContentPreflightResult ToPreflight(bool success, ContentFailure? failure)
+    {
+        return success ? ContentPreflightResult.Success() : ContentPreflightResult.Rejected(failure!);
     }
 
     private static void EnsureValidId(ContentEntryId id)

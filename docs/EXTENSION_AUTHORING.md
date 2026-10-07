@@ -109,6 +109,21 @@ QuestLogManager content =
 
 No registry setup is needed for manager resolution. The typed resolver validates that the structure-created manager is the expected manager type and returns a structured manager-mismatch failure when it is not.
 
+## Preflight Support
+
+If a custom structure inherits one of the built-in family bases, it must implement that family's `Assess...` methods along with the committing `Try...` methods. These assessments should validate the same expected rejection cases as the commit path, but without mutating retained records, advancing generated ID sources, observing manual IDs, replacing structures, or emitting events.
+
+For generated-ID structures, custom `IContentGeneratedIdSource<TId>` implementations must provide both committing and non-mutating source methods:
+
+- `CanCreateNext(...)` assesses generated ID availability without advancing;
+- `TryCreateNext(...)` creates and advances;
+- `CanObserve(...)` and `CanObserveNormalized(...)` assess manual/restored IDs without recording them;
+- `TryObserve(...)` and `TryObserveNormalized(...)` record accepted IDs so future generation stays coherent.
+
+Managers should expose `Assess...` methods for the same user-facing operations they expose as `Try...` and expected-success methods. Preflight is not a reservation; the commit path must still revalidate because another operation can change state after assessment.
+
+Snapshot-capable managers inherit `AssessCaptureSnapshot()` and `AssessRestoreSnapshot(...)` from `ContentManagerBase`. Custom manager compatibility checks in `TryAcceptStructureReplacement(...)` are used by both restore preflight and actual restore.
+
 ## Snapshot Support
 
 Custom structures opt into snapshot round trips with `IContentStructureSnapshotRoundTrippable`. The structure captures itself and exposes a `SnapshotFactory` so normal manager restore can use `RestoreSnapshot(snapshot)` without a factory argument.
@@ -273,4 +288,5 @@ Successful manager-coordinated restore emits one full-refresh event with `Conten
 - Do not silently skip unsupported custom entries; let snapshot capture/restore return structured failures.
 - Do not expose mutation APIs on a manager unless the underlying structure contract supports them.
 - Do not emit events for rejected or no-op operations.
+- Do not let preflight methods mutate state, advance generated ID sources, or emit events.
 - Keep snapshot DTOs serializer-friendly and avoid storing live service objects, delegates, or host-specific resources in `ContentSnapshotValue`.

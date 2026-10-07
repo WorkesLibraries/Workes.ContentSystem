@@ -129,6 +129,23 @@ public class ContentStackStructure<TId> :
     }
 
     /// <inheritdoc />
+    public override ContentPreflightResult AssessPush(IContentEntry entry)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        if (!TryValidateCapacityForPush(out ContentFailure? failure)
+            || !IdSource.CanCreateNext(out failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
     public override ContentEntryRecord Push(IContentEntry entry)
     {
         if (TryPush(entry, out ContentEntryRecord? record, out ContentFailure? failure))
@@ -148,6 +165,25 @@ public class ContentStackStructure<TId> :
         }
 
         return TryPushAcceptedId(id, entry, observeId: true, out record, out failure);
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessPush(TId id, IContentEntry entry)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        if (!IdSource.IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out ContentFailure? failure)
+            || !AssessDuplicateFree(normalizedId, out failure)
+            || !TryValidateCapacityForPush(out failure)
+            || !IdSource.CanObserve(id, out failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return ContentPreflightResult.Success();
     }
 
     /// <inheritdoc />
@@ -177,6 +213,14 @@ public class ContentStackStructure<TId> :
     }
 
     /// <inheritdoc />
+    public override ContentPreflightResult AssessPeek()
+    {
+        return _records.Count == 0
+            ? ContentPreflightResult.Rejected(ContentFailures.EntryNotFound("The content stack is empty."))
+            : ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
     public override ContentEntryRecord Peek()
     {
         if (TryPeek(out ContentEntryRecord? record, out ContentFailure? failure))
@@ -199,6 +243,12 @@ public class ContentStackStructure<TId> :
         failure = null;
         OnChanged(new ContentChangedEventArgs(removedRecords: new[] { record! }, kind: ContentChangeKind.Removed));
         return true;
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessPop()
+    {
+        return AssessPeek();
     }
 
     /// <inheritdoc />
@@ -279,6 +329,15 @@ public class ContentStackStructure<TId> :
     }
 
     /// <inheritdoc />
+    public override ContentPreflightResult AssessRemove(ContentEntryId id)
+    {
+        EnsureValidId(id);
+        return _records.Any(candidate => candidate.Id == id)
+            ? ContentPreflightResult.Success()
+            : ContentPreflightResult.Rejected(ContentFailures.EntryNotFound($"Entry '{id}' was not found.", id.ToString()));
+    }
+
+    /// <inheritdoc />
     public override bool TryRemove(TId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
     {
         if (!IdSource.IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out failure))
@@ -288,6 +347,17 @@ public class ContentStackStructure<TId> :
         }
 
         return TryRemove(normalizedId, out removedRecord, out failure);
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessRemove(TId id)
+    {
+        if (!IdSource.IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out ContentFailure? failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return AssessRemove(normalizedId);
     }
 
     /// <inheritdoc />
@@ -329,6 +399,12 @@ public class ContentStackStructure<TId> :
             cleared: true,
             requiresFullRefresh: true));
         return true;
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessClear()
+    {
+        return ContentPreflightResult.Success();
     }
 
     /// <inheritdoc />
@@ -409,6 +485,18 @@ public class ContentStackStructure<TId> :
         _records.Add(record);
         failure = null;
         OnChanged(new ContentChangedEventArgs(new[] { record }, kind: ContentChangeKind.Added));
+        return true;
+    }
+
+    private bool AssessDuplicateFree(ContentEntryId normalizedId, out ContentFailure? failure)
+    {
+        if (_records.Any(candidate => candidate.Id == normalizedId))
+        {
+            failure = ContentFailures.EntryIdDuplicate($"Entry ID '{normalizedId}' already exists.", normalizedId.ToString());
+            return false;
+        }
+
+        failure = null;
         return true;
     }
 

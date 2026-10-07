@@ -48,6 +48,8 @@ Callers should branch on `Kind` or `Code`, not on display messages.
 
 ## Try And Expected-Success APIs
 
+`Assess...` APIs are advisory preflight checks. They return `ContentPreflightResult`, do not commit state, and carry the same structured failure style that the eventual mutation or snapshot operation would use.
+
 Try-style APIs should return structured failure data when ordinary operation failure is expected.
 
 Expected-success APIs should throw package-owned exceptions that carry the same structured failure.
@@ -70,6 +72,7 @@ This keeps error handling consistent across Workes packages.
 
 A caller can choose the workflow that fits the situation without losing information:
 
+- use assess APIs to ask whether an operation can currently commit without changing state;
 - use try APIs when failure is a normal branch;
 - use expected-success APIs when failure should interrupt the workflow;
 - inspect structured failure kind and code in either case.

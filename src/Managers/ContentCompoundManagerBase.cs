@@ -28,6 +28,11 @@ public abstract class ContentCompoundManagerBase<TId> : ContentManagerBase
     public bool TryAddRoot(IContentEntry entry, out ContentCompoundNode? node, out ContentFailure? failure) => Compound.TryAddRoot(entry, out node, out failure);
 
     /// <summary>
+    /// Assesses whether a root node can be added with a generated ID without committing the add.
+    /// </summary>
+    public ContentPreflightResult AssessAddRoot(IContentEntry entry) => Compound.AssessAddRoot(entry);
+
+    /// <summary>
     /// Adds a root node with a generated ID.
     /// </summary>
     public ContentCompoundNode AddRoot(IContentEntry entry) => Compound.AddRoot(entry);
@@ -38,6 +43,11 @@ public abstract class ContentCompoundManagerBase<TId> : ContentManagerBase
     public bool TryAddRoot(TId id, IContentEntry entry, out ContentCompoundNode? node, out ContentFailure? failure) => Compound.TryAddRoot(id, entry, out node, out failure);
 
     /// <summary>
+    /// Assesses whether a root node can be added with an explicit ID without committing the add.
+    /// </summary>
+    public ContentPreflightResult AssessAddRoot(TId id, IContentEntry entry) => Compound.AssessAddRoot(id, entry);
+
+    /// <summary>
     /// Adds a root node with an explicit ID.
     /// </summary>
     public ContentCompoundNode AddRoot(TId id, IContentEntry entry) => Compound.AddRoot(id, entry);
@@ -46,6 +56,11 @@ public abstract class ContentCompoundManagerBase<TId> : ContentManagerBase
     /// Attempts to add a child node with a generated ID.
     /// </summary>
     public bool TryAddChild(TId parentId, IContentEntry entry, out ContentCompoundNode? node, out ContentFailure? failure) => Compound.TryAddChild(parentId, entry, out node, out failure);
+
+    /// <summary>
+    /// Assesses whether a child node can be added with a generated ID without committing the add.
+    /// </summary>
+    public ContentPreflightResult AssessAddChild(TId parentId, IContentEntry entry) => Compound.AssessAddChild(parentId, entry);
 
     /// <summary>
     /// Adds a child node with a generated ID.
@@ -63,6 +78,19 @@ public abstract class ContentCompoundManagerBase<TId> : ContentManagerBase
         }
 
         return Compound.TryAddChild(parent.Record.Id, entry, out node, out failure);
+    }
+
+    /// <summary>
+    /// Assesses whether a child node can be added under the supplied parent node without committing the add.
+    /// </summary>
+    public ContentPreflightResult AssessAddChild(ContentCompoundNode parent, IContentEntry entry)
+    {
+        if (parent is null)
+        {
+            throw new ArgumentNullException(nameof(parent));
+        }
+
+        return Compound.AssessAddChild(parent.Record.Id, entry);
     }
 
     /// <summary>
@@ -84,6 +112,11 @@ public abstract class ContentCompoundManagerBase<TId> : ContentManagerBase
     public bool TryAddChild(TId parentId, TId id, IContentEntry entry, out ContentCompoundNode? node, out ContentFailure? failure) => Compound.TryAddChild(parentId, id, entry, out node, out failure);
 
     /// <summary>
+    /// Assesses whether a child node can be added with an explicit ID without committing the add.
+    /// </summary>
+    public ContentPreflightResult AssessAddChild(TId parentId, TId id, IContentEntry entry) => Compound.AssessAddChild(parentId, id, entry);
+
+    /// <summary>
     /// Adds a child node with an explicit ID.
     /// </summary>
     public ContentCompoundNode AddChild(TId parentId, TId id, IContentEntry entry) => Compound.AddChild(parentId, id, entry);
@@ -99,6 +132,19 @@ public abstract class ContentCompoundManagerBase<TId> : ContentManagerBase
         }
 
         return Compound.TryAddChild(parent.Record.Id, id, entry, out node, out failure);
+    }
+
+    /// <summary>
+    /// Assesses whether a child node can be added under the supplied parent node with an explicit ID without committing the add.
+    /// </summary>
+    public ContentPreflightResult AssessAddChild(ContentCompoundNode parent, TId id, IContentEntry entry)
+    {
+        if (parent is null)
+        {
+            throw new ArgumentNullException(nameof(parent));
+        }
+
+        return Compound.AssessAddChild(parent.Record.Id, id, entry);
     }
 
     /// <summary>
@@ -201,6 +247,11 @@ public abstract class ContentCompoundManagerBase<TId> : ContentManagerBase
     public bool TryRemove(TId id, out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure) => Compound.TryRemove(id, out removedRecords, out failure);
 
     /// <summary>
+    /// Assesses whether a node can be removed by natural ID without committing the removal.
+    /// </summary>
+    public ContentPreflightResult AssessRemove(TId id) => Compound.AssessRemove(id);
+
+    /// <summary>
     /// Removes a node by natural ID.
     /// </summary>
     public IReadOnlyList<ContentEntryRecord> Remove(TId id) => Compound.Remove(id);
@@ -209,6 +260,11 @@ public abstract class ContentCompoundManagerBase<TId> : ContentManagerBase
     /// Attempts to clear all retained nodes.
     /// </summary>
     public bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure) => Compound.TryClear(out removedRecords, out failure);
+
+    /// <summary>
+    /// Assesses whether all retained nodes can be cleared without committing the clear.
+    /// </summary>
+    public ContentPreflightResult AssessClear() => Compound.AssessClear();
 
     /// <summary>
     /// Clears all retained nodes.

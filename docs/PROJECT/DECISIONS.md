@@ -854,3 +854,29 @@ The serializer object remains plain data while still preserving hierarchy faithf
 The normal user path stays manager-owned: `CaptureSnapshot()` and `RestoreSnapshot(snapshot)`.
 
 Custom compound structures can add their own structure-owned data on top of the shared relationship model without reimplementing the fragile validation rules.
+
+### D-038: Preflight Is Advisory And Side-Effect-Free
+
+Date: 2026-10-07
+
+#### Context
+
+Consumers sometimes need to ask whether a mutation, generated-ID operation, or snapshot restore can currently succeed before they attempt to commit it. This is useful for UI affordances, validation messages, and avoiding work such as invoking factories when an operation is already known to be rejected.
+
+#### Decision
+
+ContentSystem uses `Assess...` APIs for advisory preflight and represents the result with `ContentPreflightResult`.
+
+Preflight APIs report whether an operation can currently commit and, when rejected, carry the same structured failure style as the eventual commit path. They must not retain records, advance generated ID sources, observe manual IDs, replace manager structures, resubscribe events, or emit change events.
+
+Generated ID sources expose non-mutating `CanCreateNext`, `CanObserve`, and `CanObserveNormalized` methods alongside the committing `TryCreateNext`, `TryObserve`, and `TryObserveNormalized` methods.
+
+#### Reasoning
+
+This keeps preflight consistent with the package's existing failure style while preserving the important distinction between assessment and commit. UI code can ask for a structured reason without causing hidden state changes, but committing APIs still remain authoritative.
+
+#### Consequences
+
+Preflight is not a lock. All `Try...` and expected-success APIs must revalidate because state can change between assessment and commit.
+
+Custom generated ID sources and custom structures that inherit family bases need to implement matching assessment methods. This is a prerelease breaking change accepted for the `0.8.0` release.

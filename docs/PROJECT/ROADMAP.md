@@ -84,7 +84,7 @@ Completed implementation adds ergonomic helper APIs across the implemented struc
 
 ### Stage 21: Add validation and preflight APIs
 
-Add preflight APIs for mutation and snapshot workflows. Preflight should not mutate state or emit events, and final commit should still revalidate.
+Completed implementation adds `ContentPreflightResult`, advisory `Assess...` APIs for mutation workflows, generated-ID source preflight methods, and snapshot preflight on `ContentManagerBase`. Preflight does not mutate retained state, advance generated ID source state, replace structures, or emit events; final commit still revalidates.
 
 ### Stage 22: Add manager read-query helpers
 

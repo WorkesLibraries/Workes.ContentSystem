@@ -258,6 +258,26 @@ public sealed class ContentManagerTests
     }
 
     [Test]
+    public void SequenceManager_AssessSetStructureParameter_IsSideEffectFree()
+    {
+        var manager = new ContentSequenceManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        ContentEntryRecord first = manager.Add(Entry("First"));
+        manager.Add(Entry("Second"));
+        int eventCount = 0;
+        manager.Changed += (_, _) => eventCount++;
+
+        ContentPreflightResult assessment = manager.AssessSetStructureParameter(
+            ContentSequenceStructure.OverflowPolicyParameterId,
+            ContentOverflowPolicy.DropOldest(1));
+
+        Assert.That(assessment.CanCommit, Is.True);
+        Assert.That(manager.Structure, Is.TypeOf<ContentSequenceStructure>());
+        Assert.That(manager.Records.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "First", "Second" }));
+        Assert.That(manager.Records[0], Is.SameAs(first));
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
     public void SequenceManager_SetStructureParameter_EmitsConfigurationChangedEvent()
     {
         var manager = new ContentSequenceManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
@@ -295,6 +315,22 @@ public sealed class ContentManagerTests
         Assert.That(snapshot!.Kind, Is.EqualTo(ContentSequenceStructure.SnapshotKind));
         Assert.That(snapshot.Records, Has.Count.EqualTo(1));
         Assert.That(failure, Is.Null);
+    }
+
+    [Test]
+    public void BaseManager_AssessCaptureSnapshot_ReportsSupportWithoutEvents()
+    {
+        ContentManagerBase manager = new ContentSequenceManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        ((ContentSequenceManager)manager).Add(Entry("Stored"));
+        int eventCount = 0;
+        manager.Changed += (_, _) => eventCount++;
+
+        ContentPreflightResult assessment = manager.AssessCaptureSnapshot();
+
+        Assert.That(assessment.CanCommit, Is.True);
+        Assert.That(assessment.Failure, Is.Null);
+        Assert.That(manager.Count, Is.EqualTo(1));
+        Assert.That(eventCount, Is.EqualTo(0));
     }
 
     [Test]
@@ -376,6 +412,44 @@ public sealed class ContentManagerTests
         Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.SnapshotUnsupportedVersion));
         Assert.That(manager.Records, Is.EqualTo(new[] { original }));
         Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void BaseManager_AssessRestoreSnapshot_IsSideEffectFree()
+    {
+        var source = new ContentSequenceManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        source.Add(Entry("Replacement"));
+        ContentStructureSnapshot snapshot = source.CaptureSnapshot();
+
+        var manager = new ContentSequenceManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        ContentEntryRecord original = manager.Add(Entry("Original"));
+        int eventCount = 0;
+        manager.Changed += (_, _) => eventCount++;
+
+        ContentPreflightResult assessment = manager.AssessRestoreSnapshot(snapshot);
+
+        Assert.That(assessment.CanCommit, Is.True);
+        Assert.That(manager.Records, Is.EqualTo(new[] { original }));
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void BaseManager_AssessRestoreSnapshot_ReportsMalformedSnapshotWithoutReplacingState()
+    {
+        var manager = new ContentSequenceManager(new ContentSequenceStructure(ContentOverflowPolicy.None));
+        ContentEntryRecord original = manager.Add(Entry("Original"));
+        var snapshot = new ContentStructureSnapshot
+        {
+            Kind = ContentSequenceStructure.SnapshotKind,
+            DataVersion = 99,
+            Data = ContentSnapshotValue.Object()
+        };
+
+        ContentPreflightResult assessment = manager.AssessRestoreSnapshot(snapshot);
+
+        Assert.That(assessment.CanCommit, Is.False);
+        Assert.That(assessment.Failure?.Code, Is.EqualTo(ContentFailureCodes.SnapshotUnsupportedVersion));
+        Assert.That(manager.Records, Is.EqualTo(new[] { original }));
     }
 
     [Test]

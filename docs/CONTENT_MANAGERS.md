@@ -199,6 +199,38 @@ map.Remove("thread-main");
 
 Custom structures should expose their own manager when their mutation vocabulary differs from the built-ins.
 
+## Preflight
+
+Managers and structures expose `Assess...` APIs for advisory, side-effect-free validation before committing a mutation:
+
+```csharp
+ContentPreflightResult assessment = content.AssessAdd(
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
+
+if (assessment.CanCommit)
+{
+    content.Add(new PlainContentEntry(DateTimeOffset.UtcNow, "Ready."));
+}
+```
+
+Preflight checks report the same structured failure style as the eventual mutation, but they do not retain records, advance generated ID sources, observe manual IDs, replace active structures, or emit change events. Preflight is not a lock; code should still use `Try...` or expected-success APIs for the actual commit because state can change between assessment and mutation.
+
+Built-in managers expose assessment methods for their own workflow vocabulary:
+
+- sequence: generated/explicit add, remove, clear, and structure-parameter mutation;
+- map: add, set, get-or-set, remove, and clear;
+- single: generated/explicit set, remove, and clear;
+- stack: generated/explicit push, peek, pop, remove, and clear;
+- compound: root/child creation, remove, and clear.
+
+`ContentManagerBase` exposes snapshot preflight:
+
+```csharp
+ContentPreflightResult restore = content.AssessRestoreSnapshot(snapshot);
+```
+
+Restore assessment validates the snapshot and manager compatibility without replacing the active structure or firing a snapshot-restored event.
+
 ## Change Hooks
 
 `ContentManagerBase.Changed` forwards events from the active structure when that structure implements `IContentChangeSource`.
@@ -252,7 +284,11 @@ content.RestoreSnapshot(snapshot, NewStructureVersion.Factory);
 
 ## Try And Expected-Success APIs
 
-Managers follow the package failure pattern.
+Managers follow the package failure pattern:
+
+- `Assess...` APIs are advisory preflight checks and do not commit;
+- `Try...` APIs commit when accepted and return structured failure data for expected rejection;
+- expected-success APIs commit when accepted and throw `ContentOperationException` carrying the same `ContentFailure` when rejected.
 
 Try APIs return structured failure data for expected rejection:
 

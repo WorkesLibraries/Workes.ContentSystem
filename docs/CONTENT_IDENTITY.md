@@ -87,6 +87,7 @@ Generated ID sources:
 - expose the validation strategy for their ID type;
 - create the next ID for id-less add workflows;
 - observe manual or restored IDs so future generated IDs do not collide;
+- assess whether generation or observation can succeed without changing source state;
 - capture and restore source-owned snapshot state.
 
 Built-in generated ID sources are:
@@ -128,6 +129,8 @@ var content = ContentManagers.ForStructure<ContentSequenceManager<Guid>>(structu
 ```
 
 Mixing manual and generated IDs is allowed, but source state decides how future generated IDs advance. Prefer one approach consistently unless you intentionally want the source to observe manual IDs.
+
+Use `CanCreateNext(...)`, `CanObserve(...)`, and `CanObserveNormalized(...)` for advisory preflight. These methods must not advance the source or record an observation. The corresponding `TryCreateNext(...)`, `TryObserve(...)`, and `TryObserveNormalized(...)` methods commit the source-state change when accepted.
 
 Generated ID sources also participate in sequence snapshots. Sequence restore validates every restored stored ID through the source strategy and observes those IDs before future generated IDs are created. Custom sequence extensions can use `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` to get the same restore behavior as built-in generic sequence structures.
 

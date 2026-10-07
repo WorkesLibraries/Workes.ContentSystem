@@ -43,10 +43,9 @@ public sealed class LongContentGeneratedIdSource : IContentGeneratedIdSource<lon
     /// <inheritdoc />
     public bool TryCreateNext(out long id, out ContentFailure? failure)
     {
-        if (_nextId <= 0 || _nextId == long.MaxValue)
+        if (!CanCreateNext(out failure))
         {
             id = default;
-            failure = ContentFailures.EntryIdInvalid("Generated long ID source has no remaining positive IDs.");
             return false;
         }
 
@@ -57,16 +56,23 @@ public sealed class LongContentGeneratedIdSource : IContentGeneratedIdSource<lon
     }
 
     /// <inheritdoc />
-    public bool TryObserve(long id, out ContentFailure? failure)
+    public bool CanCreateNext(out ContentFailure? failure)
     {
-        if (!IdStrategy.TryNormalize(id, out _, out failure))
+        if (_nextId <= 0 || _nextId == long.MaxValue)
         {
+            failure = ContentFailures.EntryIdInvalid("Generated long ID source has no remaining positive IDs.");
             return false;
         }
 
-        if (id == long.MaxValue)
+        failure = null;
+        return true;
+    }
+
+    /// <inheritdoc />
+    public bool TryObserve(long id, out ContentFailure? failure)
+    {
+        if (!CanObserve(id, out failure))
         {
-            failure = ContentFailures.EntryIdInvalid("Generated long ID source cannot observe the maximum long value because no later positive ID exists.");
             return false;
         }
 
@@ -80,7 +86,37 @@ public sealed class LongContentGeneratedIdSource : IContentGeneratedIdSource<lon
     }
 
     /// <inheritdoc />
+    public bool CanObserve(long id, out ContentFailure? failure)
+    {
+        if (!IdStrategy.TryNormalize(id, out _, out failure))
+        {
+            return false;
+        }
+
+        if (id == long.MaxValue)
+        {
+            failure = ContentFailures.EntryIdInvalid("Generated long ID source cannot observe the maximum long value because no later positive ID exists.");
+            return false;
+        }
+
+        failure = null;
+        return true;
+    }
+
+    /// <inheritdoc />
     public bool TryObserveNormalized(ContentEntryId id, out ContentFailure? failure)
+    {
+        if (!CanObserveNormalized(id, out failure))
+        {
+            return false;
+        }
+
+        long parsed = long.Parse(id.Value, NumberStyles.None, CultureInfo.InvariantCulture);
+        return TryObserve(parsed, out failure);
+    }
+
+    /// <inheritdoc />
+    public bool CanObserveNormalized(ContentEntryId id, out ContentFailure? failure)
     {
         if (!IdStrategy.TryValidateNormalized(id, out failure))
         {
@@ -88,7 +124,7 @@ public sealed class LongContentGeneratedIdSource : IContentGeneratedIdSource<lon
         }
 
         long parsed = long.Parse(id.Value, NumberStyles.None, CultureInfo.InvariantCulture);
-        return TryObserve(parsed, out failure);
+        return CanObserve(parsed, out failure);
     }
 
     /// <inheritdoc />

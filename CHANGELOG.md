@@ -2,7 +2,7 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
-## Unreleased
+## 0.8.0 - 07-10-2026
 
 Added:
 
@@ -12,6 +12,13 @@ Added:
 - Added sequence `GetFirst` / `TryGetFirst` and `GetLast` / `TryGetLast` helpers over configured read order.
 - Added single `HasCurrent` and stack `CanPeek` / `CanPop` helpers.
 - Added compound parent-node child creation overloads, parent/child node traversal helpers, and `ContentCompoundRecordView` hierarchy readouts.
+- Added `ContentPreflightResult` and advisory `Assess...` APIs for manager/structure mutation workflows.
+- Added generated-ID source preflight methods so generated IDs and observed manual IDs can be assessed without advancing source state.
+- Added manager-level snapshot preflight through `AssessCaptureSnapshot()` and `AssessRestoreSnapshot(...)`.
+
+Changed:
+
+- Custom generated ID sources must now implement non-mutating `CanCreateNext`, `CanObserve`, and `CanObserveNormalized` methods.
 
 ## 0.7.1 - 07-10-2026
 

@@ -1212,9 +1212,16 @@ public sealed class ContentSnapshotTests
             return true;
         }
 
+        public bool CanCreateNext(out ContentFailure? failure)
+        {
+            failure = null;
+            return true;
+        }
+
         public bool TryObserve(CustomSnapshotId id, out ContentFailure? failure)
         {
-            if (!IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out failure))
+            if (!IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out failure)
+                || !CanObserveNormalized(normalizedId, out failure))
             {
                 return false;
             }
@@ -1222,9 +1229,19 @@ public sealed class ContentSnapshotTests
             return TryObserveNormalized(normalizedId, out failure);
         }
 
+        public bool CanObserve(CustomSnapshotId id, out ContentFailure? failure)
+        {
+            if (!IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out failure))
+            {
+                return false;
+            }
+
+            return CanObserveNormalized(normalizedId, out failure);
+        }
+
         public bool TryObserveNormalized(ContentEntryId id, out ContentFailure? failure)
         {
-            if (!IdStrategy.TryValidateNormalized(id, out failure))
+            if (!CanObserveNormalized(id, out failure))
             {
                 return false;
             }
@@ -1239,6 +1256,11 @@ public sealed class ContentSnapshotTests
 
             failure = null;
             return true;
+        }
+
+        public bool CanObserveNormalized(ContentEntryId id, out ContentFailure? failure)
+        {
+            return IdStrategy.TryValidateNormalized(id, out failure);
         }
 
         public bool TryCaptureSnapshot(out ContentSnapshotValue? snapshot, out ContentFailure? failure)
@@ -1400,6 +1422,16 @@ public sealed class ContentSnapshotTests
             return true;
         }
 
+        public override ContentPreflightResult AssessAdd(IContentEntry entry)
+        {
+            if (entry is null)
+            {
+                throw new ArgumentNullException(nameof(entry));
+            }
+
+            return ContentPreflightResult.Success();
+        }
+
         public override ContentEntryRecord Add(IContentEntry entry)
         {
             TryAdd(entry, out ContentEntryRecord? record, out _);
@@ -1439,6 +1471,27 @@ public sealed class ContentSnapshotTests
             return true;
         }
 
+        public override ContentPreflightResult AssessAdd(long id, IContentEntry entry)
+        {
+            if (entry is null)
+            {
+                throw new ArgumentNullException(nameof(entry));
+            }
+
+            if (id <= 0)
+            {
+                return ContentPreflightResult.Rejected(ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryIdInvalid, "Invalid ID."));
+            }
+
+            var normalizedId = new ContentEntryId(id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            if (_records.Any(candidate => candidate.Id.Equals(normalizedId)))
+            {
+                return ContentPreflightResult.Rejected(ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryIdDuplicate, "Duplicate."));
+            }
+
+            return ContentPreflightResult.Success();
+        }
+
         public override ContentEntryRecord Add(long id, IContentEntry entry)
         {
             if (TryAdd(id, entry, out ContentEntryRecord? record, out ContentFailure? failure) && record is not null)
@@ -1463,6 +1516,13 @@ public sealed class ContentSnapshotTests
             return true;
         }
 
+        public override ContentPreflightResult AssessRemove(ContentEntryId id)
+        {
+            return _records.Any(candidate => candidate.Id.Equals(id))
+                ? ContentPreflightResult.Success()
+                : ContentPreflightResult.Rejected(ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing."));
+        }
+
         public override ContentEntryRecord Remove(ContentEntryId id)
         {
             if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure) && removedRecord is not null)
@@ -1478,6 +1538,11 @@ public sealed class ContentSnapshotTests
             return TryRemove(new ContentEntryId(id.ToString(System.Globalization.CultureInfo.InvariantCulture)), out removedRecord, out failure);
         }
 
+        public override ContentPreflightResult AssessRemove(long id)
+        {
+            return AssessRemove(new ContentEntryId(id.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+
         public override ContentEntryRecord Remove(long id)
         {
             return Remove(new ContentEntryId(id.ToString(System.Globalization.CultureInfo.InvariantCulture)));
@@ -1489,6 +1554,11 @@ public sealed class ContentSnapshotTests
             _records.Clear();
             failure = null;
             return true;
+        }
+
+        public override ContentPreflightResult AssessClear()
+        {
+            return ContentPreflightResult.Success();
         }
 
         public override IReadOnlyList<ContentEntryRecord> Clear()
@@ -1645,6 +1715,18 @@ public sealed class ContentSnapshotTests
             return TryAdd(id, entry, out record, out failure);
         }
 
+        public override ContentPreflightResult AssessAdd(IContentEntry entry)
+        {
+            if (entry is null)
+            {
+                throw new ArgumentNullException(nameof(entry));
+            }
+
+            return _idSource.CanCreateNext(out ContentFailure? failure)
+                ? ContentPreflightResult.Success()
+                : ContentPreflightResult.Rejected(failure!);
+        }
+
         public override ContentEntryRecord Add(IContentEntry entry)
         {
             if (TryAdd(entry, out ContentEntryRecord? record, out ContentFailure? failure) && record is not null)
@@ -1683,6 +1765,28 @@ public sealed class ContentSnapshotTests
             _records.Add(record);
             failure = null;
             return true;
+        }
+
+        public override ContentPreflightResult AssessAdd(CustomSnapshotId id, IContentEntry entry)
+        {
+            if (entry is null)
+            {
+                throw new ArgumentNullException(nameof(entry));
+            }
+
+            if (!_idSource.IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out ContentFailure? failure))
+            {
+                return ContentPreflightResult.Rejected(failure!);
+            }
+
+            if (_records.Any(candidate => candidate.Id.Equals(normalizedId)))
+            {
+                return ContentPreflightResult.Rejected(ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryIdDuplicate, "Duplicate."));
+            }
+
+            return _idSource.CanObserve(id, out failure)
+                ? ContentPreflightResult.Success()
+                : ContentPreflightResult.Rejected(failure!);
         }
 
         public override ContentEntryRecord Add(CustomSnapshotId id, IContentEntry entry)
@@ -1753,6 +1857,13 @@ public sealed class ContentSnapshotTests
             return true;
         }
 
+        public override ContentPreflightResult AssessRemove(ContentEntryId id)
+        {
+            return _records.Any(candidate => candidate.Id.Equals(id))
+                ? ContentPreflightResult.Success()
+                : ContentPreflightResult.Rejected(ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing."));
+        }
+
         public override ContentEntryRecord Remove(ContentEntryId id)
         {
             if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure) && removedRecord is not null)
@@ -1774,6 +1885,16 @@ public sealed class ContentSnapshotTests
             return TryRemove(normalizedId, out removedRecord, out failure);
         }
 
+        public override ContentPreflightResult AssessRemove(CustomSnapshotId id)
+        {
+            if (!_idSource.IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out ContentFailure? failure))
+            {
+                return ContentPreflightResult.Rejected(failure!);
+            }
+
+            return AssessRemove(normalizedId);
+        }
+
         public override ContentEntryRecord Remove(CustomSnapshotId id)
         {
             if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure) && removedRecord is not null)
@@ -1790,6 +1911,11 @@ public sealed class ContentSnapshotTests
             _records.Clear();
             failure = null;
             return true;
+        }
+
+        public override ContentPreflightResult AssessClear()
+        {
+            return ContentPreflightResult.Success();
         }
 
         public override IReadOnlyList<ContentEntryRecord> Clear()
@@ -1979,6 +2105,45 @@ public sealed class ContentSnapshotTests
             return true;
         }
 
+        public override ContentPreflightResult AssessAdd(CustomSnapshotId id, IContentEntry entry)
+        {
+            if (entry is null)
+            {
+                throw new ArgumentNullException(nameof(entry));
+            }
+
+            if (!_strategy.TryNormalize(id, out ContentEntryId normalizedId, out ContentFailure? failure))
+            {
+                return ContentPreflightResult.Rejected(failure!);
+            }
+
+            if (_records.Any(candidate => candidate.Id.Equals(normalizedId)))
+            {
+                return ContentPreflightResult.Rejected(ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryIdDuplicate, "Duplicate."));
+            }
+
+            return ContentPreflightResult.Success();
+        }
+
+        public override ContentPreflightResult AssessSet(CustomSnapshotId id, IContentEntry entry)
+        {
+            if (entry is null)
+            {
+                throw new ArgumentNullException(nameof(entry));
+            }
+
+            return _strategy.TryNormalize(id, out _, out ContentFailure? failure)
+                ? ContentPreflightResult.Success()
+                : ContentPreflightResult.Rejected(failure!);
+        }
+
+        public override ContentPreflightResult AssessGetOrSet(CustomSnapshotId id)
+        {
+            return _strategy.TryNormalize(id, out _, out ContentFailure? failure)
+                ? ContentPreflightResult.Success()
+                : ContentPreflightResult.Rejected(failure!);
+        }
+
         public override ContentEntryRecord Set(CustomSnapshotId id, IContentEntry entry)
         {
             if (TrySet(id, entry, out ContentEntryRecord? record, out _, out ContentFailure? failure) && record is not null)
@@ -2075,6 +2240,13 @@ public sealed class ContentSnapshotTests
             return true;
         }
 
+        public override ContentPreflightResult AssessRemove(ContentEntryId id)
+        {
+            return _records.Any(candidate => candidate.Id.Equals(id))
+                ? ContentPreflightResult.Success()
+                : ContentPreflightResult.Rejected(ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryNotFound, "Missing."));
+        }
+
         public override ContentEntryRecord Remove(ContentEntryId id)
         {
             if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure) && removedRecord is not null)
@@ -2096,6 +2268,16 @@ public sealed class ContentSnapshotTests
             return TryRemove(normalizedId, out removedRecord, out failure);
         }
 
+        public override ContentPreflightResult AssessRemove(CustomSnapshotId id)
+        {
+            if (!_strategy.TryNormalize(id, out ContentEntryId normalizedId, out ContentFailure? failure))
+            {
+                return ContentPreflightResult.Rejected(failure!);
+            }
+
+            return AssessRemove(normalizedId);
+        }
+
         public override ContentEntryRecord Remove(CustomSnapshotId id)
         {
             if (TryRemove(id, out ContentEntryRecord? removedRecord, out ContentFailure? failure) && removedRecord is not null)
@@ -2112,6 +2294,11 @@ public sealed class ContentSnapshotTests
             _records.Clear();
             failure = null;
             return true;
+        }
+
+        public override ContentPreflightResult AssessClear()
+        {
+            return ContentPreflightResult.Success();
         }
 
         public override IReadOnlyList<ContentEntryRecord> Clear()

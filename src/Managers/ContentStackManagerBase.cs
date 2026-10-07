@@ -28,6 +28,11 @@ public abstract class ContentStackManagerBase<TId> : ContentManagerBase
     public bool TryPush(IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure) => Stack.TryPush(entry, out record, out failure);
 
     /// <summary>
+    /// Assesses whether an entry can be pushed with a generated ID without committing the push.
+    /// </summary>
+    public ContentPreflightResult AssessPush(IContentEntry entry) => Stack.AssessPush(entry);
+
+    /// <summary>
     /// Pushes an entry using the active stack's generated ID source.
     /// </summary>
     public ContentEntryRecord Push(IContentEntry entry) => Stack.Push(entry);
@@ -36,6 +41,11 @@ public abstract class ContentStackManagerBase<TId> : ContentManagerBase
     /// Attempts to push an entry with an explicit ID.
     /// </summary>
     public bool TryPush(TId id, IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure) => Stack.TryPush(id, entry, out record, out failure);
+
+    /// <summary>
+    /// Assesses whether an entry can be pushed with an explicit ID without committing the push.
+    /// </summary>
+    public ContentPreflightResult AssessPush(TId id, IContentEntry entry) => Stack.AssessPush(id, entry);
 
     /// <summary>
     /// Pushes an entry with an explicit ID.
@@ -58,6 +68,11 @@ public abstract class ContentStackManagerBase<TId> : ContentManagerBase
     public bool TryPeek(out ContentEntryRecord? record, out ContentFailure? failure) => Stack.TryPeek(out record, out failure);
 
     /// <summary>
+    /// Assesses whether a peek can currently commit.
+    /// </summary>
+    public ContentPreflightResult AssessPeek() => Stack.AssessPeek();
+
+    /// <summary>
     /// Reads the top retained record without removing it.
     /// </summary>
     public ContentEntryRecord Peek() => Stack.Peek();
@@ -66,6 +81,11 @@ public abstract class ContentStackManagerBase<TId> : ContentManagerBase
     /// Attempts to remove and return the top retained record.
     /// </summary>
     public bool TryPop(out ContentEntryRecord? record, out ContentFailure? failure) => Stack.TryPop(out record, out failure);
+
+    /// <summary>
+    /// Assesses whether a pop can currently commit without committing the pop.
+    /// </summary>
+    public ContentPreflightResult AssessPop() => Stack.AssessPop();
 
     /// <summary>
     /// Removes and returns the top retained record.
@@ -93,6 +113,11 @@ public abstract class ContentStackManagerBase<TId> : ContentManagerBase
     public bool TryRemove(TId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure) => Stack.TryRemove(id, out removedRecord, out failure);
 
     /// <summary>
+    /// Assesses whether a retained record can be removed by natural ID without committing the removal.
+    /// </summary>
+    public ContentPreflightResult AssessRemove(TId id) => Stack.AssessRemove(id);
+
+    /// <summary>
     /// Removes a retained record by the stack's natural ID type.
     /// </summary>
     public ContentEntryRecord Remove(TId id) => Stack.Remove(id);
@@ -101,6 +126,11 @@ public abstract class ContentStackManagerBase<TId> : ContentManagerBase
     /// Attempts to clear all retained records.
     /// </summary>
     public bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure) => Stack.TryClear(out removedRecords, out failure);
+
+    /// <summary>
+    /// Assesses whether retained records can be cleared without committing the clear.
+    /// </summary>
+    public ContentPreflightResult AssessClear() => Stack.AssessClear();
 
     /// <summary>
     /// Clears all retained records.

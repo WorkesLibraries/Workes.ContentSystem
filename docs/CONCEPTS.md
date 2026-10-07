@@ -44,6 +44,12 @@ Direct manager constructors remain available for explicit setup, tests, and adva
 
 See [Content Managers](CONTENT_MANAGERS.md) for structure-driven manager resolution.
 
+## Preflight
+
+Preflight APIs use `Assess...` naming. They let code ask whether a mutation or snapshot workflow can currently commit without changing state.
+
+Preflight returns `ContentPreflightResult`. It does not retain records, advance generated ID sources, replace structures, or emit events. It is advisory, not a reservation, so `Try...` and expected-success APIs still revalidate when they actually commit.
+
 ## Content Changes
 
 Some structures can raise committed-change notifications through `IContentChangeSource`.

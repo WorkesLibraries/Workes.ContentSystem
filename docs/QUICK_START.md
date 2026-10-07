@@ -5,13 +5,13 @@ This package is a reusable content-entry backend. The first useful core supports
 ## Install
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.7.1
+dotnet add package Workes.ContentSystem --version 0.8.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.7.1" />
+<PackageReference Include="Workes.ContentSystem" Version="0.8.0" />
 ```
 
 ## Mental Model
@@ -141,6 +141,21 @@ content.Changed += (_, args) =>
 ```
 
 Events are raised synchronously after a mutation is committed. Rejected operations do not raise events.
+
+## Preflight
+
+Use `Assess...` APIs when code needs an advisory check before committing:
+
+```csharp
+ContentPreflightResult assessment = stack.AssessPop();
+
+if (assessment.CanCommit)
+{
+    ContentEntryRecord popped = stack.Pop();
+}
+```
+
+Preflight does not mutate records, advance generated IDs, replace structures, or emit events. It is not a lock, so the actual `Try...` or expected-success operation still revalidates.
 
 ## What To Read Next
 

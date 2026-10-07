@@ -49,6 +49,7 @@ This is a physical organization rule, not a namespace rule. Public namespaces re
 - `ContentStackManager` is the normal long-ID manager for stack workflows.
 - `ContentCompoundManager` is the normal long-ID manager for owned-tree workflows.
 - `ContentManagers.ForStructure(...)` is the preferred structure-driven manager resolver.
+- `ContentPreflightResult` is the advisory assessment result for side-effect-free `Assess...` APIs.
 - `ContentSequenceStructure` provides configurable sequence retention and generated long IDs.
 - `ContentMapStructure<TId>` provides configurable typed-ID validation for direct ID-addressed records.
 - `ContentSingleStructure` provides configurable single-entry replacement behavior.
@@ -99,6 +100,8 @@ Retention policy and read order are optional structure contracts. `ContentSequen
 
 Clear, removal, and parameterized structure mutation are optional structure contracts coordinated through managers. The manager does not clear a manager-owned record store; it asks the structure to perform the mutation according to that structure's own model. `ContentSequenceStructure` supports all three and exposes `overflowPolicy` as a stable runtime parameter. The built-in map, single, stack, and compound structures support clear and natural removals where the workflow makes sense.
 
+Validation and preflight are advisory and side-effect-free. Structures assess retained-state rules through `Assess...` APIs, and managers expose those assessments as part of their workflow surface. Preflight does not mutate records, advance or observe generated ID source state, replace active structures, or emit events. Commit APIs still revalidate because preflight is not a lock.
+
 FIFO-style history is a sequence plus `ContentOverflowPolicy.DropOldest(capacity)`, not a separate type. Reject-at-capacity behavior is `ContentOverflowPolicy.Reject(capacity)`. The package should keep preferring configurable structure state over separate bounded/unbounded structures until a workflow truly needs different vocabulary.
 
 Future structures may be grouped, threaded, indexed, snapshot-aware, channel-based, or grid-like.
@@ -123,6 +126,7 @@ The package should mirror the error style used in Workes.InventorySystem and Wor
 
 - expected operation rejection is structured failure data;
 - try APIs return failure values;
+- assess APIs return preflight results without committing state;
 - expected-success APIs throw package-owned exceptions carrying the same failure;
 - programmer misuse uses standard .NET exceptions.
 

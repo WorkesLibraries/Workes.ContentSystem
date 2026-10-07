@@ -92,6 +92,16 @@ public abstract class ContentManagerBase
     }
 
     /// <summary>
+    /// Assesses whether the active structure snapshot can currently be captured without capturing it for use.
+    /// </summary>
+    public ContentPreflightResult AssessCaptureSnapshot()
+    {
+        return ContentStructureSnapshots.TryCapture(Structure, out _, out ContentFailure? failure)
+            ? ContentPreflightResult.Success()
+            : ContentPreflightResult.Rejected(failure!);
+    }
+
+    /// <summary>
     /// Captures the active structure snapshot when supported.
     /// </summary>
     /// <returns>The captured snapshot.</returns>
@@ -119,6 +129,20 @@ public abstract class ContentManagerBase
         }
 
         return TryRestoreSnapshot(snapshot, roundTrippable.SnapshotFactory, out failure);
+    }
+
+    /// <summary>
+    /// Assesses whether a snapshot can be restored using the active structure's snapshot factory without replacing state.
+    /// </summary>
+    public ContentPreflightResult AssessRestoreSnapshot(ContentStructureSnapshot snapshot)
+    {
+        if (Structure is not IContentStructureSnapshotRoundTrippable roundTrippable)
+        {
+            return ContentPreflightResult.Rejected(ContentFailures.SnapshotUnsupportedStructure(
+                $"Structure type '{Structure.GetType().FullName}' does not expose a snapshot factory."));
+        }
+
+        return AssessRestoreSnapshot(snapshot, roundTrippable.SnapshotFactory);
     }
 
     /// <summary>
@@ -152,6 +176,22 @@ public abstract class ContentManagerBase
             requiresFullRefresh: true));
         failure = null;
         return true;
+    }
+
+    /// <summary>
+    /// Assesses whether a snapshot can be restored with the supplied factory without replacing state.
+    /// </summary>
+    public ContentPreflightResult AssessRestoreSnapshot(
+        ContentStructureSnapshot snapshot,
+        IContentStructureSnapshotFactory factory)
+    {
+        if (!ContentStructureSnapshots.TryRestore(snapshot, factory, out IContentStructure? replacement, out ContentFailure? failure)
+            || !TryAcceptStructureReplacement(replacement!, out failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return ContentPreflightResult.Success();
     }
 
     /// <summary>

@@ -535,9 +535,16 @@ public sealed class ContentCompoundStructureTests
             return true;
         }
 
+        public bool CanCreateNext(out ContentFailure? failure)
+        {
+            failure = null;
+            return true;
+        }
+
         public bool TryObserve(string id, out ContentFailure? failure)
         {
-            if (!IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out failure))
+            if (!IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out failure)
+                || !CanObserveNormalized(normalizedId, out failure))
             {
                 return false;
             }
@@ -545,9 +552,19 @@ public sealed class ContentCompoundStructureTests
             return TryObserveNormalized(normalizedId, out failure);
         }
 
+        public bool CanObserve(string id, out ContentFailure? failure)
+        {
+            if (!IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out failure))
+            {
+                return false;
+            }
+
+            return CanObserveNormalized(normalizedId, out failure);
+        }
+
         public bool TryObserveNormalized(ContentEntryId id, out ContentFailure? failure)
         {
-            if (!IdStrategy.TryValidateNormalized(id, out failure))
+            if (!CanObserveNormalized(id, out failure))
             {
                 return false;
             }
@@ -562,6 +579,11 @@ public sealed class ContentCompoundStructureTests
 
             failure = null;
             return true;
+        }
+
+        public bool CanObserveNormalized(ContentEntryId id, out ContentFailure? failure)
+        {
+            return IdStrategy.TryValidateNormalized(id, out failure);
         }
 
         public bool TryCaptureSnapshot(out ContentSnapshotValue? snapshot, out ContentFailure? failure)

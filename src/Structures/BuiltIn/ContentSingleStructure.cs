@@ -118,6 +118,23 @@ public class ContentSingleStructure<TId> :
     }
 
     /// <inheritdoc />
+    public override ContentPreflightResult AssessSet(IContentEntry entry)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        if (!TryValidateReplacementAllowed(out ContentFailure? failure)
+            || !IdSource.CanCreateNext(out failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
     public override ContentEntryRecord Set(IContentEntry entry)
     {
         if (TrySet(entry, out ContentEntryRecord? record, out _, out ContentFailure? failure))
@@ -137,6 +154,24 @@ public class ContentSingleStructure<TId> :
         }
 
         return TrySetAcceptedId(id, entry, observeId: true, out record, out replacedRecord, out failure);
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessSet(TId id, IContentEntry entry)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        if (!IdSource.IdStrategy.TryNormalize(id, out _, out ContentFailure? failure)
+            || !TryValidateReplacementAllowed(out failure)
+            || !IdSource.CanObserve(id, out failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return ContentPreflightResult.Success();
     }
 
     /// <inheritdoc />
@@ -244,6 +279,15 @@ public class ContentSingleStructure<TId> :
     }
 
     /// <inheritdoc />
+    public override ContentPreflightResult AssessRemove(ContentEntryId id)
+    {
+        EnsureValidId(id);
+        return _record is not null && _record.Id == id
+            ? ContentPreflightResult.Success()
+            : ContentPreflightResult.Rejected(ContentFailures.EntryNotFound($"Entry '{id}' was not found.", id.ToString()));
+    }
+
+    /// <inheritdoc />
     public override bool TryRemove(TId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure)
     {
         if (!IdSource.IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out failure))
@@ -253,6 +297,17 @@ public class ContentSingleStructure<TId> :
         }
 
         return TryRemove(normalizedId, out removedRecord, out failure);
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessRemove(TId id)
+    {
+        if (!IdSource.IdStrategy.TryNormalize(id, out ContentEntryId normalizedId, out ContentFailure? failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return AssessRemove(normalizedId);
     }
 
     /// <inheritdoc />
@@ -296,6 +351,12 @@ public class ContentSingleStructure<TId> :
             cleared: true,
             requiresFullRefresh: true));
         return true;
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessClear()
+    {
+        return ContentPreflightResult.Success();
     }
 
     /// <inheritdoc />
@@ -380,6 +441,18 @@ public class ContentSingleStructure<TId> :
             addedRecords: new[] { record },
             removedRecords: replacedRecord is null ? null : new[] { replacedRecord },
             kind: replacedRecord is null ? ContentChangeKind.Added : ContentChangeKind.Replaced));
+        return true;
+    }
+
+    private bool TryValidateReplacementAllowed(out ContentFailure? failure)
+    {
+        if (_record is not null && ReplacementPolicy == ContentSingleReplacementPolicy.Reject)
+        {
+            failure = ContentFailures.StructureCapacityReached("Content single structure already contains a record.");
+            return false;
+        }
+
+        failure = null;
         return true;
     }
 

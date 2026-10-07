@@ -59,6 +59,37 @@ public sealed class ContentSequenceStructureTests
     }
 
     [Test]
+    public void LongGeneratedIdSource_CanCreateNextReportsExhaustionWithoutAdvancing()
+    {
+        ContentSnapshotValue snapshot = ContentSnapshotValue.Object(new[]
+        {
+            ContentSnapshotProperties.Named("dataVersion", ContentSnapshotCodecs.Encode(1)),
+            ContentSnapshotProperties.Named("nextId", ContentSnapshotCodecs.Encode(long.MaxValue - 1))
+        });
+        LongContentGeneratedIdSource.Factory.TryRestore(snapshot, out IContentGeneratedIdSource<long>? source, out _);
+        source!.TryCreateNext(out long id, out _);
+
+        bool canCreate = source.CanCreateNext(out ContentFailure? failure);
+
+        Assert.That(id, Is.EqualTo(long.MaxValue - 1));
+        Assert.That(canCreate, Is.False);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.EntryIdInvalid));
+    }
+
+    [Test]
+    public void LongGeneratedIdSource_CanObserveRejectsMaximumWithoutAdvancing()
+    {
+        var source = new LongContentGeneratedIdSource();
+
+        bool canObserve = source.CanObserve(long.MaxValue, out ContentFailure? failure);
+        source.TryCreateNext(out long nextId, out _);
+
+        Assert.That(canObserve, Is.False);
+        Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.EntryIdInvalid));
+        Assert.That(nextId, Is.EqualTo(1));
+    }
+
+    [Test]
     public void LongGeneratedIdSource_RestoredMaximumNextIdIsMalformed()
     {
         ContentSnapshotValue snapshot = ContentSnapshotValue.Object(new[]
@@ -99,6 +130,17 @@ public sealed class ContentSequenceStructureTests
         Assert.That(observed, Is.False);
         Assert.That(failure, Is.Not.Null);
         Assert.That(failure!.Code, Is.EqualTo(ContentFailureCodes.EntryIdInvalid));
+    }
+
+    [Test]
+    public void GuidGeneratedIdSource_CanCreateNextIsStateless()
+    {
+        var source = new GuidContentGeneratedIdSource();
+
+        bool canCreate = source.CanCreateNext(out ContentFailure? failure);
+
+        Assert.That(canCreate, Is.True);
+        Assert.That(failure, Is.Null);
     }
 
     [Test]
@@ -305,6 +347,39 @@ public sealed class ContentSequenceStructureTests
         Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.StructureCapacityReached));
         Assert.That(eventCount, Is.EqualTo(0));
         Assert.That(structure.Records.Select(item => item.PlainText), Is.EqualTo(new[] { "First" }));
+    }
+
+    [Test]
+    public void AssessAdd_WhenRejectCapacityReached_IsSideEffectFree()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.Reject(1));
+        ContentEntryRecord first = structure.Add(Entry("First"));
+        int eventCount = 0;
+        structure.Changed += (_, _) => eventCount++;
+
+        ContentPreflightResult assessment = structure.AssessAdd(Entry("Second"));
+
+        Assert.That(assessment.CanCommit, Is.False);
+        Assert.That(assessment.Failure?.Code, Is.EqualTo(ContentFailureCodes.StructureCapacityReached));
+        Assert.That(structure.Records, Is.EqualTo(new[] { first }));
+        Assert.That(eventCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void AssessAdd_DuplicateExplicitId_IsSideEffectFree()
+    {
+        var structure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+        structure.Add(10, Entry("Manual"));
+        int eventCount = 0;
+        structure.Changed += (_, _) => eventCount++;
+
+        ContentPreflightResult assessment = structure.AssessAdd(10, Entry("Duplicate"));
+        ContentEntryRecord next = structure.Add(Entry("Next"));
+
+        Assert.That(assessment.CanCommit, Is.False);
+        Assert.That(assessment.Failure?.Code, Is.EqualTo(ContentFailureCodes.EntryIdDuplicate));
+        Assert.That(next.Id.Value, Is.EqualTo("11"));
+        Assert.That(eventCount, Is.EqualTo(1));
     }
 
     [Test]
@@ -989,14 +1064,20 @@ public sealed class ContentSequenceStructureTests
             return true;
         }
 
+        public bool CanCreateNext(out ContentFailure? failure)
+        {
+            failure = null;
+            return true;
+        }
+
         public bool TryObserve(string id, out ContentFailure? failure)
         {
-            if (!TryReadId(id, out int value))
+            if (!CanObserve(id, out failure))
             {
-                failure = ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryIdInvalid, "Invalid custom ID.");
                 return false;
             }
 
+            TryReadId(id, out int value);
             if (value >= _nextId)
             {
                 _nextId = value + 1;
@@ -1006,9 +1087,26 @@ public sealed class ContentSequenceStructureTests
             return true;
         }
 
+        public bool CanObserve(string id, out ContentFailure? failure)
+        {
+            if (!TryReadId(id, out _))
+            {
+                failure = ContentFailure.Create(ContentFailureKind.Entry, ContentFailureCodes.EntryIdInvalid, "Invalid custom ID.");
+                return false;
+            }
+
+            failure = null;
+            return true;
+        }
+
         public bool TryObserveNormalized(ContentEntryId id, out ContentFailure? failure)
         {
             return TryObserve(id.Value, out failure);
+        }
+
+        public bool CanObserveNormalized(ContentEntryId id, out ContentFailure? failure)
+        {
+            return CanObserve(id.Value, out failure);
         }
 
         public bool TryCaptureSnapshot(out ContentSnapshotValue? snapshot, out ContentFailure? failure)

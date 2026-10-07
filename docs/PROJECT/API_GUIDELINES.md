@@ -79,11 +79,14 @@ Document first-class public concepts in focused guides:
 
 Follow the Workes package pattern:
 
+- `Assess...` methods are advisory preflight checks. They must not mutate retained records, advance generated ID sources, replace structures, or emit events.
 - `Try...` methods are for expected failure and return structured failure data.
 - Non-try expected-success methods throw package-owned exceptions carrying the same failure.
 - Null arguments, invalid setup, and programmer misuse use standard .NET exceptions.
 
 Failure codes should be stable, string-based, and package-prefixed.
+
+Preflight is not a lock. Committing APIs must revalidate because the active state can change after assessment.
 
 ## Optional Complexity
 
@@ -105,6 +108,8 @@ The simple use case should stay small: create a manager, add entries, read entri
 Change hooks should use ordinary synchronous .NET events. Raise them only after a mutation has committed, and do not emit events for rejected or no-op operations. Include enough event metadata for UI code to distinguish adds, removals, clears, and configuration changes. Do not add thread marshaling, buffering, or async dispatch to the core hook contract.
 
 Snapshots should be serializer-friendly DTOs rather than direct file I/O. Entry snapshot capture should be opt-in on the entry instance, while restore should use a factory object registered in `ContentEntrySnapshotFactories`. Structure snapshot round trips should be opt-in on the structure through `IContentStructureSnapshotRoundTrippable`, and normal manager restore should use the active structure's `SnapshotFactory`. Explicit structure factories remain available for migration and advanced restore targets. Record and structure snapshots should keep stored IDs and structure data in serializer-friendly forms. Unsupported custom entries or structures should fail snapshot capture or restore with structured failures unless they opt in.
+
+Snapshot preflight belongs on managers as `AssessCaptureSnapshot()` and `AssessRestoreSnapshot(...)`. Restore preflight should validate payloads and compatibility by constructing the candidate replacement, then discard it without replacing active state or firing events.
 
 Structure extension helpers should reduce boilerplate without making inheritance mandatory. `ContentStructureSnapshotFactoryBase<TStructure>`, `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>`, `ContentSequenceStructureSnapshotFactoryBase<TStructure>`, `ContentMapStructureSnapshotFactoryBase<TId, TStructure>`, `ContentCompoundStructureSnapshotFactoryBase<TId, TStructure>`, `ContentSnapshotRecords`, and `ContentSnapshotProperties` are convenience APIs for extension authors; direct implementation of the snapshot interfaces remains valid.
 

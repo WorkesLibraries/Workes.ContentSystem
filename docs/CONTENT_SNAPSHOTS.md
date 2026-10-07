@@ -203,6 +203,8 @@ Record restore preserves stored record identity as part of a structure restore.
 
 Whole-structure restore through managers is atomic. A failed restore leaves the active structure unchanged and emits no change event. A successful restore replaces the active structure, resubscribes manager event forwarding, and emits `ContentChangeKind.SnapshotRestored` with `RequiresFullRefresh = true`.
 
+Managers also expose `AssessCaptureSnapshot()` and `AssessRestoreSnapshot(...)` for advisory preflight. Restore assessment validates the snapshot payload, entry factories, generated ID source state, and manager compatibility without replacing the active structure, resubscribing events, observing new manager state, or emitting a change event. Preflight is not a lock; `RestoreSnapshot(...)` still revalidates at commit time.
+
 For map structures, restore validates stored snapshot IDs through the configured `IContentEntryIdStrategy<TId>`. Custom strategies must ensure restored normalized IDs describe the same ID language as caller-provided IDs.
 
 Custom structure authors can use `ContentStructureSnapshotFactoryBase<TStructure>` for common factory validation, `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` for generated-ID sequence restore, `ContentSequenceStructureSnapshotFactoryBase<TStructure>` for long-ID sequence restore, `ContentMapStructureSnapshotFactoryBase<TId, TStructure>` for map restore invariants, `ContentCompoundStructureSnapshotFactoryBase<TId, TStructure>` for compound tree restore invariants, `ContentSnapshotRecords` for retained record capture/restore, and `ContentSnapshotProperties` for structure-owned snapshot data. See [Extension Authoring](EXTENSION_AUTHORING.md).

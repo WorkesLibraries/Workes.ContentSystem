@@ -98,6 +98,27 @@ public sealed class ContentMapStructure<TId> :
     /// <inheritdoc />
     public event EventHandler<ContentChangedEventArgs>? Changed;
 
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessAdd(TId id, IContentEntry entry)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        if (!TryNormalize(id, out ContentEntryId normalizedId, out ContentFailure? failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        if (_recordsById.ContainsKey(normalizedId))
+        {
+            return ContentPreflightResult.Rejected(ContentFailures.EntryIdDuplicate($"Entry ID '{normalizedId}' already exists.", normalizedId.ToString()));
+        }
+
+        return ContentPreflightResult.Success();
+    }
+
     /// <summary>
     /// Attempts to add an entry with a caller-provided ID.
     /// </summary>
@@ -133,6 +154,28 @@ public sealed class ContentMapStructure<TId> :
         OnChanged(new ContentChangedEventArgs(new[] { record }, kind: ContentChangeKind.Added));
         return true;
     }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessSet(TId id, IContentEntry entry)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        return TryNormalize(id, out _, out ContentFailure? failure)
+            ? ContentPreflightResult.Success()
+            : ContentPreflightResult.Rejected(failure!);
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessGetOrSet(TId id)
+    {
+        return TryNormalize(id, out _, out ContentFailure? failure)
+            ? ContentPreflightResult.Success()
+            : ContentPreflightResult.Rejected(failure!);
+    }
+
 
     /// <summary>
     /// Adds an entry with a caller-provided ID.
@@ -292,6 +335,12 @@ public sealed class ContentMapStructure<TId> :
     }
 
     /// <inheritdoc />
+    public override ContentPreflightResult AssessClear()
+    {
+        return ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
     public override IReadOnlyList<ContentEntryRecord> Clear()
     {
         if (TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure))
@@ -323,6 +372,15 @@ public sealed class ContentMapStructure<TId> :
         return true;
     }
 
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessRemove(ContentEntryId id)
+    {
+        EnsureValidId(id);
+        return _recordsById.ContainsKey(id)
+            ? ContentPreflightResult.Success()
+            : ContentPreflightResult.Rejected(ContentFailures.EntryNotFound($"Entry '{id}' was not found.", id.ToString()));
+    }
+
     /// <summary>
     /// Attempts to remove a retained record by caller-facing ID.
     /// </summary>
@@ -339,6 +397,17 @@ public sealed class ContentMapStructure<TId> :
         }
 
         return TryRemove(normalizedId, out removedRecord, out failure);
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessRemove(TId id)
+    {
+        if (!TryNormalize(id, out ContentEntryId normalizedId, out ContentFailure? failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return AssessRemove(normalizedId);
     }
 
     /// <inheritdoc />

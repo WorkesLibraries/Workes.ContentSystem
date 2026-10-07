@@ -16,6 +16,8 @@ The common abstraction exposes:
 
 Structures may also implement focused optional contracts when they support committed mutations, configuration inspection, or change notifications.
 
+Structures that support mutation also expose matching `Assess...` APIs through their structure family. Assessment is advisory and side-effect-free: it returns `ContentPreflightResult`, does not retain records, does not advance generated ID sources, and does not raise change events. The final `Try...` or expected-success mutation still revalidates at commit time.
+
 Write workflows are structure-specific. This lets structure-assigned-ID structures and caller-provided-ID structures expose honest APIs without forcing every structure into one add method.
 
 Prefer a concrete structure's natural lookup overload when working with that structure directly. Use `ContentEntryId` lookup through `IContentStructure` when writing structure-agnostic code.
@@ -87,6 +89,8 @@ Sequence managers also expose `GetFirst` and `GetLast` convenience helpers over 
 
 Advanced users can use `ContentSequenceStructure<TId>` with a custom `IContentGeneratedIdSource<TId>` when a sequence needs a different ID model. The matching manager is `ContentSequenceManager<TId>`.
 
+Sequence structures and managers expose `AssessAdd`, `AssessRemove`, `AssessClear`, and sequence-parameter assessment so callers can check capacity, duplicate IDs, missing IDs, and parameter rejection before committing.
+
 The shared `ContentEntryId` lookup remains available for code that works through `IContentStructure`.
 
 ## Map Structure
@@ -145,6 +149,8 @@ Map also exposes `Set`, which adds a missing ID or replaces an existing record i
 
 Map managers also expose `GetOrSet`, which returns an existing record without invoking the factory or adds a missing record through the normal add workflow.
 
+Map structures and managers expose `AssessAdd`, `AssessSet`, `AssessGetOrSet`, `AssessRemove`, and `AssessClear`.
+
 ## Single-Entry Structure
 
 `ContentSingleStructure<TId>` stores at most one retained record.
@@ -171,6 +177,8 @@ Advanced users can use `ContentSingleStructure<TId>` with a custom generated ID 
 Successful replacement emits `ContentChangeKind.Replaced`. Rejected replacement uses `StructureCapacityReached`, preserves state, and emits no event.
 
 Single managers expose `HasCurrent` as a convenience for checking whether a current record exists before calling `GetCurrent`.
+
+Single structures and managers expose `AssessSet`, `AssessRemove`, and `AssessClear`.
 
 ## Stack Structure
 
@@ -204,6 +212,8 @@ ContentEntryRecord removed = stack.Pop();
 Advanced users can use `ContentStackStructure<TId>` with a custom generated ID source. Both generated-ID `Push(entry)` and explicit-ID `Push(id, entry)` are supported.
 
 Stack managers expose `CanPeek` and `CanPop` as small state checks before calling `Peek` or `Pop`.
+
+Stack structures and managers expose `AssessPush`, `AssessPeek`, `AssessPop`, `AssessRemove`, and `AssessClear`. `CanPeek` and `CanPop` are convenience state properties; `AssessPeek` and `AssessPop` return structured failure data.
 
 ## Compound Structure
 
@@ -257,6 +267,8 @@ Use `GetRecordViews()` when a UI needs the flattened record list with simple hie
 
 Advanced users can use `ContentCompoundStructure<TId>` with a custom generated ID source. Both generated-ID and explicit-ID root/child creation are supported.
 
+Compound structures and managers expose `AssessAddRoot`, `AssessAddChild`, `AssessRemove`, and `AssessClear`, including the node-parent overloads on managers.
+
 Compound snapshots preserve records, parent-child relationships, root/child insertion order, policies, sibling order, and generated ID source state without changing the normal compound user path.
 
 ## Future Structures
@@ -300,6 +312,8 @@ Additional behavior should be exposed through focused opt-in contracts, mirrorin
 Future contracts can cover sorting, searching, or export only where a structure genuinely supports that behavior.
 
 Runtime mutation should be manager-coordinated for normal callers, with structures owning the actual retained-state mutation through focused opt-in contracts.
+
+Validation/preflight follows the same ownership line. Structures assess their own retained-state rules, while managers expose the assessment methods as part of the normal workflow surface.
 
 Manager resolution is part of the base shape: every structure creates the manager that knows how to operate it. Actual supported operations are still expressed through the focused contracts listed above.
 

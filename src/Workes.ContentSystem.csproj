@@ -7,8 +7,8 @@
     <LangVersion>10.0</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Workes.ContentSystem</PackageId>
-    <Version>0.7.1</Version>
-    <PackageReleaseNotes>Adds GUID and ContentEntryId built-in ID support plus GUID generated IDs.</PackageReleaseNotes>
+    <Version>0.8.0</Version>
+    <PackageReleaseNotes>Adds manager convenience helpers and advisory validation/preflight APIs for mutation and snapshot workflows.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Workes</Authors>
     <Company>Workes</Company>

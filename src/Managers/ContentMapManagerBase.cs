@@ -36,6 +36,14 @@ public abstract class ContentMapManagerBase<TId> : ContentManagerBase
     }
 
     /// <summary>
+    /// Assesses whether an entry can be added with the supplied ID without committing the add.
+    /// </summary>
+    public ContentPreflightResult AssessAdd(TId id, IContentEntry entry)
+    {
+        return MapStructure.AssessAdd(id, entry);
+    }
+
+    /// <summary>
     /// Adds an entry with a caller-provided ID.
     /// </summary>
     public ContentEntryRecord Add(TId id, IContentEntry entry)
@@ -49,6 +57,14 @@ public abstract class ContentMapManagerBase<TId> : ContentManagerBase
     public bool TrySet(TId id, IContentEntry entry, out ContentEntryRecord? record, out ContentEntryRecord? replacedRecord, out ContentFailure? failure)
     {
         return MapStructure.TrySet(id, entry, out record, out replacedRecord, out failure);
+    }
+
+    /// <summary>
+    /// Assesses whether an entry can be set with the supplied ID without committing the set.
+    /// </summary>
+    public ContentPreflightResult AssessSet(TId id, IContentEntry entry)
+    {
+        return MapStructure.AssessSet(id, entry);
     }
 
     /// <summary>
@@ -98,6 +114,14 @@ public abstract class ContentMapManagerBase<TId> : ContentManagerBase
     }
 
     /// <summary>
+    /// Assesses whether GetOrSet can currently succeed for the supplied ID without invoking an entry factory.
+    /// </summary>
+    public ContentPreflightResult AssessGetOrSet(TId id)
+    {
+        return MapStructure.AssessGetOrSet(id);
+    }
+
+    /// <summary>
     /// Gets an existing record, or creates one with the supplied factory when the ID is missing.
     /// </summary>
     public ContentEntryRecord GetOrSet(TId id, Func<IContentEntry> entryFactory)
@@ -143,6 +167,14 @@ public abstract class ContentMapManagerBase<TId> : ContentManagerBase
     }
 
     /// <summary>
+    /// Assesses whether a retained record can be removed by caller-facing ID without committing the removal.
+    /// </summary>
+    public ContentPreflightResult AssessRemove(TId id)
+    {
+        return MapStructure.AssessRemove(id);
+    }
+
+    /// <summary>
     /// Removes a retained record by caller-facing ID.
     /// </summary>
     public ContentEntryRecord Remove(TId id)
@@ -156,6 +188,14 @@ public abstract class ContentMapManagerBase<TId> : ContentManagerBase
     public bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
     {
         return MapStructure.TryClear(out removedRecords, out failure);
+    }
+
+    /// <summary>
+    /// Assesses whether retained records can be cleared without committing the clear.
+    /// </summary>
+    public ContentPreflightResult AssessClear()
+    {
+        return MapStructure.AssessClear();
     }
 
     /// <summary>

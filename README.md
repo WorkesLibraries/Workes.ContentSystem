@@ -14,6 +14,7 @@ It is intended to be useful anywhere an application needs an ordered or structur
 - Structure-driven manager resolution for each built-in structure family.
 - Structure-owned entry identity so different storage models can use the IDs that fit them.
 - Optional change hooks for observing committed mutations.
+- Advisory preflight APIs for validating mutations and snapshot restores without changing state.
 - Entry, record, and built-in structure snapshots for portable serialization.
 - A shared failure and exception model matching the style used in other Workes packages.
 - Planned optional attachment points for export, bridges, and platform-specific integration.
@@ -23,13 +24,13 @@ It is intended to be useful anywhere an application needs an ordered or structur
 Install the package from [NuGet](https://www.nuget.org/packages/Workes.ContentSystem):
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.7.1
+dotnet add package Workes.ContentSystem --version 0.8.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.7.1" />
+<PackageReference Include="Workes.ContentSystem" Version="0.8.0" />
 ```
 
 The package targets .NET Standard 2.1.
@@ -110,6 +111,13 @@ foreach (ContentCompoundRecordView view in tree.GetRecordViews())
 {
     Console.WriteLine($"{new string(' ', view.Depth * 2)}{view.Record.PlainText}");
 }
+```
+
+Use `Assess...` APIs when UI or validation code needs to ask whether an operation can currently commit without changing state:
+
+```csharp
+ContentPreflightResult assessment = sequence.AssessAdd(
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Preview"));
 ```
 
 See the [Quick Start](docs/QUICK_START.md) for the beginner-first walkthrough.

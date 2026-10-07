@@ -80,6 +80,36 @@ public class ContentSequenceManager<TId> : ContentSequenceManagerBase<TId>
     }
 
     /// <summary>
+    /// Assesses whether a sequence structure parameter can be changed without replacing the active structure.
+    /// </summary>
+    public ContentPreflightResult AssessSetStructureParameter(string parameterId, object? value)
+    {
+        if (string.IsNullOrWhiteSpace(parameterId))
+        {
+            return ContentPreflightResult.Rejected(ContentFailures.Configuration("Structure parameter ID cannot be empty."));
+        }
+
+        if (!ConcreteSequence.TryCreateWithParameter(
+            parameterId,
+            value,
+            out IContentStructure? replacement,
+            out _,
+            out ContentFailure? failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        if (replacement is not null
+            && !ReferenceEquals(replacement, Structure)
+            && !TryAcceptStructureReplacement(replacement, out failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return ContentPreflightResult.Success();
+    }
+
+    /// <summary>
     /// Changes a sequence structure parameter by replacing the active structure atomically.
     /// </summary>
     /// <param name="parameterId">The stable parameter ID to change.</param>
@@ -180,6 +210,36 @@ public sealed class ContentSequenceManager : ContentSequenceManagerBase
             requiresFullRefresh: true));
         failure = null;
         return true;
+    }
+
+    /// <summary>
+    /// Assesses whether a sequence structure parameter can be changed without replacing the active structure.
+    /// </summary>
+    public ContentPreflightResult AssessSetStructureParameter(string parameterId, object? value)
+    {
+        if (string.IsNullOrWhiteSpace(parameterId))
+        {
+            return ContentPreflightResult.Rejected(ContentFailures.Configuration("Structure parameter ID cannot be empty."));
+        }
+
+        if (!ConcreteSequence.TryCreateWithParameter(
+            parameterId,
+            value,
+            out IContentStructure? replacement,
+            out _,
+            out ContentFailure? failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        if (replacement is not null
+            && !ReferenceEquals(replacement, Structure)
+            && !TryAcceptStructureReplacement(replacement, out failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return ContentPreflightResult.Success();
     }
 
     /// <summary>

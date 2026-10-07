@@ -137,6 +137,19 @@ public class ContentCompoundStructure<TId> :
     }
 
     /// <inheritdoc />
+    public override ContentPreflightResult AssessAddRoot(IContentEntry entry)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        return IdSource.CanCreateNext(out ContentFailure? failure)
+            ? ContentPreflightResult.Success()
+            : ContentPreflightResult.Rejected(failure!);
+    }
+
+    /// <inheritdoc />
     public override ContentCompoundNode AddRoot(IContentEntry entry)
     {
         if (TryAddRoot(entry, out ContentCompoundNode? node, out ContentFailure? failure))
@@ -156,6 +169,17 @@ public class ContentCompoundStructure<TId> :
         }
 
         return TryAddAcceptedNode(id, entry, parentId: null, observeId: true, out node, out failure);
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessAddRoot(TId id, IContentEntry entry)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        return AssessAcceptedNode(id, parentId: null, observeId: true);
     }
 
     /// <inheritdoc />
@@ -189,6 +213,24 @@ public class ContentCompoundStructure<TId> :
     }
 
     /// <inheritdoc />
+    public override ContentPreflightResult AssessAddChild(TId parentId, IContentEntry entry)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        if (!TryNormalize(parentId, out ContentEntryId normalizedParentId, out ContentFailure? failure)
+            || !TryValidateExistingParent(normalizedParentId, out failure)
+            || !IdSource.CanCreateNext(out failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
     public override ContentCompoundNode AddChild(TId parentId, IContentEntry entry)
     {
         if (TryAddChild(parentId, entry, out ContentCompoundNode? node, out ContentFailure? failure))
@@ -216,6 +258,24 @@ public class ContentCompoundStructure<TId> :
         }
 
         return TryAddAcceptedNode(id, entry, parentId, observeId: false, out node, out failure);
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessAddChild(ContentEntryId parentId, IContentEntry entry)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        EnsureValidId(parentId);
+        if (!TryValidateExistingParent(parentId, out ContentFailure? failure)
+            || !IdSource.CanCreateNext(out failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return ContentPreflightResult.Success();
     }
 
     /// <inheritdoc />
@@ -248,6 +308,23 @@ public class ContentCompoundStructure<TId> :
     }
 
     /// <inheritdoc />
+    public override ContentPreflightResult AssessAddChild(TId parentId, TId id, IContentEntry entry)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        if (!TryNormalize(parentId, out ContentEntryId normalizedParentId, out ContentFailure? failure)
+            || !TryValidateExistingParent(normalizedParentId, out failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return AssessAcceptedNode(id, normalizedParentId, observeId: true);
+    }
+
+    /// <inheritdoc />
     public override ContentCompoundNode AddChild(TId parentId, TId id, IContentEntry entry)
     {
         if (TryAddChild(parentId, id, entry, out ContentCompoundNode? node, out ContentFailure? failure))
@@ -274,6 +351,23 @@ public class ContentCompoundStructure<TId> :
         }
 
         return TryAddAcceptedNode(id, entry, parentId, observeId: true, out node, out failure);
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessAddChild(ContentEntryId parentId, TId id, IContentEntry entry)
+    {
+        if (entry is null)
+        {
+            throw new ArgumentNullException(nameof(entry));
+        }
+
+        EnsureValidId(parentId);
+        if (!TryValidateExistingParent(parentId, out ContentFailure? failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return AssessAcceptedNode(id, parentId, observeId: true);
     }
 
     /// <inheritdoc />
@@ -458,6 +552,27 @@ public class ContentCompoundStructure<TId> :
     }
 
     /// <inheritdoc />
+    public override ContentPreflightResult AssessRemove(TId id)
+    {
+        if (!TryNormalize(id, out ContentEntryId normalizedId, out ContentFailure? failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        if (!_nodes.TryGetValue(normalizedId, out CompoundNodeState? state))
+        {
+            return ContentPreflightResult.Rejected(ContentFailures.EntryNotFound($"Compound node '{normalizedId}' was not found.", normalizedId.ToString()));
+        }
+
+        if (state.ChildIds.Count > 0 && ChildRemovalPolicy == ContentCompoundChildRemovalPolicy.Reject)
+        {
+            return ContentPreflightResult.Rejected(ContentFailures.Structure("Compound node has children and the child removal policy rejects subtree removal."));
+        }
+
+        return ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
     public override IReadOnlyList<ContentEntryRecord> Remove(TId id)
     {
         if (TryRemove(id, out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure))
@@ -487,6 +602,12 @@ public class ContentCompoundStructure<TId> :
             cleared: true,
             requiresFullRefresh: true));
         return true;
+    }
+
+    /// <inheritdoc />
+    public override ContentPreflightResult AssessClear()
+    {
+        return ContentPreflightResult.Success();
     }
 
     /// <inheritdoc />
@@ -586,6 +707,31 @@ public class ContentCompoundStructure<TId> :
         failure = null;
         OnChanged(new ContentChangedEventArgs(new[] { record }, kind: ContentChangeKind.Added));
         return true;
+    }
+
+    private ContentPreflightResult AssessAcceptedNode(TId id, ContentEntryId? parentId, bool observeId)
+    {
+        if (!TryNormalize(id, out ContentEntryId normalizedId, out ContentFailure? failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        if (_nodes.ContainsKey(normalizedId))
+        {
+            return ContentPreflightResult.Rejected(ContentFailures.EntryIdDuplicate($"Entry ID '{normalizedId}' already exists.", normalizedId.ToString()));
+        }
+
+        if (parentId is not null && !TryValidateExistingParent(parentId.Value, out failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        if (observeId && !IdSource.CanObserve(id, out failure))
+        {
+            return ContentPreflightResult.Rejected(failure!);
+        }
+
+        return ContentPreflightResult.Success();
     }
 
     private bool TryNormalize(TId id, out ContentEntryId normalizedId, out ContentFailure? failure)

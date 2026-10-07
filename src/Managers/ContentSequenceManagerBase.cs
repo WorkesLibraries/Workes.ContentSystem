@@ -36,6 +36,14 @@ public abstract class ContentSequenceManagerBase<TId> : ContentManagerBase
     }
 
     /// <summary>
+    /// Assesses whether an entry can be added with a generated ID without committing the add.
+    /// </summary>
+    public ContentPreflightResult AssessAdd(IContentEntry entry)
+    {
+        return Sequence.AssessAdd(entry);
+    }
+
+    /// <summary>
     /// Adds an entry and returns the retained record created for it.
     /// </summary>
     public ContentEntryRecord Add(IContentEntry entry)
@@ -49,6 +57,14 @@ public abstract class ContentSequenceManagerBase<TId> : ContentManagerBase
     public bool TryAdd(TId id, IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
     {
         return Sequence.TryAdd(id, entry, out record, out failure);
+    }
+
+    /// <summary>
+    /// Assesses whether an entry can be added with an explicit sequence ID without committing the add.
+    /// </summary>
+    public ContentPreflightResult AssessAdd(TId id, IContentEntry entry)
+    {
+        return Sequence.AssessAdd(id, entry);
     }
 
     /// <summary>
@@ -152,6 +168,14 @@ public abstract class ContentSequenceManagerBase<TId> : ContentManagerBase
     }
 
     /// <summary>
+    /// Assesses whether a retained record can be removed by sequence ID without committing the removal.
+    /// </summary>
+    public ContentPreflightResult AssessRemove(TId id)
+    {
+        return Sequence.AssessRemove(id);
+    }
+
+    /// <summary>
     /// Removes a retained record by sequence ID.
     /// </summary>
     public ContentEntryRecord Remove(TId id)
@@ -165,6 +189,14 @@ public abstract class ContentSequenceManagerBase<TId> : ContentManagerBase
     public bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
     {
         return Sequence.TryClear(out removedRecords, out failure);
+    }
+
+    /// <summary>
+    /// Assesses whether retained records can be cleared without committing the clear.
+    /// </summary>
+    public ContentPreflightResult AssessClear()
+    {
+        return Sequence.AssessClear();
     }
 
     /// <summary>

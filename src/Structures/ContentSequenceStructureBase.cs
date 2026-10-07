@@ -17,6 +17,11 @@ public abstract class ContentSequenceStructureBase<TId> :
     /// <inheritdoc />
     public abstract ContentManagerBase CreateManager();
 
+    /// <summary>
+    /// Assesses whether an entry can be added with a generated ID without committing the add.
+    /// </summary>
+    public abstract ContentPreflightResult AssessAdd(IContentEntry entry);
+
     /// <inheritdoc />
     public abstract bool TryAdd(IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure);
 
@@ -27,6 +32,11 @@ public abstract class ContentSequenceStructureBase<TId> :
     /// Attempts to add an entry with an explicit sequence ID.
     /// </summary>
     public abstract bool TryAdd(TId id, IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure);
+
+    /// <summary>
+    /// Assesses whether an entry can be added with an explicit sequence ID without committing the add.
+    /// </summary>
+    public abstract ContentPreflightResult AssessAdd(TId id, IContentEntry entry);
 
     /// <summary>
     /// Adds an entry with an explicit sequence ID.
@@ -48,17 +58,32 @@ public abstract class ContentSequenceStructureBase<TId> :
     /// <inheritdoc />
     public abstract bool TryRemove(ContentEntryId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure);
 
+    /// <summary>
+    /// Assesses whether a retained record can be removed by normalized ID without committing the removal.
+    /// </summary>
+    public abstract ContentPreflightResult AssessRemove(ContentEntryId id);
+
     /// <inheritdoc />
     public abstract ContentEntryRecord Remove(ContentEntryId id);
 
     /// <inheritdoc />
     public abstract bool TryRemove(TId id, out ContentEntryRecord? removedRecord, out ContentFailure? failure);
 
+    /// <summary>
+    /// Assesses whether a retained record can be removed by natural ID without committing the removal.
+    /// </summary>
+    public abstract ContentPreflightResult AssessRemove(TId id);
+
     /// <inheritdoc />
     public abstract ContentEntryRecord Remove(TId id);
 
     /// <inheritdoc />
     public abstract bool TryClear(out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure);
+
+    /// <summary>
+    /// Assesses whether retained records can be cleared without committing the clear.
+    /// </summary>
+    public abstract ContentPreflightResult AssessClear();
 
     /// <inheritdoc />
     public abstract IReadOnlyList<ContentEntryRecord> Clear();
