@@ -5,13 +5,13 @@ This package is a reusable content-entry backend. The first useful core supports
 ## Install
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.8.0
+dotnet add package Workes.ContentSystem --version 1.0.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.8.0" />
+<PackageReference Include="Workes.ContentSystem" Version="1.0.0" />
 ```
 
 ## Mental Model
@@ -22,7 +22,7 @@ A ContentSystem application has three core ideas:
 - A content structure owns how entries are stored, ordered, found, and retained.
 - A content manager is the normal root object created by the chosen structure.
 
-The common sequence workflow uses a `ContentSequenceStructure` where the structure assigns IDs. Retention is explicit: use `ContentOverflowPolicy.None` to retain everything, `ContentOverflowPolicy.DropOldest(capacity)` for bounded history, or `ContentOverflowPolicy.Reject(capacity)` when a full sequence should reject more entries. Map workflows use caller-provided typed IDs. Single-entry, stack, and compound workflows cover current-state, last-in-first-out, and tree-shaped storage. Later structures may be indexed, snapshot-aware, grid-like, or forum-like.
+The common sequence workflow uses a `ContentSequenceStructure` where the structure assigns IDs. Retention is explicit: use `ContentOverflowPolicy.None` to retain everything, `ContentOverflowPolicy.DropOldest(capacity)` for bounded history, or `ContentOverflowPolicy.Reject(capacity)` when a full sequence should reject more entries. Map workflows use caller-provided typed IDs. Single-entry, stack, and compound workflows cover current-state, last-in-first-out, and tree-shaped storage. Every manager supports a read-only sorted view; persistent sorting is available for map and compound structures that opt into the sorting contracts.
 
 ## Sequence Workflow
 
@@ -157,6 +157,17 @@ if (assessment.CanCommit)
 
 Preflight does not mutate records, advance generated IDs, replace structures, or emit events. It is not a lock, so the actual `Try...` or expected-success operation still revalidates.
 
+## Sorted Views
+
+Every manager can return a stable sorted copy for display or export without changing the structure:
+
+```csharp
+IReadOnlyList<ContentEntryRecord> newestFirst = content.GetSortedRecords(
+    Comparer<ContentEntryRecord>.Create((left, right) => right.Timestamp.CompareTo(left.Timestamp)));
+```
+
+Map managers can persistently reorder records with `Sort(comparer)`. Compound managers can sort all sibling groups, choose a comparer per group, or target roots/a parent's children with `SortSiblings(...)`. Persistent sorting is an explicit mutation and is not available on sequence, stack, or single-entry workflows. See [Content Managers](CONTENT_MANAGERS.md) for the full API and behavior.
+
 ## What To Read Next
 
 - [Concepts](CONCEPTS.md) explains the package at a high level.
@@ -168,4 +179,5 @@ Preflight does not mutate records, advance generated IDs, replace structures, or
 - [Content Snapshots](CONTENT_SNAPSHOTS.md) explains entry, record, and built-in structure snapshot round trips.
 - [Extension Authoring](EXTENSION_AUTHORING.md) explains how custom structures participate in the implemented contracts.
 - [Failures](FAILURES.md) explains expected failures and exceptions.
+- [Compatibility And Upgrades](COMPATIBILITY.md) explains the 1.0 compatibility line and snapshot considerations.
 - [Export And Attachments](EXPORT_AND_ATTACHMENTS.md) explains optional bridge and export ideas.

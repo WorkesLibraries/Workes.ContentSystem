@@ -880,3 +880,25 @@ This keeps preflight consistent with the package's existing failure style while 
 Preflight is not a lock. All `Try...` and expected-success APIs must revalidate because state can change between assessment and commit.
 
 Custom generated ID sources and custom structures that inherit family bases need to implement matching assessment methods. This is a prerelease breaking change accepted for the `0.8.0` release.
+
+### D-039: Freeze Structure Sorting Before 1.0 And Defer Convenience Stages
+
+Date: 2026-10-15
+
+#### Context
+
+The package has implemented its core entry, structure, manager, failure, change-hook, snapshot, and preflight systems. The remaining roadmap includes structure sorting, read-query helpers, bulk operations, export, and release documentation. Adding structure sorting after 1.0 could force extension authors to retrofit a common capability after the public API is stable, while the other remaining features can be added compatibly later.
+
+#### Decision
+
+Add optional sorting before 1.0 in two forms: a stable, materialized, read-only sorted view on every manager, and persistent sorting as a focused opt-in capability for structures whose semantics allow reordering. Complete a comprehensive 1.0 release sweep after sorting, including a full rewrite of the extension-authoring guide informed by documentation patterns from Workes.InventorySystem and other Workes packages.
+
+Defer the remaining roadmap features to minor releases: filtering and query composition to 1.1.0, bulk operations and mutation helpers to 1.2.0, and export/attachment abstractions to 1.3.0. Treat documentation and example coverage for the 1.0 feature set as part of the 1.0 release sweep rather than a separate stage.
+
+#### Reasoning
+
+Sorting changes structure mutation semantics and can affect extension contracts, so it belongs before the 1.0 API freeze. The other capabilities add useful workflows around the stable core without defining its essential ownership model. A thorough release sweep can establish a clear, complete 1.0 contract while later minor releases add these capabilities.
+
+#### Consequences
+
+Each built-in structure must be evaluated against its own ordering semantics before opting in; no structure should sort if doing so would violate its workflow model. Snapshot capture and restore must preserve any supported sorted order and relevant structure configuration. The read-only sorted view remains materialized and distinct from persistent structure sorting. Filtering and query composition remain 1.1 work. Patch releases remain for compatible fixes; new compatible capabilities follow the planned minor-release sequence.

@@ -86,29 +86,31 @@ Completed implementation adds ergonomic helper APIs across the implemented struc
 
 Completed implementation adds `ContentPreflightResult`, advisory `Assess...` APIs for mutation workflows, generated-ID source preflight methods, and snapshot preflight on `ContentManagerBase`. Preflight does not mutate retained state, advance generated ID source state, replace structures, or emit events; final commit still revalidates.
 
-### Stage 22: Add manager read-query helpers
+## Pre-1.0 Release Work
 
-Add manager-side helpers for materialized filtered and sorted record views without mutating the active structure.
+### Stage 24: Add optional structure sorting support — complete
 
-### Stage 23: Add bulk operations and mutation helper APIs
+Add the stable, materialized read-only `ContentManagerBase.GetSortedRecords` view to every manager and opt-in, structure-owned persistent sorting for maps and compound sibling groups before the 1.0 API is frozen. Compound sorting supports one comparer for all groups, comparer selection by parent ID, and a targeted roots-or-parent-children operation. Only structures whose semantics allow reordering should implement persistent sorting. Keep it manager-coordinated, atomic, observable through one coherent change event, practical for extension authors through focused contracts, and compatible with exact snapshot capture/restore.
 
-Add high-value helper operations such as range workflows and predicate-based removal while preserving atomicity and event semantics.
+### Stage 27: Prepare 1.0.0 release candidate
 
-### Stage 24: Add optional structure sorting support
+Run the package-wide release readiness sweep after sorting. Audit public APIs, XML docs, package metadata, changelog, compatibility notes, build, tests, and pack output. Review every guide for accuracy and completeness; rewrite `docs/EXTENSION_AUTHORING.md` as a substantial practical guide informed by the depth and organization of Workes.InventorySystem's extension documentation, the focused guide hierarchy and executable examples in Workes.ConsoleSystem, and useful core/integration boundaries from the SaveSystem companion docs. Fold Stage 26's examples and focused usage documentation into this sweep. Ensure no roadmap-only behavior is presented as implemented, then prepare a reviewable 1.0.0 release candidate. Publishing and tagging are outside this stage.
 
-Add opt-in structure-owned sorting only for structures where reordering retained records is meaningful.
+## Post-1.0 Minor Releases
 
-### Stage 25: Add export helpers and attachment abstractions
+The planned feature sequence after 1.0.0 is:
+
+### Stage 22 / 1.1.0: Add manager read-query helpers
+
+Add manager-side filtering and query composition helpers. The stable sorted view is part of the pre-1.0 sorting stage; 1.1 may compose filters with that view without mutating the active structure.
+
+### Stage 23 / 1.2.0: Add bulk operations and mutation helper APIs
+
+Add high-value helper operations such as range workflows and predicate-based removal while preserving atomicity, focused structure capabilities, failure behavior, and coherent event semantics.
+
+### Stage 25 / 1.3.0: Add export helpers and attachment abstractions
 
 Add optional export helpers and attachment abstractions after portable snapshots exist. Export and attachments should not become the serialization foundation.
-
-### Stage 26: Add example tests and usage docs
-
-Add examples and focused usage docs for the implemented 1.0 feature set.
-
-### Stage 27: Prepare 1.0.0 release
-
-Audit API names, docs, examples, XML docs, metadata, changelog, compatibility notes, package build, release branch, and tag.
 
 ## Deferred Work
 

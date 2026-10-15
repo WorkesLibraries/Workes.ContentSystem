@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Workes.ContentSystem.Core;
 
@@ -9,6 +10,7 @@ namespace Workes.ContentSystem.Core;
 /// <typeparam name="TId">The caller-facing ID type.</typeparam>
 public sealed class ContentMapStructure<TId> :
     ContentMapStructureBase<TId>,
+    IContentSortableStructure,
     IContentStructureSnapshotRoundTrippable,
     IContentChangeSource
 {
@@ -94,6 +96,30 @@ public sealed class ContentMapStructure<TId> :
 
     /// <inheritdoc />
     public override IReadOnlyList<ContentEntryRecord> Records => _records.ToArray();
+
+    /// <inheritdoc />
+    public ContentPreflightResult AssessSort(IComparer<ContentEntryRecord> comparer)
+    {
+        if (comparer is null) throw new ArgumentNullException(nameof(comparer));
+        return ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
+    public bool TrySort(IComparer<ContentEntryRecord> comparer, out bool orderChanged, out ContentFailure? failure)
+    {
+        if (comparer is null) throw new ArgumentNullException(nameof(comparer));
+        // OrderBy is stable; sorting finishes on a copy before retained state is touched.
+        ContentEntryRecord[] sorted = _records.OrderBy(record => record, comparer).ToArray();
+        orderChanged = !_records.SequenceEqual(sorted);
+        if (orderChanged)
+        {
+            _records.Clear();
+            _records.AddRange(sorted);
+            OnChanged(new ContentChangedEventArgs(kind: ContentChangeKind.Sorted, requiresFullRefresh: true));
+        }
+        failure = null;
+        return true;
+    }
 
     /// <inheritdoc />
     public event EventHandler<ContentChangedEventArgs>? Changed;

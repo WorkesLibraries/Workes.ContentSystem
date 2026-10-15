@@ -15,22 +15,23 @@ It is intended to be useful anywhere an application needs an ordered or structur
 - Structure-owned entry identity so different storage models can use the IDs that fit them.
 - Optional change hooks for observing committed mutations.
 - Advisory preflight APIs for validating mutations and snapshot restores without changing state.
+- Stable read-only sorted views for every manager, with opt-in persistent sorting for maps and compound sibling groups.
 - Entry, record, and built-in structure snapshots for portable serialization.
 - A shared failure and exception model matching the style used in other Workes packages.
-- Planned optional attachment points for export, bridges, and platform-specific integration.
+- Engine-neutral core with no file I/O, UI, or host-specific integration requirements.
 
 ## Installation
 
 Install the package from [NuGet](https://www.nuget.org/packages/Workes.ContentSystem):
 
 ```bash
-dotnet add package Workes.ContentSystem --version 0.8.0
+dotnet add package Workes.ContentSystem --version 1.0.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="0.8.0" />
+<PackageReference Include="Workes.ContentSystem" Version="1.0.0" />
 ```
 
 The package targets .NET Standard 2.1.
@@ -55,6 +56,9 @@ foreach (ContentEntryRecord record in content.Records)
 {
     Console.WriteLine($"{record.Id}: {record.PlainText}");
 }
+
+IReadOnlyList<ContentEntryRecord> newestFirst = content.GetSortedRecords(
+    Comparer<ContentEntryRecord>.Create((left, right) => right.Timestamp.CompareTo(left.Timestamp)));
 ```
 
 If your code expects a specific manager from the start, use the typed resolver:
@@ -122,6 +126,8 @@ ContentPreflightResult assessment = sequence.AssessAdd(
 
 See the [Quick Start](docs/QUICK_START.md) for the beginner-first walkthrough.
 
+Map and compound managers also offer opt-in persistent sorting. Read-only sorted views never change structure order; persistent sorting is an explicit mutation and is available only for structures that support it. See [Content Managers](docs/CONTENT_MANAGERS.md) and [Extension Authoring](docs/EXTENSION_AUTHORING.md).
+
 ## Documentation
 
 Start here:
@@ -140,6 +146,7 @@ Focused guides:
 - [Extension Authoring](docs/EXTENSION_AUTHORING.md)
 - [Failures](docs/FAILURES.md)
 - [Export And Attachments](docs/EXPORT_AND_ATTACHMENTS.md)
+- [Compatibility And Upgrades](docs/COMPATIBILITY.md)
 
 See the [Changelog](CHANGELOG.md) for release history and migration-sensitive changes.
 

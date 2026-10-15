@@ -8,7 +8,7 @@ This is a project-control document for maintaining architectural consistency. It
 
 ## Current Architecture
 
-Workes.ContentSystem now has its first useful core: public entry, failure, structure, manager, and change-hook pieces are implemented. This document records both the current architecture and the intended 1.0 direction.
+Workes.ContentSystem 1.0 provides built-in entry, failure, structure, manager, change-hook, preflight, sorting, and snapshot workflows. This document records the architecture behind that public surface and the boundaries reserved for optional integrations and future releases.
 
 The package should be engine-neutral and centered on manager workflows that own one active content structure and expose simple APIs for normal users.
 

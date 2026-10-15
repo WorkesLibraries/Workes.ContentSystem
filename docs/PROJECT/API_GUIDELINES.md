@@ -60,7 +60,7 @@ ID strategies should validate and normalize typed caller-provided IDs and valida
 
 Use content entries as the primary extension path.
 
-Do not force all entries into a chat-message or log-message shape. Custom entries should be ordinary, supported usage. `PlainContentEntry` is the only planned built-in entry type for 1.0.
+Do not force all entries into a chat-message or log-message shape. Custom entries should be ordinary, supported usage. `PlainContentEntry` is the only built-in entry type included in 1.0.
 
 Stored entry records should have IDs. Entry payloads should not require callers to invent IDs before a structure stores them.
 
@@ -118,5 +118,7 @@ Custom manager workflows should follow the same pattern: a custom structure retu
 ## Documentation Expectations
 
 Every first-class public concept should get a focused guide under `docs/`.
+
+For release 1.0.0, public API additions should be reflected in XML documentation, the appropriate focused guide, and `CHANGELOG.md`. Examples intended for copying should be checked against the current API. Preserve these expectations for post-1.0 work.
 
 Project-control docs explain architectural intent. User-facing docs explain normal usage. Trello owns task state once the board is mapped.

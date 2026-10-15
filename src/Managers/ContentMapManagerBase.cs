@@ -27,6 +27,35 @@ public abstract class ContentMapManagerBase<TId> : ContentManagerBase
     /// </summary>
     protected ContentMapStructureBase<TId> MapStructure => (ContentMapStructureBase<TId>)Structure;
 
+    /// <summary>Assesses whether the active map supports sorting.</summary>
+    public ContentPreflightResult AssessSort(IComparer<ContentEntryRecord> comparer)
+    {
+        if (comparer is null) throw new ArgumentNullException(nameof(comparer));
+        return Structure is IContentSortableStructure sortable
+            ? sortable.AssessSort(comparer)
+            : ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The active map structure does not support sorting."));
+    }
+
+    /// <summary>Attempts to sort retained map records. Comparison exceptions propagate without changing state.</summary>
+    public bool TrySort(IComparer<ContentEntryRecord> comparer, out bool orderChanged, out ContentFailure? failure)
+    {
+        if (comparer is null) throw new ArgumentNullException(nameof(comparer));
+        if (Structure is not IContentSortableStructure sortable)
+        {
+            orderChanged = false;
+            failure = ContentFailures.StructureUnsupportedOperation("The active map structure does not support sorting.");
+            return false;
+        }
+        return sortable.TrySort(comparer, out orderChanged, out failure);
+    }
+
+    /// <summary>Sorts retained map records.</summary>
+    public bool Sort(IComparer<ContentEntryRecord> comparer)
+    {
+        if (!TrySort(comparer, out bool changed, out ContentFailure? failure)) throw new ContentOperationException(failure!);
+        return changed;
+    }
+
     /// <summary>
     /// Attempts to add an entry with a caller-provided ID.
     /// </summary>

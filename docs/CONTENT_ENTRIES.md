@@ -52,7 +52,7 @@ The core provides enough common shape to be useful without making every custom e
 
 ## Plain Content Entries
 
-`PlainContentEntry` is the first built-in entry type and the only planned built-in entry type for 1.0.
+`PlainContentEntry` is the first built-in entry type and the only built-in entry type included in 1.0.
 
 It stores:
 

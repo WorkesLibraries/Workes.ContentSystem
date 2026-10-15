@@ -16,6 +16,8 @@ The common abstraction exposes:
 
 Structures may also implement focused optional contracts when they support committed mutations, configuration inspection, or change notifications.
 
+`ContentManagerBase.GetSortedRecords(comparer)` offers a temporary stable, read-only sorted copy for every manager family. Persistent order changes are opt-in through `IContentSortableStructure` (map records) or `IContentCompoundSortableStructure` (compound sibling groups); sequence, stack, and single-entry semantics do not gain persistent sorting. Compound managers can apply one comparer throughout the tree, select a comparer per group using the parent ID (`null` for roots), or target a single group. A successful sort emits one `Sorted` event requiring a full refresh, while an already-sorted structure emits none. Snapshot-capable map and compound structures preserve committed order through their existing ordered record data.
+
 Structures that support mutation also expose matching `Assess...` APIs through their structure family. Assessment is advisory and side-effect-free: it returns `ContentPreflightResult`, does not retain records, does not advance generated ID sources, and does not raise change events. The final `Try...` or expected-success mutation still revalidates at commit time.
 
 Write workflows are structure-specific. This lets structure-assigned-ID structures and caller-provided-ID structures expose honest APIs without forcing every structure into one add method.
@@ -304,12 +306,14 @@ Additional behavior should be exposed through focused opt-in contracts, mirrorin
 - `IContentClearableStructure`;
 - `IContentRecordRemovalStructure`;
 - `IContentMapRecordRemovalStructure<TId>`;
-- `IParameterizedContentStructure`.
-- `IContentStructureSnapshotRoundTrippable`.
+- `IParameterizedContentStructure`;
+- `IContentStructureSnapshotRoundTrippable`;
+- `IContentSortableStructure`;
+- `IContentCompoundSortableStructure`.
 
 `ContentSequenceStructure` implements the retention policy, read-order, natural long-ID lookup/removal, clear, remove, and parameterized structure contracts. Its first parameter is `ContentSequenceStructure.OverflowPolicyParameterId`. `ContentMapStructure<TId>` implements map add/lookup, set, clear, typed map removal, normalized removal, and change-source contracts. `ContentSingleStructure<TId>`, `ContentStackStructure<TId>`, and `ContentCompoundStructure<TId>` add focused built-in families for single-entry state, stack workflows, and owned-tree workflows.
 
-Future contracts can cover sorting, searching, or export only where a structure genuinely supports that behavior.
+Optional sorting is implemented through `IContentSortableStructure` for map-like record order and `IContentCompoundSortableStructure` for compound sibling groups. Search and query composition remain future work; export and attachments are optional future integrations described in [Export And Attachments](EXPORT_AND_ATTACHMENTS.md).
 
 Runtime mutation should be manager-coordinated for normal callers, with structures owning the actual retained-state mutation through focused opt-in contracts.
 
@@ -321,6 +325,6 @@ Manager resolution is part of the base shape: every structure creates the manage
 
 Custom structures can use `ContentStructureSnapshotFactoryBase<TStructure>`, the sequence/map family snapshot factory bases, `ContentSnapshotRecords`, and `ContentSnapshotProperties` to implement the same snapshot pattern without copying built-in structure internals. Sequence extensions can choose the generic generated-ID source helper or the long-ID numeric convenience helper. See [Extension Authoring](EXTENSION_AUTHORING.md).
 
-This mirrors the strategy used in other Workes packages: keep the central abstraction small, then add focused optional contracts where they are genuinely needed. Avoid a broad capability metadata object unless a future stage finds a concrete use case that opt-in contracts cannot solve cleanly.
+This mirrors the strategy used in other Workes packages: keep the central abstraction small, then add focused optional contracts where they are genuinely needed. Avoid a broad capability metadata object unless a concrete use case cannot be represented cleanly with opt-in contracts.
 
 Manager creation is intentionally not broad capability metadata. It exists because manager selection itself is a base structure concern across sequence, map, single-entry, stack, compound, and custom structures.

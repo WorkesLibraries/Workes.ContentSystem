@@ -1,292 +1,323 @@
 # Extension Authoring
 
-This guide documents the extension contracts that are stable enough to use today. It focuses on custom structures; later stages will expand it for sorting, batch helpers, export, and other extension systems as they are implemented.
+Workes.ContentSystem is designed for applications to define their own entry types and for libraries to define their own content workflows. This guide takes you from choosing an extension point to implementing and testing a small custom structure. It also gives focused recipes for identity, failures, events, sorting, and snapshots, and points to the closest references when an extension needs more.
 
-## Custom Structure Responsibilities
+For ordinary package use, start with [Quick Start](QUICK_START.md). The guide is organized around extension work:
 
-A custom structure starts with `IContentStructure`.
+1. Choose the narrowest extension point that owns the behavior.
+2. Implement an entry, structure, and tailored manager.
+3. Add optional capabilities only when the structure can honor their contract.
+4. Define stable failures and verify atomic behavior.
+5. Test the extension and consult analogous built-in structures for details beyond these recipes.
 
-It must expose retained `ContentEntryRecord` values in its chosen read order, implement lookup by stored `ContentEntryId`, and create the tailored manager that knows how to operate it. The structure owns what IDs mean: generated numeric IDs, caller-provided string IDs, normalized custom IDs, or another stable format.
+## Choose An Extension Point
 
-Add only the focused contracts that the structure truly supports:
+| You need to... | Start with... | The extension owns... |
+|---|---|---|
+| Store domain-specific content | `IContentEntry` | Entry data and its plain-text representation |
+| Keep caller-provided typed IDs | `IContentEntryIdStrategy<TId>` and a map structure | ID validation and normalization |
+| Generate structure-owned IDs | `IContentGeneratedIdSource<TId>` | ID generation, observation, and source state |
+| Define a new storage workflow | `IContentStructure` and a custom manager | Retained state, lookup, order, identity, and workflow methods |
+| Add one optional behavior | A focused structure capability interface | Only the behavior represented by that contract |
+| Notify observers | `IContentChangeSource` | Synchronous notifications after committed changes |
+| Persist entry payloads | `IContentEntrySnapshotSerializable` and a factory | Entry snapshot capture and restore |
+| Persist whole structures | `IContentStructureSnapshotRoundTrippable` and a factory | Exact structure snapshot round trips |
 
-- `IStructureAssignedIdContentStructure` or `IStructureAssignedIdContentStructure<TId>` for structure-assigned add workflows;
-- `IContentMapStructure<TId>` for caller-provided typed IDs;
-- `IContentChangeSource` for synchronous committed-change events;
-- `IContentClearableStructure`, `IContentRecordRemovalStructure`, and map/natural removal contracts for mutation support;
-- `IParameterizedContentStructure` for manager-coordinated runtime configuration;
-- `IContentRetentionPolicyStructure` and `IContentReadOrderStructure` for readable configuration;
-- `IContentStructureSnapshotRoundTrippable` for whole-structure snapshot round trips.
+The structure owns retained state. The manager coordinates the user-facing workflow. A capability interface declares supported behavior; there is no broad capability flags object. If a built-in family already expresses your workflow and you can honor its complete contract, use its family base. Implement `IContentStructure` directly when your workflow differs materially.
 
-Do not use a broad capability flag object. In ContentSystem, implementing the focused interface is the capability.
+## The Shared Structure Contract
 
-Manager resolution is not a capability flag. A structure creates its own manager because a useful manager is usually tailored to the structure's operations. A stack-like structure can return a stack manager with `Push`, `Peek`, and `Pop`; a threaded structure can return a thread-aware manager with thread-specific commands.
-
-## Custom Manager Workflows
-
-Create a manager that derives from `ContentManagerBase`, then have the structure return that manager from `CreateManager()`:
+Every custom structure implements these four members:
 
 ```csharp
-public sealed class QuestLogStructure : IContentStructure
+public interface IContentStructure
+{
+    ContentManagerBase CreateManager();
+    IReadOnlyList<ContentEntryRecord> Records { get; }
+    bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure);
+    ContentEntryRecord Get(ContentEntryId id);
+}
+```
+
+`Records` is the visible read order. Lookup must be consistent with that retained state. `TryGet` returns structured failure data for an expected missing-ID rejection; `Get` returns the record or throws `ContentOperationException` carrying that failure. `CreateManager` returns the tailored manager for this structure.
+
+The shared interface intentionally does not define a universal add/remove API. A custom structure and its manager expose operations that fit the structure's meaning.
+
+## Complete Example: A Quest Log
+
+This example implements a generated-ID append workflow, an archived-state rejection, a tailored manager, and the optional `IContentChangeSource` capability. It is deliberately small: it has no snapshot format and does not claim to support clear, removal, or sorting.
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using Workes.ContentSystem.Core;
+
+public static class QuestLogFailureCodes
+{
+    public const string Archived = "example.questlog.content.archived";
+}
+
+public sealed class QuestLogStructure : IContentStructure, IContentChangeSource
 {
     private readonly List<ContentEntryRecord> _records = new();
+    private readonly bool _isArchived;
     private long _nextId = 1;
 
-    public IReadOnlyList<ContentEntryRecord> Records => _records;
-
-    public ContentManagerBase CreateManager()
+    public QuestLogStructure(bool isArchived = false)
     {
-        return new QuestLogManager(this);
+        _isArchived = isArchived;
+    }
+
+    public event EventHandler<ContentChangedEventArgs>? Changed;
+
+    public IReadOnlyList<ContentEntryRecord> Records => Array.AsReadOnly(_records.ToArray());
+
+    public ContentManagerBase CreateManager() => new QuestLogManager(this);
+
+    public ContentPreflightResult AssessAppend(IContentEntry entry)
+    {
+        if (entry is null) throw new ArgumentNullException(nameof(entry));
+        return _isArchived
+            ? ContentPreflightResult.Rejected(ArchivedFailure())
+            : ContentPreflightResult.Success();
+    }
+
+    public bool TryAppend(IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure)
+    {
+        if (entry is null) throw new ArgumentNullException(nameof(entry));
+        if (_isArchived)
+        {
+            record = null;
+            failure = ArchivedFailure();
+            return false;
+        }
+
+        record = new ContentEntryRecord(
+            new ContentEntryId("quest/" + _nextId.ToString(CultureInfo.InvariantCulture)),
+            entry);
+        _nextId++;
+        _records.Add(record);
+        failure = null;
+        Changed?.Invoke(this, new ContentChangedEventArgs(
+            addedRecords: new[] { record },
+            kind: ContentChangeKind.Added));
+        return true;
+    }
+
+    public ContentEntryRecord Append(IContentEntry entry)
+    {
+        if (TryAppend(entry, out ContentEntryRecord? record, out ContentFailure? failure)) return record!;
+        throw new ContentOperationException(failure!);
     }
 
     public bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
     {
-        foreach (ContentEntryRecord candidate in _records)
+        record = _records.FirstOrDefault(candidate => candidate.Id.Equals(id));
+        if (record is not null)
         {
-            if (candidate.Id.Equals(id))
-            {
-                record = candidate;
-                failure = null;
-                return true;
-            }
+            failure = null;
+            return true;
         }
 
-        record = null;
         failure = ContentFailure.Create(
             ContentFailureKind.Entry,
             ContentFailureCodes.EntryNotFound,
-            "Quest log entry was not found.");
+            $"Quest log entry '{id}' was not found.",
+            component: nameof(QuestLogStructure));
         return false;
     }
 
     public ContentEntryRecord Get(ContentEntryId id)
     {
-        if (TryGet(id, out ContentEntryRecord? record, out ContentFailure? failure))
-        {
-            return record!;
-        }
-
+        if (TryGet(id, out ContentEntryRecord? record, out ContentFailure? failure)) return record!;
         throw new ContentOperationException(failure!);
     }
 
-    public ContentEntryRecord AddQuest(IContentEntry entry)
-    {
-        var record = new ContentEntryRecord(
-            new ContentEntryId((_nextId++).ToString(System.Globalization.CultureInfo.InvariantCulture)),
-            entry);
-
-        _records.Add(record);
-        return record;
-    }
+    private static ContentFailure ArchivedFailure() => ContentFailure.Create(
+        ContentFailureKind.Extension,
+        QuestLogFailureCodes.Archived,
+        "The quest log is archived and cannot accept new entries.",
+        component: nameof(QuestLogStructure));
 }
-```
 
-The manager exposes the structure's natural workflow:
-
-```csharp
 public sealed class QuestLogManager : ContentManagerBase
 {
-    public QuestLogManager(QuestLogStructure structure)
-        : base(structure)
-    {
-    }
+    public QuestLogManager(QuestLogStructure structure) : base(structure) { }
 
     private QuestLogStructure QuestLog => (QuestLogStructure)Structure;
 
-    public ContentEntryRecord AddQuest(IContentEntry entry)
-    {
-        return QuestLog.AddQuest(entry);
-    }
+    public ContentPreflightResult AssessAppend(IContentEntry entry) => QuestLog.AssessAppend(entry);
+
+    public bool TryAppend(IContentEntry entry, out ContentEntryRecord? record, out ContentFailure? failure) =>
+        QuestLog.TryAppend(entry, out record, out failure);
+
+    public ContentEntryRecord Append(IContentEntry entry) => QuestLog.Append(entry);
 }
 ```
 
-Normal users can then resolve the manager from the structure:
+Resolve the manager through the structure, subscribe through the manager, and use whichever failure style fits the call site:
 
 ```csharp
-QuestLogManager content =
-    ContentManagers.ForStructure<QuestLogManager>(new QuestLogStructure());
+var log = ContentManagers.ForStructure<QuestLogManager>(new QuestLogStructure());
+log.Changed += (_, change) => Console.WriteLine(change.Kind);
+
+ContentPreflightResult assessment = log.AssessAppend(
+    new PlainContentEntry(DateTimeOffset.UtcNow, "The gate is open."));
+
+ContentEntryRecord entry = log.Append(
+    new PlainContentEntry(DateTimeOffset.UtcNow, "The gate is open."));
 ```
 
-No registry setup is needed for manager resolution. The typed resolver validates that the structure-created manager is the expected manager type and returns a structured manager-mismatch failure when it is not.
+The `QuestLogStructure(isArchived: true)` case demonstrates an expected domain rejection. Assessment returns a rejected `ContentPreflightResult`; `TryAppend` returns `false` and its `ContentFailure`; `Append` throws `ContentOperationException` containing that failure. All three paths leave records and events unchanged. The NUnit fixture [QuestLogExtensionExampleTests.cs](../tests/Examples/QuestLogExtensionExampleTests.cs) exercises manager resolution, success events, failure consistency, and misuse behavior.
 
-## Preflight Support
+### What The Example Demonstrates
 
-If a custom structure inherits one of the built-in family bases, it must implement that family's `Assess...` methods along with the committing `Try...` methods. These assessments should validate the same expected rejection cases as the commit path, but without mutating retained records, advancing generated ID sources, observing manual IDs, replacing structures, or emitting events.
+- The structure controls stored identity, visible order, and retained state.
+- `ContentEntryId` is the normalized ID exposed by stored records. The example generates stable string IDs itself; use an ID strategy or generated-ID source when the built-in generic workflows fit better.
+- `Records` returns a read-only snapshot rather than exposing the mutable list.
+- The optional `IContentChangeSource` event is raised only after the record is retained.
+- The failure code is stable and extension-owned; it does not add a new package failure kind or change `ContentFailureCodes`.
+- The manager contains no duplicate retained-state logic. It delegates the workflow to its active structure.
 
-For generated-ID structures, custom `IContentGeneratedIdSource<TId>` implementations must provide both committing and non-mutating source methods:
+The example is a teaching baseline, not a universal implementation. A production structure should additionally decide and document concurrency expectations, retention, removal, ID collision rules, and snapshot compatibility when those concerns apply.
 
-- `CanCreateNext(...)` assesses generated ID availability without advancing;
-- `TryCreateNext(...)` creates and advances;
-- `CanObserve(...)` and `CanObserveNormalized(...)` assess manual/restored IDs without recording them;
-- `TryObserve(...)` and `TryObserveNormalized(...)` record accepted IDs so future generation stays coherent.
+## Extension-Authored Failures
 
-Managers should expose `Assess...` methods for the same user-facing operations they expose as `Try...` and expected-success methods. Preflight is not a reservation; the commit path must still revalidate because another operation can change state after assessment.
+Expected domain rejection is data, not an exception. Use a failure for normal conditions callers may handle: a domain rule rejects an entry, a structure is closed, or a snapshot cannot represent extension-owned state. Use standard .NET exceptions for programmer misuse and invalid construction, such as null arguments or malformed setup.
 
-Snapshot-capable managers inherit `AssessCaptureSnapshot()` and `AssessRestoreSnapshot(...)` from `ContentManagerBase`. Custom manager compatibility checks in `TryAcceptStructureReplacement(...)` are used by both restore preflight and actual restore.
+### Choose A Kind And Code
 
-## Snapshot Support
+`ContentFailureKind` is a fixed set of broad package categories. Extensions do not extend that enum. Use the most specific existing category that honestly describes the failing subsystem; use `ContentFailureKind.Extension` for extension-owned behavior that does not fit another category.
 
-Custom structures opt into snapshot round trips with `IContentStructureSnapshotRoundTrippable`. The structure captures itself and exposes a `SnapshotFactory` so normal manager restore can use `RestoreSnapshot(snapshot)` without a factory argument.
-
-Use stable, namespaced snapshot kinds. Package kinds use `workes.content.structure.*`; application kinds should use an application-owned prefix such as `my.game.content.structure.quest_log`.
-
-Use `DataVersion` to version the structure-owned snapshot schema. Increment it when the meaning of `Data` changes incompatibly.
-
-The helper APIs reduce boilerplate:
-
-- `ContentStructureSnapshotFactoryBase<TStructure>` validates kind/version/data, wraps unexpected exceptions into snapshot failures, and implements throwing restore.
-- `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` adds sequence-family record restore, generated ID source restore, restored-ID validation through the source strategy, and source observation before concrete restore code runs.
-- `ContentSequenceStructureSnapshotFactoryBase<TStructure>` is the long-ID convenience helper for sequence-family structures that only need restored records plus the maximum positive numeric ID.
-- `ContentMapStructureSnapshotFactoryBase<TId, TStructure>` adds map-family record restore plus normalized ID validation through the configured `IContentEntryIdStrategy<TId>`.
-- `ContentCompoundStructureSnapshotFactoryBase<TId, TStructure>` adds compound-family record restore, generated ID source restore, relationship restore, restored-ID validation, source observation, duplicate relationship rejection, unknown parent rejection, and cycle rejection before concrete restore code runs.
-- `ContentSnapshotRecords` captures and restores retained records through registered entry factories, preserves order, rejects duplicate IDs, and can validate positive numeric generated IDs.
-- `ContentSnapshotProperties` builds and decodes object-shaped structure data.
-
-Example sequence-family shape:
+Define stable extension-owned codes in your own static class and namespace. The `workes.content.` prefix is reserved for package-owned codes. Consumers should branch on `Kind` and `Code`, never on the display message.
 
 ```csharp
-public sealed class QuestLogSnapshotFactory
-    : ContentSequenceStructureSnapshotFactoryBase<QuestLogStructure>
+public static class QuestLogFailureCodes
 {
-    public QuestLogSnapshotFactory()
-        : base(QuestLogStructure.SnapshotKind, QuestLogStructure.SnapshotDataVersion)
-    {
-    }
-
-    protected override bool TryRestoreValidatedSequenceSnapshot(
-        ContentStructureSnapshot snapshot,
-        ContentEntryRecord[] records,
-        long maximumId,
-        out QuestLogStructure? structure,
-        out ContentFailure? failure)
-    {
-        structure = null;
-
-        if (!ContentSnapshotProperties.TryDecodeRequiredString(snapshot.Data, "questGroup", out string questGroup, out failure) ||
-            !ContentSnapshotProperties.TryDecodeRequiredInt64(snapshot.Data, "nextId", out long nextId, out failure))
-        {
-            return false;
-        }
-
-        if (nextId <= maximumId)
-        {
-            failure = ContentFailure.Create(
-                ContentFailureKind.Snapshot,
-                ContentFailureCodes.SnapshotMalformed,
-                "Next ID must be greater than retained record IDs.");
-            return false;
-        }
-
-        structure = new QuestLogStructure(questGroup, records, nextId);
-        return true;
-    }
+    public const string Archived = "example.questlog.content.archived";
 }
+
+ContentFailure failure = ContentFailure.Create(
+    ContentFailureKind.Extension,
+    QuestLogFailureCodes.Archived,
+    "The quest log is archived and cannot accept new entries.",
+    component: nameof(QuestLogStructure));
 ```
 
-For map-family structures, use `ContentMapStructureSnapshotFactoryBase<TId, TStructure>`. The map base restores records and calls `TryValidateNormalized` for every stored ID before your concrete restore method runs. Your concrete factory should then restore any extra structure-owned data and construct the structure with the same ID strategy used by future operations.
+Keep codes stable after callers may depend on them. Keep `Message` useful to a person, and use `Component` or `Source` for stable origin information rather than embedding it only in prose.
 
-For sequence-family structures with custom generated ID sources, use `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>`. The generic sequence base restores the source snapshot, validates every restored stored ID through `idSource.IdStrategy.TryValidateNormalized(...)`, and calls `idSource.TryObserveNormalized(...)` before your concrete restore method runs. Your concrete factory should restore any extra structure-owned data and construct the structure with the restored source:
+### Preserve Lower-Level Causes
+
+When your extension rejects an operation because a lower-level component rejected it, wrap the lower-level failure instead of discarding it:
 
 ```csharp
-public sealed class QuestLogSnapshotFactory
-    : ContentSequenceStructureSnapshotFactoryBase<QuestEntryId, QuestLogStructure>
-{
-    public QuestLogSnapshotFactory(IContentGeneratedIdSourceFactory<QuestEntryId> sourceFactory)
-        : base(QuestLogStructure.SnapshotKind, QuestLogStructure.SnapshotDataVersion, sourceFactory)
-    {
-    }
-
-    protected override bool TryRestoreValidatedSequenceSnapshot(
-        ContentStructureSnapshot snapshot,
-        ContentEntryRecord[] records,
-        IContentGeneratedIdSource<QuestEntryId> idSource,
-        out QuestLogStructure? structure,
-        out ContentFailure? failure)
-    {
-        structure = null;
-
-        if (!ContentSnapshotProperties.TryDecodeRequiredString(snapshot.Data, "questGroup", out string questGroup, out failure))
-        {
-            return false;
-        }
-
-        structure = new QuestLogStructure(questGroup, idSource, records);
-        return true;
-    }
-}
+ContentFailure wrapped = ContentFailure.Wrap(
+    ContentFailureKind.Extension,
+    "example.questlog.content.append_rejected",
+    "The quest update could not be appended.",
+    cause: lowerLevelFailure,
+    component: nameof(QuestLogStructure));
 ```
 
-For compound-family structures, use `ContentCompoundStructureSnapshotFactoryBase<TId, TStructure>`. The compound base restores records, restores the generated ID source, restores each node's parent relationship, verifies that every relationship points at a retained record, rejects duplicates and cycles, validates stored IDs through the source strategy, and observes retained IDs before your concrete restore method runs. Your concrete factory should restore extra structure-owned data such as hierarchy policy or presentation state, then construct the structure from the restored records and parent map:
+`Cause` preserves the nested failure for diagnostics and programmatic inspection. Do not flatten a useful code chain into a concatenated message.
 
-```csharp
-public sealed class QuestTreeSnapshotFactory
-    : ContentCompoundStructureSnapshotFactoryBase<QuestEntryId, QuestTreeStructure>
-{
-    public QuestTreeSnapshotFactory(IContentGeneratedIdSourceFactory<QuestEntryId> sourceFactory)
-        : base(QuestTreeStructure.SnapshotKind, QuestTreeStructure.SnapshotDataVersion, sourceFactory)
-    {
-    }
+### Convert Exceptions Only At An Intentional Boundary
 
-    protected override bool TryRestoreValidatedCompoundSnapshot(
-        ContentStructureSnapshot snapshot,
-        ContentEntryRecord[] records,
-        IReadOnlyDictionary<ContentEntryId, ContentEntryId?> parentIds,
-        IContentGeneratedIdSource<QuestEntryId> idSource,
-        out QuestTreeStructure? structure,
-        out ContentFailure? failure)
-    {
-        structure = new QuestTreeStructure(idSource, records, parentIds);
-        failure = null;
-        return true;
-    }
-}
-```
+`ContentFailure.FromException(...)` preserves the failure when given a `ContentSystemException`. For another exception, it creates structured failure data using the requested kind and code, defaulting to `Extension` and `ContentFailureCodes.ExtensionRejected`.
 
-The structure should expose the same factory from `SnapshotFactory`:
+Use it only when your contract intentionally converts an exception from an expected extension path—for example, a documented callback failure—into a normal rejection. Do not catch every exception or convert argument errors, null misuse, or programming bugs into expected failures. If exceptions are meant to propagate, let them propagate.
 
-```csharp
-public IContentStructureSnapshotFactory SnapshotFactory => Factory;
-```
+### Carry Failures Through The Public Workflow
 
-Keep explicit factory restore available for migrations where the active structure's factory is not the intended target.
+- `Assess...` returns `ContentPreflightResult.Rejected(failure)` without changing state.
+- `Try...` returns `false` and exposes the same failure through its `out ContentFailure?` value.
+- An expected-success wrapper throws `ContentOperationException(failure)` with that structured failure.
+- Callers inspect `exception.Failure.Code`, `.Kind`, and `.Cause`; they should not parse exception messages.
 
-## Entry Factories
+If there is no lower-level failure, do not invent one. If an operation succeeds, set its failure output to `null`. If it rejects, return no committed record and do not emit a change event. The [Failure Handling](FAILURES.md#extension-authored-failures) reference contains the complete failure model and code conventions.
 
-Structure snapshots contain entry snapshots. Restore cannot recreate custom entries unless their factory is registered.
+## Focused Extension Recipes
 
-Register custom entry factories once during application setup:
+Each recipe states the extension point and the invariant it adds. The linked guide gives the package-level workflow details; use the closest built-in family and matching tests as implementation references for the remaining specifics.
 
-```csharp
-ContentEntrySnapshotFactories.Register(QuestEntry.Factory);
-```
+### Extend A Built-In Family
 
-Capture does not require registration because the entry instance captures itself. Restore does require registration because the snapshot only contains the entry kind.
+Use `ContentSequenceStructureBase<TId>`, `ContentMapStructureBase<TId>`, `ContentSingleStructureBase<TId>`, `ContentStackStructureBase<TId>`, or `ContentCompoundStructureBase<TId>` when the built-in family contract matches your workflow. Implement the abstract methods and matching `Assess...` methods, then return your tailored manager from `CreateManager()`. Do not derive from a family base only to reuse a small helper: inheritance means taking on its complete workflow and invariants.
 
-## ID Invariants
+Read [Content Structures](CONTENT_STRUCTURES.md) and the matching built-in structure in `src/Structures/BuiltIn/`. For reusable workflows, compare the related family base under `src/Structures/` and the manager base under `src/Managers/`.
 
-Stored record IDs must remain reachable through the structure's normal lookup workflow.
+### Validate Caller-Provided IDs
 
-For map structures, `IContentEntryIdStrategy<TId>` has two responsibilities:
+Implement `IContentEntryIdStrategy<TId>` when callers provide typed IDs. `TryNormalize` validates and maps a caller value to `ContentEntryId`; `TryValidateNormalized` validates a stored ID restored from a snapshot. Both methods must accept the same stored identity language so restored entries remain addressable. Strategies validate IDs; they do not generate them.
 
-- `TryNormalize` validates caller-facing IDs and converts them to `ContentEntryId`;
-- `TryValidateNormalized` validates IDs loaded from snapshots.
+Read [Content Identity](CONTENT_IDENTITY.md). Compare the built-in string, integer, GUID, and `ContentEntryId` strategies in `src/Identity/BuiltIn/` and their cases in `tests/Identity/ContentEntryIdStrategyTests.cs`.
 
-Both methods must describe the same stored ID language. A map structure should reject a snapshot ID that the typed API can never address.
+### Generate IDs
 
-For generated-ID structures, restore should validate retained IDs and generated ID source state before constructing the restored structure. Use `ContentSequenceStructureSnapshotFactoryBase<TId, TStructure>` when the structure uses an `IContentGeneratedIdSource<TId>`. `ContentSnapshotRecords.TryGetMaximumPositiveNumericId(...)` and `ContentSequenceStructureSnapshotFactoryBase<TStructure>` remain useful for simple long-ID sequence-like structures.
+Implement `IContentGeneratedIdSource<TId>` when the structure assigns IDs. Provide non-mutating `CanCreateNext`, `CanObserve`, and `CanObserveNormalized` methods as well as committing `TryCreateNext`, `TryObserve`, and `TryObserveNormalized` methods. Preflight must not advance or observe state. If IDs are persisted, implement a source snapshot factory so restore preserves future generation behavior.
 
-## Events And Atomicity
+Read [Content Identity](CONTENT_IDENTITY.md) and [Content Snapshots](CONTENT_SNAPSHOTS.md). Compare `LongContentGeneratedIdSource` and its tests, then inspect the sequence-family snapshot factory when adding generated IDs to a custom sequence.
 
-Snapshot restore should create and validate a replacement structure before changing manager state. Failed restore must leave the existing manager state unchanged and emit no event.
+### Add Assessments And Mutation Capabilities
 
-Successful manager-coordinated restore emits one full-refresh event with `ContentChangeKind.SnapshotRestored`. Custom structures that implement `IContentChangeSource` should raise events only after mutations commit. Handler exceptions are synchronous and are not swallowed.
+Add a focused contract for a behavior only when your structure can honor it. Common contracts include clear, record removal, typed map operations, parameterized mutation, persistent sorting, and structure snapshots. For each committing operation, expose assessment when callers need advisory validation. Assessments are side-effect-free and commits revalidate; a preflight result is not a reservation.
 
-## Pitfalls
+Read [Content Structures](CONTENT_STRUCTURES.md), [Content Managers](CONTENT_MANAGERS.md), and [Failures](FAILURES.md). Compare the matching contract and manager family. Never mutate a live list in place before all validation or caller-controlled comparison work has completed.
 
-- Do not reuse snapshot kinds for incompatible schemas.
-- Do not reset generated IDs during clear, remove, or restore unless that is explicitly part of the structure's documented model.
-- Do not silently skip unsupported custom entries; let snapshot capture/restore return structured failures.
-- Do not expose mutation APIs on a manager unless the underlying structure contract supports them.
-- Do not emit events for rejected or no-op operations.
-- Do not let preflight methods mutate state, advance generated ID sources, or emit events.
-- Keep snapshot DTOs serializer-friendly and avoid storing live service objects, delegates, or host-specific resources in `ContentSnapshotValue`.
+### Publish Change Hooks
+
+Implement `IContentChangeSource` when observers need committed mutation notifications. Raise the event after state commit, include records and metadata needed to describe the change, and remain silent for rejection and no-op paths. The manager forwards the structure's args and becomes the event sender.
+
+Read [Content Changes](CONTENT_CHANGES.md) and `tests/Changes/ContentChangedEventArgsTests.cs`.
+
+### Add Sorting
+
+Use `GetSortedRecords` for a temporary view; no structure capability is needed. Implement `IContentSortableStructure` for persistent map-like reordering or `IContentCompoundSortableStructure` for sibling sorting. Keep order stable for equal comparer keys, prepare candidate state before commit, and preserve the result in snapshots. Sequence, stack, and single-entry semantics should not opt in when order changes violate their meaning.
+
+Read [Content Managers](CONTENT_MANAGERS.md), [Content Structures](CONTENT_STRUCTURES.md), and [Content Changes](CONTENT_CHANGES.md). Compare map and compound implementations in `src/Structures/BuiltIn/` and scenarios in `tests/Managers/ContentSortingTests.cs`.
+
+### Add Snapshot Round Trips
+
+Implement `IContentEntrySnapshotSerializable` for an entry payload and register its factory before restore. Implement `IContentStructureSnapshotRoundTrippable` for whole-structure state; expose the matching factory through `SnapshotFactory`. Capture must include enough portable data to reconstruct IDs, order, topology, policies, and generated-ID state owned by your structure. Restore should validate a complete candidate before manager replacement.
+
+Read [Content Snapshots](CONTENT_SNAPSHOTS.md). Use the sequence/map/compound factory bases and `ContentSnapshotRecords` / `ContentSnapshotProperties` where they match. Compare `tests/Snapshots/ContentSnapshotTests.cs` and the corresponding built-in structure snapshot tests.
+
+## Test Your Extension
+
+Test the public manager workflow as well as structure-specific methods. At minimum, cover:
+
+- manager resolution and record lookup through normalized IDs;
+- successful commit, expected rejection, state preservation, and event metadata/silence;
+- assessment side-effect freedom and commit-time revalidation;
+- stable failure kind/code and preservation of nested causes;
+- snapshot round trips, ID continuity, and malformed payload rejection if snapshots are supported;
+- sorting stability and comparer exception atomicity if persistent sorting is supported.
+
+The Quest Log example has a corresponding NUnit fixture at `tests/Examples/QuestLogExtensionExampleTests.cs`. Put representative documentation examples in tests when they should remain compile-checked. Keep the public guide understandable without opening the test source; use the fixture as a runnable second reference.
+
+## Extension Checklist
+
+- [ ] The structure owns its retained state, visible order, identity, and lookup.
+- [ ] The manager delegates and exposes only supported workflows.
+- [ ] Each optional behavior has a focused capability contract.
+- [ ] Expected rejection returns stable structured failures; misuse remains an exception.
+- [ ] Assessments are side-effect-free and committing APIs revalidate.
+- [ ] Events occur once after commit and remain absent for rejection/no-op.
+- [ ] Snapshots preserve exact portable state if the extension supports them.
+- [ ] Examples and XML docs match the actual contracts and tests.
+
+## Where To Go Next
+
+| Extension task | Start with | Closest implementation/test reference |
+|---|---|---|
+| Add an entry | [Content Entries](CONTENT_ENTRIES.md) | `PlainContentEntry` and `tests/Entries/ContentEntryTests.cs` |
+| Implement structure/manager | [Content Structures](CONTENT_STRUCTURES.md), [Content Managers](CONTENT_MANAGERS.md) | Quest Log example; then `src/Structures/BuiltIn/` and `tests/Structures/BuiltIn/` |
+| Add typed or generated IDs | [Content Identity](CONTENT_IDENTITY.md) | `src/Identity/BuiltIn/` and `tests/Identity/ContentEntryIdStrategyTests.cs` |
+| Add custom failures | [Failure Handling](FAILURES.md#extension-authored-failures) | Quest Log example and `tests/Core/ContentFailureTests.cs` |
+| Add events | [Content Changes](CONTENT_CHANGES.md) | Built-in structures implementing `IContentChangeSource` and `tests/Changes/` |
+| Add snapshots | [Content Snapshots](CONTENT_SNAPSHOTS.md) | `src/Structures/*SnapshotFactoryBase.cs` and `tests/Snapshots/` |
+| Add persistent sorting | [Content Managers](CONTENT_MANAGERS.md) | Built-in map/compound structures and `tests/Managers/ContentSortingTests.cs` |
+
+Read the interface and focused guide before copying a built-in implementation. Implementations show how the package applies a contract in one workflow; they do not define a broader contract than the public interface and documentation. Tests are especially useful for edge cases and event expectations, but do not treat private implementation details as extension guarantees.

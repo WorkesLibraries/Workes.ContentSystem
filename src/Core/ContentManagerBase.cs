@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Workes.ContentSystem.Core;
 
@@ -31,6 +32,13 @@ public abstract class ContentManagerBase
     /// Gets retained records in the active structure's read order.
     /// </summary>
     public IReadOnlyList<ContentEntryRecord> Records => Structure.Records;
+
+    /// <summary>Returns a stable, materialized, read-only record view sorted by the supplied comparer.</summary>
+    public IReadOnlyList<ContentEntryRecord> GetSortedRecords(IComparer<ContentEntryRecord> comparer)
+    {
+        if (comparer is null) throw new ArgumentNullException(nameof(comparer));
+        return Array.AsReadOnly(Records.OrderBy(record => record, comparer).ToArray());
+    }
 
     /// <summary>
     /// Gets the number of retained records in the active structure.

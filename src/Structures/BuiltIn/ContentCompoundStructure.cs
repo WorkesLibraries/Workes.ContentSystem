@@ -10,6 +10,7 @@ namespace Workes.ContentSystem.Core;
 /// <typeparam name="TId">The natural retained-record ID type.</typeparam>
 public class ContentCompoundStructure<TId> :
     ContentCompoundStructureBase<TId>,
+    IContentCompoundSortableStructure,
     IContentStructureSnapshotRoundTrippable,
     IContentChangeSource
 {
@@ -109,6 +110,140 @@ public class ContentCompoundStructure<TId> :
 
     /// <inheritdoc />
     public override IReadOnlyList<ContentEntryRecord> Records => FlattenRecords();
+
+    /// <inheritdoc />
+    public ContentPreflightResult AssessSortSiblings(IComparer<ContentEntryRecord> comparer)
+    {
+        if (comparer is null) throw new ArgumentNullException(nameof(comparer));
+        return ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
+    public bool TrySortSiblings(IComparer<ContentEntryRecord> comparer, out bool orderChanged, out ContentFailure? failure)
+    {
+        if (comparer is null) throw new ArgumentNullException(nameof(comparer));
+        return TrySortSiblings(_ => comparer, out orderChanged, out failure);
+    }
+
+    /// <inheritdoc />
+    public ContentPreflightResult AssessSortSiblings(Func<ContentEntryId?, IComparer<ContentEntryRecord>> comparerSelector)
+    {
+        if (comparerSelector is null) throw new ArgumentNullException(nameof(comparerSelector));
+        return ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
+    public bool TrySortSiblings(Func<ContentEntryId?, IComparer<ContentEntryRecord>> comparerSelector, out bool orderChanged, out ContentFailure? failure)
+    {
+        if (comparerSelector is null) throw new ArgumentNullException(nameof(comparerSelector));
+
+        // Resolve and sort every applicable sibling group before committing any group.
+        var candidates = new Dictionary<ContentEntryId, List<ContentEntryId>>();
+        List<ContentEntryId> roots = _rootIds;
+        bool rootsChanged = false;
+        if (_rootIds.Count > 1)
+        {
+            IComparer<ContentEntryRecord> comparer = comparerSelector(null)
+                ?? throw new InvalidOperationException("The sibling comparer selector returned null for the root group.");
+            roots = SortVisibleGroup(_rootIds, comparer, out rootsChanged);
+        }
+        bool anyChanged = rootsChanged;
+        foreach (KeyValuePair<ContentEntryId, CompoundNodeState> pair in _nodes)
+        {
+            if (pair.Value.ChildIds.Count > 1)
+            {
+                IComparer<ContentEntryRecord> comparer = comparerSelector(pair.Key)
+                    ?? throw new InvalidOperationException($"The sibling comparer selector returned null for parent '{pair.Key}'.");
+                List<ContentEntryId> sorted = SortVisibleGroup(pair.Value.ChildIds, comparer, out bool changed);
+                if (changed) candidates.Add(pair.Key, sorted);
+                anyChanged |= changed;
+            }
+        }
+
+        orderChanged = anyChanged;
+        if (anyChanged)
+        {
+            if (rootsChanged) ReplaceOrder(_rootIds, roots);
+            foreach (KeyValuePair<ContentEntryId, List<ContentEntryId>> pair in candidates)
+            {
+                ReplaceOrder(_nodes[pair.Key].ChildIds, pair.Value);
+            }
+            CompleteSortCommit();
+        }
+        failure = null;
+        return true;
+    }
+
+    /// <inheritdoc />
+    public ContentPreflightResult AssessSortSiblings(ContentEntryId? parentId, IComparer<ContentEntryRecord> comparer)
+    {
+        if (comparer is null) throw new ArgumentNullException(nameof(comparer));
+        if (parentId is not null && !_nodes.ContainsKey(parentId.Value))
+        {
+            return ContentPreflightResult.Rejected(ContentFailures.EntryNotFound(
+                $"Compound parent node '{parentId.Value}' was not found.", parentId.Value.ToString()));
+        }
+        return ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
+    public bool TrySortSiblings(ContentEntryId? parentId, IComparer<ContentEntryRecord> comparer, out bool orderChanged, out ContentFailure? failure)
+    {
+        if (comparer is null) throw new ArgumentNullException(nameof(comparer));
+        ContentPreflightResult assessment = AssessSortSiblings(parentId, comparer);
+        if (!assessment.CanCommit)
+        {
+            orderChanged = false;
+            failure = assessment.Failure;
+            return false;
+        }
+
+        List<ContentEntryId> group = parentId is null ? _rootIds : _nodes[parentId.Value].ChildIds;
+        if (group.Count < 2)
+        {
+            orderChanged = false;
+            failure = null;
+            return true;
+        }
+
+        List<ContentEntryId> sorted = SortVisibleGroup(group, comparer, out orderChanged);
+        if (orderChanged)
+        {
+            ReplaceOrder(group, sorted);
+            CompleteSortCommit();
+        }
+        failure = null;
+        return true;
+    }
+
+    private void CompleteSortCommit()
+    {
+        // Snapshot record order determines each restored sibling group's order.
+        _nodeIds.Clear();
+        foreach (ContentEntryId root in _rootIds) AddInternalPreorder(root, _nodeIds);
+        OnChanged(new ContentChangedEventArgs(kind: ContentChangeKind.Sorted, requiresFullRefresh: true));
+    }
+
+    private static void ReplaceOrder(List<ContentEntryId> target, IReadOnlyList<ContentEntryId> replacement)
+    {
+        target.Clear();
+        target.AddRange(replacement);
+    }
+
+    private List<ContentEntryId> SortVisibleGroup(IReadOnlyList<ContentEntryId> internalIds, IComparer<ContentEntryRecord> comparer, out bool changed)
+    {
+        ContentEntryId[] visible = ApplySiblingOrder(internalIds).ToArray();
+        ContentEntryId[] sortedVisible = visible.OrderBy(id => _nodes[id].Record, comparer).ToArray();
+        changed = !visible.SequenceEqual(sortedVisible);
+        if (SiblingReadOrder == ContentCompoundSiblingReadOrder.NewestFirst) Array.Reverse(sortedVisible);
+        return sortedVisible.ToList();
+    }
+
+    private void AddInternalPreorder(ContentEntryId id, List<ContentEntryId> target)
+    {
+        target.Add(id);
+        foreach (ContentEntryId childId in _nodes[id].ChildIds) AddInternalPreorder(childId, target);
+    }
 
     /// <inheritdoc />
     public event EventHandler<ContentChangedEventArgs>? Changed;

@@ -60,7 +60,7 @@ ContentEntryRecord record = content.Add(
     new PlainContentEntry(DateTimeOffset.UtcNow, "Server started."));
 ```
 
-`ContentMapManager<TId>` supports the same typed ID shapes as the built-in `ContentMapStructure<TId>`. Built-in ID strategies are resolved for `string` and `long`. For custom ID types, pass a fully configured map structure or a custom `IContentEntryIdStrategy<TId>`.
+`ContentMapManager<TId>` supports the typed ID shapes supported by `ContentMapStructure<TId>`. Built-in ID strategies are resolved for `string`, `long`, `Guid`, and `ContentEntryId`. For custom ID types, pass a fully configured map structure or a custom `IContentEntryIdStrategy<TId>`.
 
 Use single-entry managers for current-state workflows:
 
@@ -102,6 +102,7 @@ It exposes:
 
 - `Structure`;
 - `Records`;
+- `GetSortedRecords(IComparer<ContentEntryRecord>)`, a stable, materialized, read-only sorted view;
 - `Count`, `IsEmpty`, and `Contains(ContentEntryId)`;
 - `TryGet(ContentEntryId, ...)`;
 - `Get(ContentEntryId)`;
@@ -119,6 +120,31 @@ void Render(ContentManagerBase content)
         RenderRecord(record);
     }
 }
+```
+
+`GetSortedRecords` sorts a copy using the supplied comparer. It does not reorder the active structure, alter snapshots, or emit an event. Equal records retain their prior relative order. Persistent sorting is a separate opt-in workflow: map managers expose `AssessSort`, `TrySort`, and `Sort`; compound managers expose `AssessSortSiblings`, `TrySortSiblings`, and `SortSiblings` to reorder roots and child groups.
+
+```csharp
+IReadOnlyList<ContentEntryRecord> byTimestamp = content.GetSortedRecords(
+    Comparer<ContentEntryRecord>.Create((left, right) => left.Timestamp.CompareTo(right.Timestamp)));
+
+map.Sort(timestampComparer);       // changes persistent map order
+tree.SortSiblings(timestampComparer); // independently changes each tree sibling group
+```
+
+The one-comparer compound overload sorts every group using the same rule. To select a rule by group, pass a selector receiving the normalized parent ID (`null` for roots):
+
+```csharp
+tree.SortSiblings(parentId => parentId is null
+    ? rootComparer
+    : childComparers[parentId.Value]);
+```
+
+To sort just one group, pass a nullable parent ID and comparer. `null` targets roots; an ID targets that parent's children. Assessment and try forms report an unknown parent with `ContentFailureCodes.EntryNotFound`. Per-group selectors and comparers run before commit, so an exception leaves the entire tree unchanged. Sorting is explicit: new nodes are not automatically moved to match a previous comparer.
+
+```csharp
+tree.SortSiblings(parentId: null, rootComparer);
+tree.SortSiblings(parentId: topic.Record.Id, childComparer);
 ```
 
 Most application code should resolve managers from structures. `ContentManagerBase` is abstract, so it is not constructed directly; it exists so multiple manager workflows can be processed through their common read and lookup surface.

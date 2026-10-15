@@ -22,6 +22,93 @@ public abstract class ContentCompoundManagerBase<TId> : ContentManagerBase
     /// </summary>
     protected ContentCompoundStructureBase<TId> Compound => (ContentCompoundStructureBase<TId>)Structure;
 
+    /// <summary>Assesses whether the active compound structure supports sorting each sibling group.</summary>
+    public ContentPreflightResult AssessSortSiblings(IComparer<ContentEntryRecord> comparer)
+    {
+        if (comparer is null) throw new ArgumentNullException(nameof(comparer));
+        return Structure is IContentCompoundSortableStructure sortable
+            ? sortable.AssessSortSiblings(comparer)
+            : ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The active compound structure does not support sibling sorting."));
+    }
+
+    /// <summary>Attempts to sort roots and each node's children independently.</summary>
+    public bool TrySortSiblings(IComparer<ContentEntryRecord> comparer, out bool orderChanged, out ContentFailure? failure)
+    {
+        if (comparer is null) throw new ArgumentNullException(nameof(comparer));
+        if (Structure is not IContentCompoundSortableStructure sortable)
+        {
+            orderChanged = false;
+            failure = ContentFailures.StructureUnsupportedOperation("The active compound structure does not support sibling sorting.");
+            return false;
+        }
+        return sortable.TrySortSiblings(comparer, out orderChanged, out failure);
+    }
+
+    /// <summary>Sorts roots and every node's children independently.</summary>
+    public bool SortSiblings(IComparer<ContentEntryRecord> comparer)
+    {
+        if (!TrySortSiblings(comparer, out bool changed, out ContentFailure? failure)) throw new ContentOperationException(failure!);
+        return changed;
+    }
+
+    /// <summary>Assesses sorting all sibling groups with a comparer selected by parent ID; null identifies roots.</summary>
+    public ContentPreflightResult AssessSortSiblings(Func<ContentEntryId?, IComparer<ContentEntryRecord>> comparerSelector)
+    {
+        if (comparerSelector is null) throw new ArgumentNullException(nameof(comparerSelector));
+        return Structure is IContentCompoundSortableStructure sortable
+            ? sortable.AssessSortSiblings(comparerSelector)
+            : ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The active compound structure does not support sibling sorting."));
+    }
+
+    /// <summary>Attempts to sort all sibling groups with a comparer selected by parent ID; null identifies roots.</summary>
+    public bool TrySortSiblings(Func<ContentEntryId?, IComparer<ContentEntryRecord>> comparerSelector, out bool orderChanged, out ContentFailure? failure)
+    {
+        if (comparerSelector is null) throw new ArgumentNullException(nameof(comparerSelector));
+        if (Structure is not IContentCompoundSortableStructure sortable)
+        {
+            orderChanged = false;
+            failure = ContentFailures.StructureUnsupportedOperation("The active compound structure does not support sibling sorting.");
+            return false;
+        }
+        return sortable.TrySortSiblings(comparerSelector, out orderChanged, out failure);
+    }
+
+    /// <summary>Sorts all sibling groups with a comparer selected by parent ID; null identifies roots.</summary>
+    public bool SortSiblings(Func<ContentEntryId?, IComparer<ContentEntryRecord>> comparerSelector)
+    {
+        if (!TrySortSiblings(comparerSelector, out bool changed, out ContentFailure? failure)) throw new ContentOperationException(failure!);
+        return changed;
+    }
+
+    /// <summary>Assesses sorting roots (null) or the children of the specified parent.</summary>
+    public ContentPreflightResult AssessSortSiblings(ContentEntryId? parentId, IComparer<ContentEntryRecord> comparer)
+    {
+        if (comparer is null) throw new ArgumentNullException(nameof(comparer));
+        return Structure is IContentCompoundSortableStructure sortable
+            ? sortable.AssessSortSiblings(parentId, comparer)
+            : ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The active compound structure does not support sibling sorting."));
+    }
+
+    /// <summary>Attempts to sort roots (null) or the children of the specified parent.</summary>
+    public bool TrySortSiblings(ContentEntryId? parentId, IComparer<ContentEntryRecord> comparer, out bool orderChanged, out ContentFailure? failure)
+    {
+        if (comparer is null) throw new ArgumentNullException(nameof(comparer));
+        if (Structure is not IContentCompoundSortableStructure sortable)
+        {
+            orderChanged = false;
+            failure = ContentFailures.StructureUnsupportedOperation("The active compound structure does not support sibling sorting.");
+            return false;
+        }
+        return sortable.TrySortSiblings(parentId, comparer, out orderChanged, out failure);
+    }
+
+    /// <summary>Sorts roots (null) or the children of the specified parent.</summary>
+    public bool SortSiblings(ContentEntryId? parentId, IComparer<ContentEntryRecord> comparer)
+    {
+        if (!TrySortSiblings(parentId, comparer, out bool changed, out ContentFailure? failure)) throw new ContentOperationException(failure!);
+        return changed;
+    }
+
     /// <summary>
     /// Attempts to add a root node with a generated ID.
     /// </summary>

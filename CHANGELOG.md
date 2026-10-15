@@ -2,6 +2,24 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
+## 1.0.0 - 15-10-2026
+
+Added:
+
+- Added stable, materialized, read-only sorted record views to every manager.
+- Added opt-in persistent map sorting and compound sibling-group sorting, including per-group comparers and targeted group sorting.
+- Added `ContentChangeKind.Sorted` for committed persistent reorder events.
+- Added complete documentation for built-in workflows, snapshots, extension contracts, and package failures.
+
+Changed:
+
+- Established the 1.0 public API and package metadata.
+- Rewrote the extension-authoring guide around structure ownership, manager lifecycle, focused capabilities, validation, snapshots, and testing.
+
+Compatibility:
+
+- The 0.x releases were prereleases and do not carry the 1.0 compatibility guarantee. Version 1.0.0 does not intentionally remove or rename the 0.8.0 public API.
+
 ## 0.8.0 - 07-10-2026
 
 Added:

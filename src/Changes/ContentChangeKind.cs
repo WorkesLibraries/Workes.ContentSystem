@@ -38,5 +38,8 @@ public enum ContentChangeKind
     /// <summary>
     /// The active content source was restored from a snapshot.
     /// </summary>
-    SnapshotRestored
+    SnapshotRestored,
+
+    /// <summary>The retained record order changed.</summary>
+    Sorted
 }

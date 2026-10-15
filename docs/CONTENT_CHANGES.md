@@ -2,7 +2,7 @@
 
 Content change hooks are optional synchronous notifications for committed mutations.
 
-They let UI layers, bridges, attachments, and shared manager code observe additions, removals, clears, retention drops, and runtime structure parameter changes without changing the normal pull-based `Records` and `Get` workflow.
+They let UI layers, bridges, attachments, and shared manager code observe additions, removals, clears, retention drops, runtime structure parameter changes, persistent sorting, and snapshot restoration without changing the normal pull-based `Records` and `Get` workflow.
 
 ## Change Source
 
@@ -54,6 +54,8 @@ For clear, `Kind` is `ContentChangeKind.Cleared`, `Cleared` is true, `RemovedRec
 For runtime structure parameter changes, `Kind` is `ContentChangeKind.ConfigurationChanged`, `ConfigurationChanged` contains a `ContentConfigurationChanged` entry with `ContentConfigurationChangeKind.StructureParameter`, and `RequiresFullRefresh` is true. The configuration change reports the parameter ID, committed value, previous component, and current component. If the committed parameter change removes retained records, those records also appear in `RemovedRecords`.
 
 For manager-coordinated structure snapshot restore, `Kind` is `ContentChangeKind.SnapshotRestored`, `RequiresFullRefresh` is true, `RemovedRecords` contains the records from the previous active structure, and `AddedRecords` contains the restored records.
+
+`ContentChangeKind.Sorted` identifies a committed persistent reorder. It carries no added or removed records and always sets `RequiresFullRefresh = true`, because the visible order has changed. A no-op sort raises no event.
 
 ## Subscribing Through A Manager
 

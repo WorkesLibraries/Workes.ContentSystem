@@ -54,7 +54,7 @@ Preflight returns `ContentPreflightResult`. It does not retain records, advance 
 
 Some structures can raise committed-change notifications through `IContentChangeSource`.
 
-Built-in structures raise synchronous `Changed` events after successful mutations. Managers forward those events through `ContentManagerBase.Changed`, using the manager as the event sender. Event payloads identify adds, removals, clears, and runtime structure parameter changes. Rejected operations, no-op mutations, and read-only lookups do not raise events.
+Built-in structures raise synchronous `Changed` events after successful mutations. Managers forward those events through `ContentManagerBase.Changed`, using the manager as the event sender. Event payloads identify adds, removals, clears, runtime structure parameter changes, persistent sorting, and snapshot restoration. Rejected operations, no-op mutations, and read-only lookups do not raise events.
 
 See [Content Changes](CONTENT_CHANGES.md) for event payloads and hook semantics.
 
