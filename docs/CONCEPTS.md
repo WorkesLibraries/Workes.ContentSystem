@@ -62,7 +62,7 @@ See [Content Changes](CONTENT_CHANGES.md) for event payloads and hook semantics.
 
 Portable snapshots are the serialization foundation. Entry snapshots are implemented for `PlainContentEntry` and custom opt-in entries. Record and structure snapshot DTOs describe retained IDs, entry payload snapshots, and structure-owned state. Built-in sequence, map, single, stack, and compound structures can capture and restore whole-structure snapshots through their round-trippable snapshot factories.
 
-Export, file appenders, log bridges, and platform integrations should be optional. The core package should make those capabilities possible without forcing every structure or every user to support them.
+Record export is an optional manager workflow over a materialized record view. Attachment references are optional entry metadata. Exporters can create text for consumers, while the host application owns file I/O, attachment bytes, storage, and platform integrations. Neither feature changes portable snapshot persistence.
 
 ## Relationship To ConsoleSystem
 

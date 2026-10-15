@@ -7,8 +7,8 @@
     <LangVersion>10.0</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Workes.ContentSystem</PackageId>
-    <Version>1.2.0</Version>
-    <PackageReleaseNotes>Adds atomic batch mutations, range workflows, and predicate-based removal for applicable structure families.</PackageReleaseNotes>
+    <Version>1.3.0</Version>
+    <PackageReleaseNotes>Adds optional record exporters and host-owned attachment references.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Workes</Authors>
     <Company>Workes</Company>

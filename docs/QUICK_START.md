@@ -5,13 +5,13 @@ This package is a reusable content-entry backend for in-memory streams and struc
 ## Install
 
 ```bash
-dotnet add package Workes.ContentSystem --version 1.2.0
+dotnet add package Workes.ContentSystem --version 1.3.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="1.2.0" />
+<PackageReference Include="Workes.ContentSystem" Version="1.3.0" />
 ```
 
 ## Mental Model

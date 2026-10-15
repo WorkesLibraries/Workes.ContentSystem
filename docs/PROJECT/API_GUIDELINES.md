@@ -101,6 +101,7 @@ This applies to:
 - host logging bridges;
 - platform adapters;
 - advanced structures;
+- record exporters and attachment references;
 - search/indexing;
 - specialized mutation support;
 - change hooks.

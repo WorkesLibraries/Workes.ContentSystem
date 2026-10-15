@@ -6,7 +6,9 @@ Workes.ContentSystem 1.0.0 establishes the supported public API. Compatible bug 
 
 The 1.1.0 release adds read-only manager filtering and query composition over materialized record snapshots. It preserves the 1.0.0 API and structure contracts.
 
-The 1.2.0 release candidate adds optional atomic batch and predicate-removal structure contracts. Existing custom structures and generated-ID sources remain compatible unless they choose to implement the new opt-in contracts.
+The 1.2.0 release adds optional atomic batch and predicate-removal structure contracts. Existing custom structures and generated-ID sources remain compatible unless they choose to implement the new opt-in contracts.
+
+The 1.3.0 release candidate adds optional record exporters and entry attachment references. Existing manager, structure, entry, and snapshot contracts remain compatible; applications supply exporters and entries opt into attachment references explicitly.
 
 The 0.x releases were prereleases and do not carry the compatibility guarantees of 1.0.0. Review the changelog and verify prerelease integrations against the 1.0 guides when upgrading. The 1.0.0 release adds sorting capabilities and documentation; it does not intentionally remove or rename the 0.8.0 public API.
 

@@ -76,3 +76,5 @@ This keeps ContentSystem focused on storing meaning rather than owning visual re
 Custom entries implement `IContentEntry` directly. They do not need to inherit from a package base class.
 
 Custom entries that need snapshot support can opt into `IContentEntrySnapshotSerializable` and provide an `IContentEntrySnapshotFactory` for restore. See [Content Snapshots](CONTENT_SNAPSHOTS.md) for entry, record, and built-in structure snapshot workflows.
+
+Entries may optionally implement `IContentEntryAttachmentSource` to expose immutable host-owned references through `ContentEntryAttachments.GetReferences(entry)`. A `ContentAttachmentReference` stores an opaque locator and optional media type, file name, and display name; it does not contain or resolve bytes. The entry remains responsible for including any references it needs in its own snapshot data. See [Export And Attachments](EXPORT_AND_ATTACHMENTS.md).

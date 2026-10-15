@@ -340,5 +340,7 @@ The Quest Log example has a corresponding NUnit fixture at `tests/Examples/Quest
 | Add snapshots | [Content Snapshots](CONTENT_SNAPSHOTS.md) | `src/Structures/*SnapshotFactoryBase.cs` and `tests/Snapshots/` |
 | Filter or compose record views | [Content Queries](CONTENT_QUERIES.md) | Shared `ContentManagerBase` implementation and `tests/Managers/ContentRecordQueryTests.cs` |
 | Add persistent sorting | [Content Managers](CONTENT_MANAGERS.md) | Built-in map/compound structures and `tests/Managers/ContentSortingTests.cs` |
+| Add record export | [Export And Attachments](EXPORT_AND_ATTACHMENTS.md) | `IContentRecordExporter` and built-in text exporters |
+| Expose attachment references | [Export And Attachments](EXPORT_AND_ATTACHMENTS.md) | `IContentEntryAttachmentSource` and `ContentEntryAttachments` |
 
 Read the interface and focused guide before copying a built-in implementation. Implementations show how the package applies a contract in one workflow; they do not define a broader contract than the public interface and documentation. Tests are especially useful for edge cases and event expectations, but do not treat private implementation details as extension guarantees.

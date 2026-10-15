@@ -132,15 +132,9 @@ The package should mirror the error style used in Workes.InventorySystem and Wor
 - expected-success APIs throw package-owned exceptions carrying the same failure;
 - programmer misuse uses standard .NET exceptions.
 
-## Attachments
+## Export And Attachments
 
-Portable snapshots are the core serialization foundation. Entry snapshots are implemented with serializer-friendly value DTOs; record and structure snapshots preserve retained IDs, retained entries, and structure-owned state for built-in structures. Applications choose how to serialize and store snapshot objects.
-
-Attachments are planned optional capabilities around the core model.
-
-Examples include file export, append-only logging, host logging bridges, snapshot exporters, Unity adapters, Godot adapters, and .NET logging adapters.
-
-Core should make these possible without requiring every user or every structure to configure them.
+Portable snapshots are the core serialization foundation. Exporters consume materialized manager record views to produce text, while applications own delivery and file I/O. Optional entry attachment references point to host-owned resources; ContentSystem does not store or resolve attachment bytes. These opt-in capabilities do not change structure or entry requirements.
 
 ## Relationship To ConsoleSystem
 

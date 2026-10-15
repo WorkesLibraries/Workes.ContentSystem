@@ -938,3 +938,21 @@ Generated-ID batches require the optional `IContentGeneratedIdRangeSource<TId>` 
 #### Consequences
 
 Existing custom structures and ID sources remain compatible and opt into the new capabilities only when they can honor the atomicity contract. Single-entry structures do not gain batch writes, but may implement predicate removal for their one retained record. The feature adds no generic cross-family transaction language or persistent mutation policy.
+
+### D-042: Keep Text Export And Attachment References Optional
+
+Date: 2026-10-15
+
+#### Context
+
+Portable structure snapshots already represent retained application state, but consumers also need readable exports and entries may refer to host resources such as images or files. Folding storage or resource resolution into snapshots or structures would couple the core package to host infrastructure.
+
+#### Decision
+
+Managers export a materialized read-only record view through an optional `IContentRecordExporter`. Built-in plain-text and Markdown exporters support `PlainContentEntry`; application exporters own other entry types and formats. Export results are text identified by a stable format ID, and expected rejection uses the existing structured export failure category.
+
+Entries may opt into `IContentEntryAttachmentSource` and expose immutable `ContentAttachmentReference` values containing opaque locators and optional descriptive metadata. Entries remain responsible for capturing any references they need in their own snapshots. ContentSystem does not resolve locators, own attachment bytes, or provide file, network, or persistence operations.
+
+#### Consequences
+
+Export does not mutate structures or add manager/structure implementation requirements. Attachment references remain application-defined and do not imply that every entry has attachments or that a locator is portable across hosts. Portable snapshots remain the persistence foundation; export is a presentation transformation and attachment bytes stay with the host application.

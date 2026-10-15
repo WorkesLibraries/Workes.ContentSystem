@@ -62,6 +62,61 @@ public abstract class ContentManagerBase
     /// <remarks>The query captures record references and order when this method is called. Later structure changes do not alter its membership or order; entry objects are not cloned.</remarks>
     public ContentRecordQuery QueryRecords() => new ContentRecordQuery(Records);
 
+    /// <summary>Attempts to export a materialized snapshot of records through the supplied exporter.</summary>
+    /// <param name="exporter">The exporter for the requested output format.</param>
+    /// <param name="result">The export result when successful.</param>
+    /// <param name="failure">The structured rejection when export fails.</param>
+    /// <returns><see langword="true"/> when export succeeds.</returns>
+    /// <remarks>The exporter receives a read-only copy in the active structure's record order. Export does not mutate records or raise change events. Exceptions thrown by an exporter propagate; expected rejection should be returned as a <see cref="ContentFailure"/>.</remarks>
+    public bool TryExport(IContentRecordExporter exporter, out ContentExportResult? result, out ContentFailure? failure)
+    {
+        if (exporter is null) throw new ArgumentNullException(nameof(exporter));
+        result = null;
+        string formatId = exporter.FormatId;
+        if (string.IsNullOrWhiteSpace(formatId))
+        {
+            failure = ContentFailures.Export("Exporter format ID cannot be empty.");
+            return false;
+        }
+
+        IReadOnlyList<ContentEntryRecord> snapshot = Array.AsReadOnly(Records.ToArray());
+        if (!exporter.TryExport(snapshot, out string? text, out failure))
+        {
+            failure = ContentFailure.Wrap(
+                ContentFailureKind.Export,
+                ContentFailureCodes.ExportRejected,
+                "The exporter rejected the record snapshot.",
+                failure,
+                component: exporter.GetType().FullName,
+                source: formatId);
+            return false;
+        }
+
+        if (text is null)
+        {
+            failure = ContentFailure.Create(
+                ContentFailureKind.Export,
+                ContentFailureCodes.ExportRejected,
+                "The exporter reported success without producing text.",
+                source: formatId);
+            return false;
+        }
+
+        result = new ContentExportResult(formatId, text);
+        failure = null;
+        return true;
+    }
+
+    /// <summary>Exports a materialized snapshot of records through the supplied exporter.</summary>
+    /// <param name="exporter">The exporter for the requested output format.</param>
+    /// <returns>The export result.</returns>
+    /// <exception cref="ContentOperationException">The exporter rejects the record snapshot.</exception>
+    public ContentExportResult Export(IContentRecordExporter exporter)
+    {
+        if (TryExport(exporter, out ContentExportResult? result, out ContentFailure? failure)) return result!;
+        throw new ContentOperationException(failure!);
+    }
+
     /// <summary>
     /// Gets the number of retained records in the active structure.
     /// </summary>

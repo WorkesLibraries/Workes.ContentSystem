@@ -92,9 +92,9 @@ Completed implementation adds `ContentPreflightResult`, advisory `Assess...` API
 
 Add the stable, materialized read-only `ContentManagerBase.GetSortedRecords` view to every manager and opt-in, structure-owned persistent sorting for maps and compound sibling groups before the 1.0 API is frozen. Compound sorting supports one comparer for all groups, comparer selection by parent ID, and a targeted roots-or-parent-children operation. Only structures whose semantics allow reordering should implement persistent sorting. Keep it manager-coordinated, atomic, observable through one coherent change event, practical for extension authors through focused contracts, and compatible with exact snapshot capture/restore.
 
-### Stage 27: Prepare 1.0.0 release candidate
+### Stage 27: Prepare 1.0.0 release candidate — released
 
-Run the package-wide release readiness sweep after sorting. Audit public APIs, XML docs, package metadata, changelog, compatibility notes, build, tests, and pack output. Review every guide for accuracy and completeness; rewrite `docs/EXTENSION_AUTHORING.md` as a substantial practical guide informed by the depth and organization of Workes.InventorySystem's extension documentation, the focused guide hierarchy and executable examples in Workes.ConsoleSystem, and useful core/integration boundaries from the SaveSystem companion docs. Fold Stage 26's examples and focused usage documentation into this sweep. Ensure no roadmap-only behavior is presented as implemented, then prepare a reviewable 1.0.0 release candidate. Publishing and tagging are outside this stage.
+Released as 1.0.0 after the package-wide readiness sweep: public APIs, XML docs, metadata, changelog, compatibility notes, build, tests, and package contents were reviewed; the guides were reconciled; and the extension-authoring guide was rebuilt as a practical reference. The release established the supported public API line.
 
 ## Post-1.0 Minor Releases
 
@@ -106,17 +106,17 @@ Completed in 1.1.0: added shared manager filtering and composable filtered/sorte
 
 ### Stage 28 / 1.2.0: Add atomic bulk operations and mutation helpers
 
-Completed implementation for the 1.2.0 release candidate: family-native batches include sequence `AddRange`, map `AddRange` / `SetRange`, stack `PushRange`, and compound `AddRoots` / `AddChildren`, with `RemoveWhere` across the applicable families. Inputs are materialized once and staged before commit; rejected operations preserve retained state and generated-ID state. A committed batch emits one coherent full-refresh event. Compound predicate removal follows its configured child-removal policy. New structure behavior is opt-in through focused contracts so existing custom structure implementations remain compatible.
+Released in 1.2.0: family-native batches include sequence `AddRange`, map `AddRange` / `SetRange`, stack `PushRange`, and compound `AddRoots` / `AddChildren`, with `RemoveWhere` across the applicable families. Inputs are materialized once and staged before commit; rejected operations preserve retained state and generated-ID state. A committed batch emits one coherent full-refresh event. Compound predicate removal follows its configured child-removal policy. New structure behavior is opt-in through focused contracts so existing custom structure implementations remain compatible.
 
-Release checks completed: focused guides and extension recipes were reconciled; API, event, snapshot, and rejection tests were added; compatibility and changelog notes were updated; Release project builds and tests passed; and the 1.2.0 package contents were inspected. The solution-level build is blocked by a missing SDK workload locator in this environment. Publication and tagging remain outside the stage.
+Release checks completed: focused guides and extension recipes were reconciled; API, event, snapshot, and rejection tests were added; compatibility and changelog notes were updated; Release project builds and tests passed; and the 1.2.0 package contents were inspected.
 
-### Stage 25 / 1.3.0: Add export helpers and attachment abstractions
+### Stage 29 / 1.3.0: Add export helpers and attachment abstractions
 
-Add optional export helpers and attachment abstractions after portable snapshots exist. Export and attachments should not become the serialization foundation.
+Implementation is complete for the 1.3.0 candidate: optional manager-level text exporters and entry-owned attachment references are documented and tested. Built-in plain-text and Markdown exporters handle `PlainContentEntry`; custom exporters can handle application entries and formats. Attachment references carry opaque host-defined locators and descriptive metadata, while applications own the referenced bytes and their lifecycle. The library Release build and all 350 tests pass, and the packed 1.3.0 candidate was inspected. The solution-level build still fails without a diagnostic in this environment. Publication and tagging remain separate actions.
 
 ## Deferred Work
 
-The following work remains future or post-1.0 unless promoted by a later decision:
+The following ideas remain deferred beyond the currently planned 1.3.0 release sequence unless separately prioritized:
 
 - broader chat and feed examples;
 - platform adapter packages;

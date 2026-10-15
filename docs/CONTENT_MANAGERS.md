@@ -435,3 +435,7 @@ ContentSequenceManager content =
 The typed resolver fails with a structured manager-mismatch failure if the structure creates a different manager.
 
 Custom structure authors implement `CreateManager()` to return their custom manager. Direct manager constructors remain available for explicit setup and tests where they fit.
+
+## Exporting Records
+
+Every manager exposes `TryExport(exporter, out result, out failure)` and `Export(exporter)`. The exporter receives a materialized read-only copy in the manager's current record order. This is a read workflow: export does not change state or raise events. Built-in plain-text and Markdown exporters support `PlainContentEntry`; other entry types can be handled by custom `IContentRecordExporter` implementations. See [Export And Attachments](EXPORT_AND_ATTACHMENTS.md) for examples and the expected failure behavior.

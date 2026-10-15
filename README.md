@@ -19,6 +19,8 @@ It is intended to be useful anywhere an application needs an ordered or structur
 - Materialized filtered and composable record views across all manager families.
 - Atomic family-native batch writes and predicate-based removal where structure semantics support them.
 - Entry, record, and built-in structure snapshots for portable serialization.
+- Optional plain-text and Markdown export for `PlainContentEntry`, with custom exporter support.
+- Optional opaque attachment references that leave attachment storage to the host application.
 - A shared failure and exception model matching the style used in other Workes packages.
 - Engine-neutral core with no file I/O, UI, or host-specific integration requirements.
 
@@ -27,13 +29,13 @@ It is intended to be useful anywhere an application needs an ordered or structur
 Install the package from [NuGet](https://www.nuget.org/packages/Workes.ContentSystem):
 
 ```bash
-dotnet add package Workes.ContentSystem --version 1.2.0
+dotnet add package Workes.ContentSystem --version 1.3.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="1.2.0" />
+<PackageReference Include="Workes.ContentSystem" Version="1.3.0" />
 ```
 
 The package targets .NET Standard 2.1.

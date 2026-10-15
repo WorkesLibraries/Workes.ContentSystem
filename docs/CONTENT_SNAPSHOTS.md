@@ -213,6 +213,6 @@ Custom structure authors can use `ContentStructureSnapshotFactoryBase<TStructure
 
 ## Relationship To Export And Attachments
 
-Snapshots are the serialization and state-transfer foundation.
+Snapshots are the serialization and state-transfer foundation. Exporters consume manager record snapshots to create human-readable text; they do not replace portable structure snapshots. Attachment references are entry-owned data. If an entry needs its references restored, that entry's snapshot implementation must capture them. ContentSystem does not resolve locators or persist attachment bytes.
 
-Export helpers and attachments can consume snapshots or change events later, but they should not replace the portable snapshot model.
+See [Export And Attachments](EXPORT_AND_ATTACHMENTS.md) for the current export and attachment contracts.
