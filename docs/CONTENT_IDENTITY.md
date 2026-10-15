@@ -95,6 +95,8 @@ Built-in generated ID sources are:
 - `LongContentGeneratedIdSource`, which starts at `1`, generates positive `long` IDs, and advances past observed manual or restored IDs;
 - `GuidContentGeneratedIdSource`, which generates non-empty `Guid` IDs and has no ordering state to advance.
 
+The built-in long and GUID sources also implement the optional `IContentGeneratedIdRangeSource<TId>` contract used by sequence, stack, and compound atomic batch additions. Custom sources can opt in by guaranteeing that a failed range reservation leaves source state unchanged and a successful reservation returns the requested count of unique valid IDs. Existing custom sources do not need to add this contract unless they want their structures to support generated-ID batch workflows.
+
 Normal sequence usage does not require seeing the source:
 
 ```csharp

@@ -1,17 +1,17 @@
 # Quick Start
 
-This package is a reusable content-entry backend. The first useful core supports simple in-memory streams now, while leaving room for console history, chat, logs, feeds, forums, notifications, and similar entry streams.
+This package is a reusable content-entry backend for in-memory streams and structured content, with extension points for console history, chat, logs, feeds, forums, notifications, and similar workflows.
 
 ## Install
 
 ```bash
-dotnet add package Workes.ContentSystem --version 1.1.0
+dotnet add package Workes.ContentSystem --version 1.2.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="1.1.0" />
+<PackageReference Include="Workes.ContentSystem" Version="1.2.0" />
 ```
 
 ## Mental Model
@@ -181,6 +181,24 @@ IReadOnlyList<ContentEntryRecord> visible = content.QueryRecords()
 ```
 
 Queries are materialized from a snapshot when `QueryRecords()` is called. Filtering preserves the active structure's read order unless you add an explicit sort. See [Content Queries](CONTENT_QUERIES.md) for predicate filtering, secondary ordering, and the boundary between query sorting and persistent structure sorting.
+
+## Batch Mutations
+
+Use family-specific batch methods when several changes should commit together:
+
+```csharp
+IReadOnlyList<ContentEntryRecord> added = sequence.AddRange(new IContentEntry[]
+{
+    new PlainContentEntry(DateTimeOffset.UtcNow, "First event"),
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Second event")
+});
+
+DateTimeOffset retentionCutoff = DateTimeOffset.UtcNow.AddDays(-30);
+IReadOnlyList<ContentEntryRecord> expired = sequence.RemoveWhere(
+    record => record.Timestamp < retentionCutoff);
+```
+
+Map managers provide `AddRange` and `SetRange`; stack managers provide `PushRange`; compound managers provide `AddRoots` and `AddChildren(parentId, entries)`. Each successful batch emits one full-refresh change event. Rejected batches leave records and generated-ID state unchanged. Compound predicate removal follows the configured child-removal policy. See [Content Managers](CONTENT_MANAGERS.md) for detailed ordering and preflight behavior.
 
 ## What To Read Next
 

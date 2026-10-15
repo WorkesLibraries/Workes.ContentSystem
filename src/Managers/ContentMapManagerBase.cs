@@ -104,6 +104,58 @@ public abstract class ContentMapManagerBase<TId> : ContentManagerBase
         return MapStructure.Set(id, entry);
     }
 
+    /// <summary>Assesses adding a map entry range atomically.</summary>
+    public ContentPreflightResult AssessAddRange(IEnumerable<KeyValuePair<TId, IContentEntry>> entries)
+    {
+        IReadOnlyList<KeyValuePair<TId, IContentEntry>> batch = ContentBatchInputs.ReadMapEntries(entries, nameof(entries));
+        return Structure is IContentMapBatchStructure<TId> batchStructure
+            ? batchStructure.AssessAddRange(batch)
+            : ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The active map structure does not support atomic add ranges."));
+    }
+
+    /// <summary>Attempts to add a map entry range atomically.</summary>
+    public bool TryAddRange(IEnumerable<KeyValuePair<TId, IContentEntry>> entries, out IReadOnlyList<ContentEntryRecord> records, out ContentFailure? failure)
+    {
+        IReadOnlyList<KeyValuePair<TId, IContentEntry>> batch = ContentBatchInputs.ReadMapEntries(entries, nameof(entries));
+        if (Structure is IContentMapBatchStructure<TId> batchStructure) return batchStructure.TryAddRange(batch, out records, out failure);
+        records = Array.Empty<ContentEntryRecord>();
+        failure = ContentFailures.StructureUnsupportedOperation("The active map structure does not support atomic add ranges.");
+        return false;
+    }
+
+    /// <summary>Adds a map entry range atomically.</summary>
+    public IReadOnlyList<ContentEntryRecord> AddRange(IEnumerable<KeyValuePair<TId, IContentEntry>> entries)
+    {
+        if (TryAddRange(entries, out IReadOnlyList<ContentEntryRecord> records, out ContentFailure? failure)) return records;
+        throw new ContentOperationException(failure!);
+    }
+
+    /// <summary>Assesses setting a map entry range atomically.</summary>
+    public ContentPreflightResult AssessSetRange(IEnumerable<KeyValuePair<TId, IContentEntry>> entries)
+    {
+        IReadOnlyList<KeyValuePair<TId, IContentEntry>> batch = ContentBatchInputs.ReadMapEntries(entries, nameof(entries));
+        return Structure is IContentMapBatchStructure<TId> batchStructure
+            ? batchStructure.AssessSetRange(batch)
+            : ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The active map structure does not support atomic set ranges."));
+    }
+
+    /// <summary>Attempts to set a map entry range atomically.</summary>
+    public bool TrySetRange(IEnumerable<KeyValuePair<TId, IContentEntry>> entries, out IReadOnlyList<ContentEntryRecord> records, out IReadOnlyList<ContentEntryRecord> replacedRecords, out ContentFailure? failure)
+    {
+        IReadOnlyList<KeyValuePair<TId, IContentEntry>> batch = ContentBatchInputs.ReadMapEntries(entries, nameof(entries));
+        if (Structure is IContentMapBatchStructure<TId> batchStructure) return batchStructure.TrySetRange(batch, out records, out replacedRecords, out failure);
+        records = Array.Empty<ContentEntryRecord>(); replacedRecords = Array.Empty<ContentEntryRecord>();
+        failure = ContentFailures.StructureUnsupportedOperation("The active map structure does not support atomic set ranges.");
+        return false;
+    }
+
+    /// <summary>Sets a map entry range atomically and returns the resulting records.</summary>
+    public IReadOnlyList<ContentEntryRecord> SetRange(IEnumerable<KeyValuePair<TId, IContentEntry>> entries)
+    {
+        if (TrySetRange(entries, out IReadOnlyList<ContentEntryRecord> records, out _, out ContentFailure? failure)) return records;
+        throw new ContentOperationException(failure!);
+    }
+
     /// <summary>
     /// Attempts to get an existing record, or creates one with the supplied factory when the ID is missing.
     /// </summary>
@@ -209,6 +261,30 @@ public abstract class ContentMapManagerBase<TId> : ContentManagerBase
     public ContentEntryRecord Remove(TId id)
     {
         return MapStructure.Remove(id);
+    }
+
+    /// <summary>Assesses predicate-based removal over the active record snapshot.</summary>
+    public ContentPreflightResult AssessRemoveWhere(Func<ContentEntryRecord, bool> predicate)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        return Structure is IContentPredicateRemovalStructure removal
+            ? removal.AssessRemoveWhere(predicate)
+            : ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The active map structure does not support predicate removal."));
+    }
+
+    /// <summary>Attempts predicate-based removal over the pre-mutation record snapshot.</summary>
+    public bool TryRemoveWhere(Func<ContentEntryRecord, bool> predicate, out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        if (Structure is IContentPredicateRemovalStructure removal) return removal.TryRemoveWhere(predicate, out removedRecords, out failure);
+        removedRecords = Array.Empty<ContentEntryRecord>(); failure = ContentFailures.StructureUnsupportedOperation("The active map structure does not support predicate removal."); return false;
+    }
+
+    /// <summary>Removes records selected by a predicate over the pre-mutation record snapshot.</summary>
+    public IReadOnlyList<ContentEntryRecord> RemoveWhere(Func<ContentEntryRecord, bool> predicate)
+    {
+        if (TryRemoveWhere(predicate, out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)) return removedRecords;
+        throw new ContentOperationException(failure!);
     }
 
     /// <summary>

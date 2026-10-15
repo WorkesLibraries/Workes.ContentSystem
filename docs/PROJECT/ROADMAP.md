@@ -104,9 +104,11 @@ The planned feature sequence after 1.0.0 is:
 
 Completed in 1.1.0: added shared manager filtering and composable filtered/sorted read views over `ContentEntryRecord` snapshots. Every built-in manager inherits the common query surface, which preserves its structure's read order by default. Query operations are eager, materialized, read-only, and separate from persistent structure sorting. The generic query does not infer compound hierarchy metadata or provide indexing/search semantics.
 
-### Stage 23 / 1.2.0: Add bulk operations and mutation helper APIs
+### Stage 28 / 1.2.0: Add atomic bulk operations and mutation helpers
 
-Add high-value helper operations such as range workflows and predicate-based removal while preserving atomicity, focused structure capabilities, failure behavior, and coherent event semantics.
+Completed implementation for the 1.2.0 release candidate: family-native batches include sequence `AddRange`, map `AddRange` / `SetRange`, stack `PushRange`, and compound `AddRoots` / `AddChildren`, with `RemoveWhere` across the applicable families. Inputs are materialized once and staged before commit; rejected operations preserve retained state and generated-ID state. A committed batch emits one coherent full-refresh event. Compound predicate removal follows its configured child-removal policy. New structure behavior is opt-in through focused contracts so existing custom structure implementations remain compatible.
+
+Release checks completed: focused guides and extension recipes were reconciled; API, event, snapshot, and rejection tests were added; compatibility and changelog notes were updated; Release project builds and tests passed; and the 1.2.0 package contents were inspected. The solution-level build is blocked by a missing SDK workload locator in this environment. Publication and tagging remain outside the stage.
 
 ### Stage 25 / 1.3.0: Add export helpers and attachment abstractions
 

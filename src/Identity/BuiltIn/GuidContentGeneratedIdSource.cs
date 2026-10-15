@@ -5,7 +5,7 @@ namespace Workes.ContentSystem.Core;
 /// <summary>
 /// Generates GUID content entry IDs.
 /// </summary>
-public sealed class GuidContentGeneratedIdSource : IContentGeneratedIdSource<Guid>
+public sealed class GuidContentGeneratedIdSource : IContentGeneratedIdSource<Guid>, IContentGeneratedIdRangeSource<Guid>
 {
     /// <summary>
     /// Stable generated ID source snapshot kind for <see cref="GuidContentGeneratedIdSource"/>.
@@ -48,6 +48,40 @@ public sealed class GuidContentGeneratedIdSource : IContentGeneratedIdSource<Gui
     /// <inheritdoc />
     public bool CanCreateNext(out ContentFailure? failure)
     {
+        failure = null;
+        return true;
+    }
+
+    /// <inheritdoc />
+    public bool CanCreateRange(int count, out ContentFailure? failure)
+    {
+        if (count < 0) throw new System.ArgumentOutOfRangeException(nameof(count));
+        failure = null;
+        return true;
+    }
+
+    /// <inheritdoc />
+    public bool TryCreateRange(int count, out System.Collections.Generic.IReadOnlyList<Guid> ids, out ContentFailure? failure)
+    {
+        if (!CanCreateRange(count, out failure))
+        {
+            ids = System.Array.Empty<Guid>();
+            return false;
+        }
+        var result = new Guid[count];
+        var seen = new System.Collections.Generic.HashSet<Guid>();
+        for (int i = 0; i < count; i++)
+        {
+            Guid id = Guid.NewGuid();
+            if (id == Guid.Empty || !seen.Add(id))
+            {
+                ids = System.Array.Empty<Guid>();
+                failure = ContentFailures.EntryIdInvalid("Generated GUID ID source could not produce a valid unique range.");
+                return false;
+            }
+            result[i] = id;
+        }
+        ids = result;
         failure = null;
         return true;
     }

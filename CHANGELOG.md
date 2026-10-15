@@ -2,7 +2,20 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
-## 1.1.0 - Unreleased
+## 1.2.0 - 15-10-2026
+
+Added:
+
+- Added atomic range operations for sequence, map, stack, and compound manager workflows, plus map range replacement.
+- Added predicate-based atomic removal for sequence, map, single, stack, and compound structures.
+- Added optional batch and generated-ID range contracts for extension structures and ID sources.
+
+Changed:
+
+- Batch operations emit one coherent full-refresh change event after commit; rejected batches and no-op predicate removals are event-silent.
+- Documented batch atomicity, ordering, generated-ID reservation, compound removal policy, and extension opt-in contracts.
+
+## 1.1.0 - 15-10-2026
 
 Added:
 

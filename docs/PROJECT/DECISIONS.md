@@ -920,3 +920,21 @@ The common API operates on flat `ContentEntryRecord` values. Compound hierarchy 
 #### Reasoning
 
 Every built-in manager exposes `Records`, but their read orders differ. A shared query surface covers all relevant record workflows while leaving the structure in control of that initial order. Eager materialization gives callers a predictable snapshot, avoids implied database or live-query semantics, and keeps filtering/composition separate from structure mutation.
+
+### D-041: Make Bulk Mutations Atomic Optional Capabilities
+
+Date: 2026-10-15
+
+#### Context
+
+Callers often need to apply several related mutations or remove records selected by a rule. Repeating single-item operations can expose partial success and emit noisy event sequences, while adding required methods to public structure-family bases would break custom implementations.
+
+#### Decision
+
+Add family-specific opt-in contracts for sequence `AddRange`, map `AddRange` / `SetRange`, stack `PushRange`, and compound `AddRoots` / `AddChildren`. Add opt-in `IContentPredicateRemovalStructure` for structures with meaningful removal semantics, including compound trees. Managers materialize enumerable inputs once, ask structures to validate and stage the complete candidate, and only then commit. A rejected batch leaves structure and generated-ID state unchanged. Successful batch operations emit one post-commit full-refresh event.
+
+Generated-ID batches require the optional `IContentGeneratedIdRangeSource<TId>` contract, whose reservation succeeds for the full range or leaves source state unchanged. Predicate removal evaluates against a record snapshot before mutation; compound behavior follows the existing child-removal policy. Assessments are advisory and commit re-evaluates supplied predicates.
+
+#### Consequences
+
+Existing custom structures and ID sources remain compatible and opt into the new capabilities only when they can honor the atomicity contract. Single-entry structures do not gain batch writes, but may implement predicate removal for their one retained record. The feature adds no generic cross-family transaction language or persistent mutation policy.

@@ -8,7 +8,7 @@ This is a project-control document for maintaining architectural consistency. It
 
 ## Current Architecture
 
-Workes.ContentSystem 1.0 provides built-in entry, failure, structure, manager, change-hook, preflight, sorting, and snapshot workflows. This document records the architecture behind that public surface and the boundaries reserved for optional integrations and future releases.
+Workes.ContentSystem 1.2 provides built-in entry, failure, structure, manager, change-hook, preflight, sorting, query, snapshot, and atomic batch workflows. This document records the architecture behind that public surface and the boundaries reserved for optional integrations and future releases.
 
 The package should be engine-neutral and centered on manager workflows that own one active content structure and expose simple APIs for normal users.
 
@@ -99,6 +99,8 @@ Change hooks are optional structure contracts. Built-in mutable structures imple
 Retention policy and read order are optional structure contracts. `ContentSequenceStructure` implements `IContentRetentionPolicyStructure` and `IContentReadOrderStructure`; custom structures can implement either contract when those concepts are meaningful.
 
 Clear, removal, and parameterized structure mutation are optional structure contracts coordinated through managers. The manager does not clear a manager-owned record store; it asks the structure to perform the mutation according to that structure's own model. `ContentSequenceStructure` supports all three and exposes `overflowPolicy` as a stable runtime parameter. The built-in map, single, stack, and compound structures support clear and natural removals where the workflow makes sense.
+
+Atomic batch mutations are also optional family-specific contracts. Managers materialize caller input and delegate a complete batch to the active structure, which validates and stages it before commit. Generated-ID batches require an atomic range capability on the ID source. Predicate removal evaluates a materialized record snapshot and applies the structure's normal removal rules, including the compound child-removal policy. Existing custom family implementations do not acquire new required abstract members.
 
 Validation and preflight are advisory and side-effect-free. Structures assess retained-state rules through `Assess...` APIs, and managers expose those assessments as part of their workflow surface. Preflight does not mutate records, advance or observe generated ID source state, replace active structures, or emit events. Commit APIs still revalidate because preflight is not a lock.
 

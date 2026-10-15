@@ -21,6 +21,8 @@ For ordinary package use, start with [Quick Start](QUICK_START.md). The guide is
 | Add one optional behavior | A focused structure capability interface | Only the behavior represented by that contract |
 | Notify observers | `IContentChangeSource` | Synchronous notifications after committed changes |
 | Filter and order visible records | `ContentManagerBase.GetFilteredRecords` and `QueryRecords()` | A materialized read view over the structure's `Records` order |
+| Add atomic batch workflows | A family-specific `IContent...BatchStructure<TId>` contract | Staged records and one committed event for the complete batch |
+| Remove matching records | `IContentPredicateRemovalStructure` | Snapshot evaluation, family removal rules, and one committed event |
 | Persist entry payloads | `IContentEntrySnapshotSerializable` and a factory | Entry snapshot capture and restore |
 | Persist whole structures | `IContentStructureSnapshotRoundTrippable` and a factory | Exact structure snapshot round trips |
 
@@ -273,6 +275,16 @@ Implement `IContentChangeSource` when observers need committed mutation notifica
 
 Read [Content Changes](CONTENT_CHANGES.md) and `tests/Changes/ContentChangedEventArgsTests.cs`.
 
+### Add Atomic Batch Mutations
+
+Use `IContentSequenceBatchStructure<TId>`, `IContentMapBatchStructure<TId>`, `IContentStackBatchStructure<TId>`, or `IContentCompoundBatchStructure<TId>` when your structure can guarantee all-or-nothing behavior for that batch. Implement matching assessment and try methods without adding required members to existing structure-family bases. Materialize caller input once, validate the complete batch, stage records and relationships, then commit retained state and raise one event. A rejected batch must preserve records, generated-ID state, snapshots, and event silence.
+
+Generated-ID batches need an atomic source range. Implement `IContentGeneratedIdRangeSource<TId>` so `TryCreateRange` either returns the complete unique, valid ID sequence or leaves the source unchanged. Structures using generated IDs should return a structured unsupported-operation failure when the source cannot provide this guarantee.
+
+Implement `IContentPredicateRemovalStructure` only when predicate matches can be evaluated against a stable record snapshot before mutation. Predicate exceptions must leave structure state untouched. Preserve the family’s ordinary removal policies; for compounds, apply the configured child-removal policy and validate the selected subtree set before detaching any node.
+
+The built-in implementations in `src/Structures/BuiltIn/` and `tests/Managers/ContentBulkMutationTests.cs` show batch event aggregation, generated-ID range reservation, and compound removal checks. Read [Content Managers](CONTENT_MANAGERS.md), [Content Structures](CONTENT_STRUCTURES.md), and [Content Changes](CONTENT_CHANGES.md) for the public workflows and event contract.
+
 ### Add Sorting
 
 Use `GetSortedRecords` for a temporary view; no structure capability is needed. Implement `IContentSortableStructure` for persistent map-like reordering or `IContentCompoundSortableStructure` for sibling sorting. Keep order stable for equal comparer keys, prepare candidate state before commit, and preserve the result in snapshots. Sequence, stack, and single-entry semantics should not opt in when order changes violate their meaning.
@@ -298,6 +310,7 @@ Test the public manager workflow as well as structure-specific methods. At minim
 - manager resolution and record lookup through normalized IDs;
 - successful commit, expected rejection, state preservation, and event metadata/silence;
 - assessment side-effect freedom and commit-time revalidation;
+- all-or-nothing batch state and generated-ID preservation, plus predicate exception atomicity, when batch/removal capabilities are supported;
 - stable failure kind/code and preservation of nested causes;
 - snapshot round trips, ID continuity, and malformed payload rejection if snapshots are supported;
 - sorting stability and comparer exception atomicity if persistent sorting is supported.

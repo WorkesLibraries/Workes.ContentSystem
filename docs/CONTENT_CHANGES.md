@@ -49,6 +49,8 @@ For removal, `Kind` is `ContentChangeKind.Removed` and `RemovedRecords` contains
 
 For replacement, `Kind` is `ContentChangeKind.Replaced`, `AddedRecords` contains the newly retained record, and `RemovedRecords` contains the record it replaced.
 
+Atomic batch operations raise one event after the full batch commits and set `RequiresFullRefresh` because a batch can affect ordering or several parts of a view at once. `AddedRecords` and `RemovedRecords` include the records affected by the batch; map `SetRange` uses `Replaced` when any existing record is replaced, and `Added` when it only inserts new IDs. A batch does not emit one event per input item.
+
 For clear, `Kind` is `ContentChangeKind.Cleared`, `Cleared` is true, `RemovedRecords` contains all cleared records, and `RequiresFullRefresh` is true.
 
 For runtime structure parameter changes, `Kind` is `ContentChangeKind.ConfigurationChanged`, `ConfigurationChanged` contains a `ContentConfigurationChanged` entry with `ContentConfigurationChangeKind.StructureParameter`, and `RequiresFullRefresh` is true. The configuration change reports the parameter ID, committed value, previous component, and current component. If the committed parameter change removes retained records, those records also appear in `RemovedRecords`.
@@ -102,6 +104,9 @@ For example:
 - a sequence or stack add rejected by `ContentOverflowPolicy.Reject(capacity)` returns `StructureCapacityReached` and emits no event;
 - a single-entry set rejected by `ContentSingleReplacementPolicy.Reject` returns `StructureCapacityReached` and emits no event;
 - a compound node removal rejected by `ContentCompoundChildRemovalPolicy.Reject` emits no event;
+- a batch rejected during validation or capacity checks emits no event and leaves structure and generated-ID state unchanged;
+- a predicate exception during `RemoveWhere` emits no event and leaves the structure unchanged;
+- a `RemoveWhere` call with no matching records succeeds without an event;
 - removing a missing record returns `EntryNotFound` and emits no event;
 - clearing an already-empty structure succeeds and emits no event;
 - setting a structure parameter to the already-committed value succeeds and emits no event;

@@ -75,6 +75,33 @@ public abstract class ContentSequenceManagerBase<TId> : ContentManagerBase
         return Sequence.Add(id, entry);
     }
 
+    /// <summary>Assesses whether an entire entry range can be added atomically.</summary>
+    public ContentPreflightResult AssessAddRange(IEnumerable<IContentEntry> entries)
+    {
+        IReadOnlyList<IContentEntry> batch = ContentBatchInputs.ReadEntries(entries, nameof(entries));
+        return Structure is IContentSequenceBatchStructure<TId> batchStructure
+            ? batchStructure.AssessAddRange(batch)
+            : ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The active sequence structure does not support atomic add ranges."));
+    }
+
+    /// <summary>Attempts to add an entire entry range atomically.</summary>
+    public bool TryAddRange(IEnumerable<IContentEntry> entries, out IReadOnlyList<ContentEntryRecord> records, out ContentFailure? failure)
+    {
+        IReadOnlyList<IContentEntry> batch = ContentBatchInputs.ReadEntries(entries, nameof(entries));
+        if (Structure is IContentSequenceBatchStructure<TId> batchStructure)
+            return batchStructure.TryAddRange(batch, out records, out failure);
+        records = Array.Empty<ContentEntryRecord>();
+        failure = ContentFailures.StructureUnsupportedOperation("The active sequence structure does not support atomic add ranges.");
+        return false;
+    }
+
+    /// <summary>Adds an entire entry range atomically.</summary>
+    public IReadOnlyList<ContentEntryRecord> AddRange(IEnumerable<IContentEntry> entries)
+    {
+        if (TryAddRange(entries, out IReadOnlyList<ContentEntryRecord> records, out ContentFailure? failure)) return records;
+        throw new ContentOperationException(failure!);
+    }
+
     /// <summary>
     /// Determines whether the sequence retains a record with the supplied natural ID.
     /// </summary>
@@ -181,6 +208,33 @@ public abstract class ContentSequenceManagerBase<TId> : ContentManagerBase
     public ContentEntryRecord Remove(TId id)
     {
         return Sequence.Remove(id);
+    }
+
+    /// <summary>Assesses removing the records selected by a predicate over the current record snapshot.</summary>
+    public ContentPreflightResult AssessRemoveWhere(Func<ContentEntryRecord, bool> predicate)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        return Structure is IContentPredicateRemovalStructure removal
+            ? removal.AssessRemoveWhere(predicate)
+            : ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The active sequence structure does not support predicate removal."));
+    }
+
+    /// <summary>Attempts to remove all records selected by a predicate over the pre-mutation record snapshot.</summary>
+    public bool TryRemoveWhere(Func<ContentEntryRecord, bool> predicate, out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        if (Structure is IContentPredicateRemovalStructure removal)
+            return removal.TryRemoveWhere(predicate, out removedRecords, out failure);
+        removedRecords = Array.Empty<ContentEntryRecord>();
+        failure = ContentFailures.StructureUnsupportedOperation("The active sequence structure does not support predicate removal.");
+        return false;
+    }
+
+    /// <summary>Removes all records selected by a predicate over the pre-mutation record snapshot.</summary>
+    public IReadOnlyList<ContentEntryRecord> RemoveWhere(Func<ContentEntryRecord, bool> predicate)
+    {
+        if (TryRemoveWhere(predicate, out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)) return removedRecords;
+        throw new ContentOperationException(failure!);
     }
 
     /// <summary>

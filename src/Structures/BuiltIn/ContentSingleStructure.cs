@@ -10,6 +10,7 @@ namespace Workes.ContentSystem.Core;
 /// <typeparam name="TId">The natural retained-record ID type.</typeparam>
 public class ContentSingleStructure<TId> :
     ContentSingleStructureBase<TId>,
+    IContentPredicateRemovalStructure,
     IContentStructureSnapshotRoundTrippable,
     IContentChangeSource
 {
@@ -330,6 +331,30 @@ public class ContentSingleStructure<TId> :
         }
 
         throw new ContentOperationException(failure!);
+    }
+
+    /// <inheritdoc />
+    public ContentPreflightResult AssessRemoveWhere(Func<ContentEntryRecord, bool> predicate)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        if (_record is not null) _ = predicate(_record);
+        return ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
+    public bool TryRemoveWhere(Func<ContentEntryRecord, bool> predicate, out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        ContentEntryRecord? candidate = _record;
+        if (candidate is not null && predicate(candidate))
+        {
+            _record = null;
+            removedRecords = Array.AsReadOnly(new[] { candidate });
+            OnChanged(new ContentChangedEventArgs(removedRecords: removedRecords, kind: ContentChangeKind.Removed));
+        }
+        else removedRecords = Array.Empty<ContentEntryRecord>();
+        failure = null;
+        return true;
     }
 
     /// <inheritdoc />

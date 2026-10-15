@@ -11,6 +11,8 @@ namespace Workes.ContentSystem.Core;
 public class ContentCompoundStructure<TId> :
     ContentCompoundStructureBase<TId>,
     IContentCompoundSortableStructure,
+    IContentCompoundBatchStructure<TId>,
+    IContentPredicateRemovalStructure,
     IContentStructureSnapshotRoundTrippable,
     IContentChangeSource
 {
@@ -326,6 +328,105 @@ public class ContentCompoundStructure<TId> :
         }
 
         throw new ContentOperationException(failure!);
+    }
+
+    /// <inheritdoc />
+    public ContentPreflightResult AssessAddRoots(IReadOnlyList<IContentEntry> entries)
+    {
+        ValidateBatchEntries(entries, nameof(entries));
+        if (entries.Count == 0) return ContentPreflightResult.Success();
+        if (IdSource is not IContentGeneratedIdRangeSource<TId> rangeSource)
+            return ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The generated ID source does not support atomic ID ranges."));
+        return rangeSource.CanCreateRange(entries.Count, out ContentFailure? failure) ? ContentPreflightResult.Success() : ContentPreflightResult.Rejected(failure!);
+    }
+
+    /// <inheritdoc />
+    public bool TryAddRoots(IReadOnlyList<IContentEntry> entries, out IReadOnlyList<ContentCompoundNode> nodes, out ContentFailure? failure)
+    {
+        ValidateBatchEntries(entries, nameof(entries));
+        nodes = Array.Empty<ContentCompoundNode>();
+        if (entries.Count == 0) { failure = null; return true; }
+        ContentPreflightResult assessment = AssessAddRoots(entries);
+        if (!assessment.CanCommit) { failure = assessment.Failure; return false; }
+        if (!((IContentGeneratedIdRangeSource<TId>)IdSource).TryCreateRange(entries.Count, out IReadOnlyList<TId> ids, out failure)) return false;
+        if (!TryCreateBatchNodes(ids, entries, null, out ContentCompoundNode[] created, out failure)) return false;
+        foreach (ContentCompoundNode node in created)
+        {
+            CompoundNodeState state = new CompoundNodeState(node.Record, parentId: null);
+            _nodes.Add(node.Record.Id, state); _nodeIds.Add(node.Record.Id); _rootIds.Add(node.Record.Id);
+        }
+        nodes = Array.AsReadOnly(created);
+        OnChanged(new ContentChangedEventArgs(created.Select(node => node.Record), kind: ContentChangeKind.Added, requiresFullRefresh: true));
+        failure = null;
+        return true;
+    }
+
+    /// <inheritdoc />
+    public ContentPreflightResult AssessAddChildren(TId parentId, IReadOnlyList<IContentEntry> entries)
+    {
+        ValidateBatchEntries(entries, nameof(entries));
+        if (!TryNormalize(parentId, out ContentEntryId normalizedParentId, out ContentFailure? failure)
+            || !TryValidateExistingParent(normalizedParentId, out failure)) return ContentPreflightResult.Rejected(failure!);
+        if (entries.Count == 0) return ContentPreflightResult.Success();
+        if (IdSource is not IContentGeneratedIdRangeSource<TId> rangeSource)
+            return ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The generated ID source does not support atomic ID ranges."));
+        return rangeSource.CanCreateRange(entries.Count, out failure) ? ContentPreflightResult.Success() : ContentPreflightResult.Rejected(failure!);
+    }
+
+    /// <inheritdoc />
+    public bool TryAddChildren(TId parentId, IReadOnlyList<IContentEntry> entries, out IReadOnlyList<ContentCompoundNode> nodes, out ContentFailure? failure)
+    {
+        ValidateBatchEntries(entries, nameof(entries));
+        nodes = Array.Empty<ContentCompoundNode>();
+        if (!TryNormalize(parentId, out ContentEntryId normalizedParentId, out failure)
+            || !TryValidateExistingParent(normalizedParentId, out failure)) return false;
+        if (entries.Count == 0) { failure = null; return true; }
+        ContentPreflightResult assessment = AssessAddChildren(parentId, entries);
+        if (!assessment.CanCommit) { failure = assessment.Failure; return false; }
+        if (!((IContentGeneratedIdRangeSource<TId>)IdSource).TryCreateRange(entries.Count, out IReadOnlyList<TId> ids, out failure)) return false;
+        if (!TryCreateBatchNodes(ids, entries, normalizedParentId, out ContentCompoundNode[] created, out failure)) return false;
+        CompoundNodeState parent = _nodes[normalizedParentId];
+        foreach (ContentCompoundNode node in created)
+        {
+            var state = new CompoundNodeState(node.Record, normalizedParentId);
+            _nodes.Add(node.Record.Id, state); _nodeIds.Add(node.Record.Id); parent.ChildIds.Add(node.Record.Id);
+        }
+        nodes = Array.AsReadOnly(created);
+        OnChanged(new ContentChangedEventArgs(created.Select(node => node.Record), kind: ContentChangeKind.Added, requiresFullRefresh: true));
+        failure = null;
+        return true;
+    }
+
+    /// <inheritdoc />
+    public ContentPreflightResult AssessRemoveWhere(Func<ContentEntryRecord, bool> predicate)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        ContentEntryRecord[] records = Records.ToArray();
+        ContentEntryRecord[] selected = records.Where(predicate).ToArray();
+        return AssessCompoundRemoval(selected);
+    }
+
+    /// <inheritdoc />
+    public bool TryRemoveWhere(Func<ContentEntryRecord, bool> predicate, out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        ContentEntryRecord[] records = Records.ToArray();
+        ContentEntryRecord[] matched = records.Where(predicate).ToArray();
+        ContentPreflightResult assessment = AssessCompoundRemoval(matched);
+        if (!assessment.CanCommit) { removedRecords = Array.Empty<ContentEntryRecord>(); failure = assessment.Failure; return false; }
+        HashSet<ContentEntryId> removalIds = new HashSet<ContentEntryId>(matched.Select(record => record.Id));
+        foreach (ContentEntryId id in removalIds.ToArray())
+        {
+            if (ChildRemovalPolicy == ContentCompoundChildRemovalPolicy.RemoveSubtree)
+                foreach (ContentEntryId descendant in CollectSubtree(id)) removalIds.Add(descendant);
+        }
+        ContentEntryRecord[] removed = records.Where(record => removalIds.Contains(record.Id)).ToArray();
+        ContentEntryId[] topmost = removalIds.Where(id => _nodes[id].ParentId is null || !removalIds.Contains(_nodes[id].ParentId!.Value)).ToArray();
+        foreach (ContentEntryId id in topmost) RemoveSubtree(id);
+        removedRecords = Array.AsReadOnly(removed);
+        failure = null;
+        if (removed.Length > 0) OnChanged(new ContentChangedEventArgs(removedRecords: removedRecords, kind: ContentChangeKind.Removed, requiresFullRefresh: true));
+        return true;
     }
 
     /// <inheritdoc />
@@ -842,6 +943,50 @@ public class ContentCompoundStructure<TId> :
         failure = null;
         OnChanged(new ContentChangedEventArgs(new[] { record }, kind: ContentChangeKind.Added));
         return true;
+    }
+
+    private bool TryCreateBatchNodes(
+        IReadOnlyList<TId> ids,
+        IReadOnlyList<IContentEntry> entries,
+        ContentEntryId? parentId,
+        out ContentCompoundNode[] nodes,
+        out ContentFailure? failure)
+    {
+        if (ids.Count != entries.Count) throw new InvalidOperationException("The generated ID range returned a different number of IDs than requested.");
+        nodes = new ContentCompoundNode[entries.Count];
+        var seen = new HashSet<ContentEntryId>(_nodes.Keys);
+        for (int i = 0; i < entries.Count; i++)
+        {
+            if (!TryNormalize(ids[i], out ContentEntryId normalized, out failure)) return false;
+            if (!seen.Add(normalized))
+            {
+                failure = ContentFailures.EntryIdDuplicate($"Entry ID '{normalized}' is duplicated in the compound add range.", normalized.ToString());
+                return false;
+            }
+            nodes[i] = new ContentCompoundNode(new ContentEntryRecord(normalized, entries[i]), parentId, Array.Empty<ContentEntryId>());
+        }
+        failure = null;
+        return true;
+    }
+
+    private ContentPreflightResult AssessCompoundRemoval(IReadOnlyList<ContentEntryRecord> selected)
+    {
+        if (selected.Count == 0 || ChildRemovalPolicy == ContentCompoundChildRemovalPolicy.RemoveSubtree)
+            return ContentPreflightResult.Success();
+        var selectedIds = new HashSet<ContentEntryId>(selected.Select(record => record.Id));
+        foreach (ContentEntryId id in selectedIds)
+        {
+            if (_nodes[id].ChildIds.Any(childId => !selectedIds.Contains(childId)))
+                return ContentPreflightResult.Rejected(ContentFailures.Structure(
+                    $"Compound node '{id}' has children that do not match the predicate, and the child removal policy rejects removing the node."));
+        }
+        return ContentPreflightResult.Success();
+    }
+
+    private static void ValidateBatchEntries(IReadOnlyList<IContentEntry> entries, string parameterName)
+    {
+        if (entries is null) throw new ArgumentNullException(parameterName);
+        for (int i = 0; i < entries.Count; i++) if (entries[i] is null) throw new ArgumentException("Entry batches cannot contain null values.", parameterName);
     }
 
     private ContentPreflightResult AssessAcceptedNode(TId id, ContentEntryId? parentId, bool observeId)

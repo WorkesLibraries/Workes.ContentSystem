@@ -139,6 +139,29 @@ public abstract class ContentSingleManagerBase<TId> : ContentManagerBase
         return Single.Remove(id);
     }
 
+    /// <summary>Assesses predicate-based removal of the current record.</summary>
+    public ContentPreflightResult AssessRemoveWhere(Func<ContentEntryRecord, bool> predicate)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        return Structure is IContentPredicateRemovalStructure removal ? removal.AssessRemoveWhere(predicate)
+            : ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The active single-entry structure does not support predicate removal."));
+    }
+
+    /// <summary>Attempts predicate-based removal of the current record.</summary>
+    public bool TryRemoveWhere(Func<ContentEntryRecord, bool> predicate, out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        if (Structure is IContentPredicateRemovalStructure removal) return removal.TryRemoveWhere(predicate, out removedRecords, out failure);
+        removedRecords = Array.Empty<ContentEntryRecord>(); failure = ContentFailures.StructureUnsupportedOperation("The active single-entry structure does not support predicate removal."); return false;
+    }
+
+    /// <summary>Removes the current record if it matches the predicate.</summary>
+    public IReadOnlyList<ContentEntryRecord> RemoveWhere(Func<ContentEntryRecord, bool> predicate)
+    {
+        if (TryRemoveWhere(predicate, out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)) return removedRecords;
+        throw new ContentOperationException(failure!);
+    }
+
     /// <summary>
     /// Attempts to clear the current record.
     /// </summary>

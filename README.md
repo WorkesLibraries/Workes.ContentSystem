@@ -17,6 +17,7 @@ It is intended to be useful anywhere an application needs an ordered or structur
 - Advisory preflight APIs for validating mutations and snapshot restores without changing state.
 - Stable read-only sorted views for every manager, with opt-in persistent sorting for maps and compound sibling groups.
 - Materialized filtered and composable record views across all manager families.
+- Atomic family-native batch writes and predicate-based removal where structure semantics support them.
 - Entry, record, and built-in structure snapshots for portable serialization.
 - A shared failure and exception model matching the style used in other Workes packages.
 - Engine-neutral core with no file I/O, UI, or host-specific integration requirements.
@@ -26,13 +27,13 @@ It is intended to be useful anywhere an application needs an ordered or structur
 Install the package from [NuGet](https://www.nuget.org/packages/Workes.ContentSystem):
 
 ```bash
-dotnet add package Workes.ContentSystem --version 1.1.0
+dotnet add package Workes.ContentSystem --version 1.2.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="1.1.0" />
+<PackageReference Include="Workes.ContentSystem" Version="1.2.0" />
 ```
 
 The package targets .NET Standard 2.1.

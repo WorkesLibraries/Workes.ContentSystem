@@ -139,6 +139,30 @@ public abstract class ContentCompoundManagerBase<TId> : ContentManagerBase
     /// </summary>
     public ContentCompoundNode AddRoot(TId id, IContentEntry entry) => Compound.AddRoot(id, entry);
 
+    /// <summary>Assesses adding multiple root nodes atomically.</summary>
+    public ContentPreflightResult AssessAddRoots(IEnumerable<IContentEntry> entries)
+    {
+        IReadOnlyList<IContentEntry> batch = ContentBatchInputs.ReadEntries(entries, nameof(entries));
+        return Structure is IContentCompoundBatchStructure<TId> batchStructure
+            ? batchStructure.AssessAddRoots(batch)
+            : ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The active compound structure does not support atomic root batches."));
+    }
+
+    /// <summary>Attempts to add multiple root nodes atomically.</summary>
+    public bool TryAddRoots(IEnumerable<IContentEntry> entries, out IReadOnlyList<ContentCompoundNode> nodes, out ContentFailure? failure)
+    {
+        IReadOnlyList<IContentEntry> batch = ContentBatchInputs.ReadEntries(entries, nameof(entries));
+        if (Structure is IContentCompoundBatchStructure<TId> batchStructure) return batchStructure.TryAddRoots(batch, out nodes, out failure);
+        nodes = Array.Empty<ContentCompoundNode>(); failure = ContentFailures.StructureUnsupportedOperation("The active compound structure does not support atomic root batches."); return false;
+    }
+
+    /// <summary>Adds multiple root nodes atomically.</summary>
+    public IReadOnlyList<ContentCompoundNode> AddRoots(IEnumerable<IContentEntry> entries)
+    {
+        if (TryAddRoots(entries, out IReadOnlyList<ContentCompoundNode> nodes, out ContentFailure? failure)) return nodes;
+        throw new ContentOperationException(failure!);
+    }
+
     /// <summary>
     /// Attempts to add a child node with a generated ID.
     /// </summary>
@@ -153,6 +177,30 @@ public abstract class ContentCompoundManagerBase<TId> : ContentManagerBase
     /// Adds a child node with a generated ID.
     /// </summary>
     public ContentCompoundNode AddChild(TId parentId, IContentEntry entry) => Compound.AddChild(parentId, entry);
+
+    /// <summary>Assesses adding multiple children to one parent atomically.</summary>
+    public ContentPreflightResult AssessAddChildren(TId parentId, IEnumerable<IContentEntry> entries)
+    {
+        IReadOnlyList<IContentEntry> batch = ContentBatchInputs.ReadEntries(entries, nameof(entries));
+        return Structure is IContentCompoundBatchStructure<TId> batchStructure
+            ? batchStructure.AssessAddChildren(parentId, batch)
+            : ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The active compound structure does not support atomic child batches."));
+    }
+
+    /// <summary>Attempts to add multiple children to one parent atomically.</summary>
+    public bool TryAddChildren(TId parentId, IEnumerable<IContentEntry> entries, out IReadOnlyList<ContentCompoundNode> nodes, out ContentFailure? failure)
+    {
+        IReadOnlyList<IContentEntry> batch = ContentBatchInputs.ReadEntries(entries, nameof(entries));
+        if (Structure is IContentCompoundBatchStructure<TId> batchStructure) return batchStructure.TryAddChildren(parentId, batch, out nodes, out failure);
+        nodes = Array.Empty<ContentCompoundNode>(); failure = ContentFailures.StructureUnsupportedOperation("The active compound structure does not support atomic child batches."); return false;
+    }
+
+    /// <summary>Adds multiple children to one parent atomically.</summary>
+    public IReadOnlyList<ContentCompoundNode> AddChildren(TId parentId, IEnumerable<IContentEntry> entries)
+    {
+        if (TryAddChildren(parentId, entries, out IReadOnlyList<ContentCompoundNode> nodes, out ContentFailure? failure)) return nodes;
+        throw new ContentOperationException(failure!);
+    }
 
     /// <summary>
     /// Attempts to add a child node under the supplied parent node with a generated ID.
@@ -342,6 +390,29 @@ public abstract class ContentCompoundManagerBase<TId> : ContentManagerBase
     /// Removes a node by natural ID.
     /// </summary>
     public IReadOnlyList<ContentEntryRecord> Remove(TId id) => Compound.Remove(id);
+
+    /// <summary>Assesses predicate-based removal over the active depth-first record snapshot.</summary>
+    public ContentPreflightResult AssessRemoveWhere(Func<ContentEntryRecord, bool> predicate)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        return Structure is IContentPredicateRemovalStructure removal ? removal.AssessRemoveWhere(predicate)
+            : ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The active compound structure does not support predicate removal."));
+    }
+
+    /// <summary>Attempts predicate-based removal over the pre-mutation depth-first record snapshot.</summary>
+    public bool TryRemoveWhere(Func<ContentEntryRecord, bool> predicate, out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        if (Structure is IContentPredicateRemovalStructure removal) return removal.TryRemoveWhere(predicate, out removedRecords, out failure);
+        removedRecords = Array.Empty<ContentEntryRecord>(); failure = ContentFailures.StructureUnsupportedOperation("The active compound structure does not support predicate removal."); return false;
+    }
+
+    /// <summary>Removes records selected by a predicate over the pre-mutation depth-first snapshot.</summary>
+    public IReadOnlyList<ContentEntryRecord> RemoveWhere(Func<ContentEntryRecord, bool> predicate)
+    {
+        if (TryRemoveWhere(predicate, out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)) return removedRecords;
+        throw new ContentOperationException(failure!);
+    }
 
     /// <summary>
     /// Attempts to clear all retained nodes.

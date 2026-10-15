@@ -5,7 +5,7 @@ namespace Workes.ContentSystem.Core;
 /// <summary>
 /// Generates positive integer content entry IDs.
 /// </summary>
-public sealed class LongContentGeneratedIdSource : IContentGeneratedIdSource<long>
+public sealed class LongContentGeneratedIdSource : IContentGeneratedIdSource<long>, IContentGeneratedIdRangeSource<long>
 {
     /// <summary>
     /// Stable generated ID source snapshot kind for <see cref="LongContentGeneratedIdSource"/>.
@@ -64,6 +64,35 @@ public sealed class LongContentGeneratedIdSource : IContentGeneratedIdSource<lon
             return false;
         }
 
+        failure = null;
+        return true;
+    }
+
+    /// <inheritdoc />
+    public bool CanCreateRange(int count, out ContentFailure? failure)
+    {
+        if (count < 0) throw new System.ArgumentOutOfRangeException(nameof(count));
+        if (count > 0 && (_nextId <= 0 || count > long.MaxValue - _nextId))
+        {
+            failure = ContentFailures.EntryIdInvalid("Generated long ID source does not have enough remaining positive IDs for the requested range.");
+            return false;
+        }
+        failure = null;
+        return true;
+    }
+
+    /// <inheritdoc />
+    public bool TryCreateRange(int count, out System.Collections.Generic.IReadOnlyList<long> ids, out ContentFailure? failure)
+    {
+        if (!CanCreateRange(count, out failure))
+        {
+            ids = System.Array.Empty<long>();
+            return false;
+        }
+        var result = new long[count];
+        for (int i = 0; i < count; i++) result[i] = _nextId + i;
+        if (count > 0) _nextId += count;
+        ids = result;
         failure = null;
         return true;
     }

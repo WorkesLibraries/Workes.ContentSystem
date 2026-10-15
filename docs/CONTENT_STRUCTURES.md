@@ -93,6 +93,8 @@ Advanced users can use `ContentSequenceStructure<TId>` with a custom `IContentGe
 
 Sequence structures and managers expose `AssessAdd`, `AssessRemove`, `AssessClear`, and sequence-parameter assessment so callers can check capacity, duplicate IDs, missing IDs, and parameter rejection before committing.
 
+`AddRange` is an optional atomic batch workflow implemented by the built-in sequence. `AssessAddRange` checks the requested range without advancing IDs; `TryAddRange` either adds every entry or leaves retained state, generated-ID source state, and events unchanged. `DropOldest` applies to the completed candidate sequence, while `Reject` checks that the whole range fits. Generated-ID sources opt into atomic range reservation through `IContentGeneratedIdRangeSource<TId>`.
+
 The shared `ContentEntryId` lookup remains available for code that works through `IContentStructure`.
 
 ## Map Structure
@@ -109,6 +111,8 @@ Built-in strategies include:
 - `ContentEntryIdContentEntryIdStrategy`, for already-normalized stored IDs.
 
 Built-in default strategies are available for `string`, `long`, `Guid`, and `ContentEntryId`.
+
+Map managers expose atomic `AddRange` and `SetRange` helpers through the optional `IContentMapBatchStructure<TId>` contract. Range IDs are normalized before commit and must be unique within the input. A set range replaces an existing ID in its current position and appends new IDs in input order; a rejected range leaves the map unchanged.
 
 String-map usage:
 
@@ -217,6 +221,8 @@ Stack managers expose `CanPeek` and `CanPop` as small state checks before callin
 
 Stack structures and managers expose `AssessPush`, `AssessPeek`, `AssessPop`, `AssessRemove`, and `AssessClear`. `CanPeek` and `CanPop` are convenience state properties; `AssessPeek` and `AssessPop` return structured failure data.
 
+Stack managers also expose `PushRange` through `IContentStackBatchStructure<TId>`. The whole range must fit under reject capacity before any IDs or records are committed. Input order matches repeated pushes, so the final input entry becomes the top item. Generated-ID sources must implement `IContentGeneratedIdRangeSource<TId>`.
+
 ## Compound Structure
 
 `ContentCompoundStructure<TId>` stores records as an owned tree.
@@ -270,6 +276,10 @@ Use `GetRecordViews()` when a UI needs the flattened record list with simple hie
 Advanced users can use `ContentCompoundStructure<TId>` with a custom generated ID source. Both generated-ID and explicit-ID root/child creation are supported.
 
 Compound structures and managers expose `AssessAddRoot`, `AssessAddChild`, `AssessRemove`, and `AssessClear`, including the node-parent overloads on managers.
+
+Compound managers expose `AddRoots` and `AddChildren(parentId, entries)` as opt-in atomic operations through `IContentCompoundBatchStructure<TId>`. Child batches target one existing parent; a batch cannot create parent-child links among its own entries. Snapshots continue to store the committed relationship topology and generated-ID state.
+
+Sequence, map, single, stack, and compound managers also expose `RemoveWhere` through the optional `IContentPredicateRemovalStructure` contract. The predicate is evaluated against a materialized record snapshot before commit. For compound trees, removal respects `ContentCompoundChildRemovalPolicy`: with `Reject`, a matched parent can be removed only when all direct children also match; with `RemoveSubtree`, matching a node removes its subtree.
 
 Compound snapshots preserve records, parent-child relationships, root/child insertion order, policies, sibling order, and generated ID source state without changing the normal compound user path.
 

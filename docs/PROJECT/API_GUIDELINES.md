@@ -22,6 +22,8 @@ Manager creation is not capability metadata. Operation support remains represent
 
 Advanced behavior should be opt-in through options, focused structure contracts, snapshots, or attachments.
 
+Batch mutations should use optional family-specific structure contracts so adding bulk workflows does not add required methods to existing extension family bases. A batch must validate and stage its complete input before committing, keep generated-ID state unchanged on rejection, and emit one coherent post-commit event. Predicate removal evaluates a materialized record snapshot before changing retained state.
+
 Runtime mutation should be manager-coordinated for normal callers through tailored managers. Structures own retained content state and may expose focused opt-in contracts that managers delegate to. Unsupported mutations should not be exposed on a manager unless that manager deliberately offers a try/throwing path around an optional contract.
 
 Use family manager bases when multiple concrete managers share a workflow surface, but keep concrete managers as the normal public entry point. Family bases reduce redundancy; concrete managers expose concrete structure behavior.

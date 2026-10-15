@@ -246,6 +246,46 @@ map.Remove("thread-main");
 
 Custom structures should expose their own manager when their mutation vocabulary differs from the built-ins.
 
+## Atomic Batch Operations
+
+Batch helpers consume the supplied enumerable once and materialize the inputs before asking the structure to commit. A rejected batch leaves retained records and generated-ID state unchanged and emits no event. A successful batch emits one coherent event, and returned record/node lists are read-only snapshots.
+
+```csharp
+var sequence = ContentManagers.ForStructure<ContentSequenceManager>(
+    new ContentSequenceStructure(ContentOverflowPolicy.None));
+var map = ContentManagers.ForStructure<ContentMapManager<string>>(
+    new ContentMapStructure<string>());
+
+IReadOnlyList<ContentEntryRecord> added = sequence.AddRange(new IContentEntry[]
+{
+    new PlainContentEntry(DateTimeOffset.UtcNow, "First"),
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Second")
+});
+
+IReadOnlyList<ContentEntryRecord> set = map.SetRange(new[]
+{
+    new KeyValuePair<string, IContentEntry>("topic-a", new PlainContentEntry(DateTimeOffset.UtcNow, "Updated")),
+    new KeyValuePair<string, IContentEntry>("topic-b", new PlainContentEntry(DateTimeOffset.UtcNow, "New topic"))
+});
+
+IReadOnlyList<ContentEntryRecord> removed = sequence.RemoveWhere(
+    record => record.Entry.PlainText.StartsWith("temporary:", StringComparison.Ordinal));
+
+var stack = ContentManagers.ForStructure<ContentStackManager>(
+    new ContentStackStructure(ContentOverflowPolicy.None));
+IReadOnlyList<ContentEntryRecord> pushed = stack.PushRange(new IContentEntry[]
+{
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Bottom"),
+    new PlainContentEntry(DateTimeOffset.UtcNow, "Top")
+});
+```
+
+Sequence managers expose `AddRange`; map managers expose `AddRange` and `SetRange`; stack managers expose `PushRange`; compound managers expose `AddRoots` and `AddChildren(parentId, ...)`. Input order matches repeated individual operations: stack pushes follow input order (the last item is on top), and compound sibling visibility still follows the configured read direction. Map range inputs must use distinct normalized IDs; duplicate IDs within a range reject the entire operation. Map `SetRange` replaces existing records in place and appends new IDs in input order.
+
+`RemoveWhere` is available on sequence, map, single, stack, and compound managers. The predicate is evaluated against a snapshot before any removal commits; if it throws, the structure is unchanged. An empty match set succeeds without an event. Compound removal follows `ContentCompoundChildRemovalPolicy`: `RemoveSubtree` removes descendants of each match, while `Reject` rejects a match if it has a child that does not also match. This allows a fully selected subtree to be removed atomically under `Reject`.
+
+Each batch workflow has matching `Assess...`, `Try...`, and expected-success APIs. Assessments can execute a removal predicate against the current snapshot but never commit changes or events; commit re-evaluates it, so assessments are advisory. These APIs are optional structure capabilities: custom structures remain source-compatible and can opt in by implementing the matching `IContent...BatchStructure<TId>` or `IContentPredicateRemovalStructure` contract. Generated-ID workflows additionally require `IContentGeneratedIdRangeSource<TId>` so reserving a range is atomic. See [Content Structures](CONTENT_STRUCTURES.md) and [Content Changes](CONTENT_CHANGES.md) for capability and event contracts.
+
 ## Preflight
 
 Managers and structures expose `Assess...` APIs for advisory, side-effect-free validation before committing a mutation:

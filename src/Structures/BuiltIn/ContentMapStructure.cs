@@ -11,6 +11,8 @@ namespace Workes.ContentSystem.Core;
 public sealed class ContentMapStructure<TId> :
     ContentMapStructureBase<TId>,
     IContentSortableStructure,
+    IContentMapBatchStructure<TId>,
+    IContentPredicateRemovalStructure,
     IContentStructureSnapshotRoundTrippable,
     IContentChangeSource
 {
@@ -273,6 +275,85 @@ public sealed class ContentMapStructure<TId> :
     }
 
     /// <inheritdoc />
+    public ContentPreflightResult AssessAddRange(IReadOnlyList<KeyValuePair<TId, IContentEntry>> entries)
+    {
+        if (!TryNormalizeBatch(entries, requireAbsent: true, out _, out ContentFailure? failure)) return ContentPreflightResult.Rejected(failure!);
+        return ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
+    public bool TryAddRange(IReadOnlyList<KeyValuePair<TId, IContentEntry>> entries, out IReadOnlyList<ContentEntryRecord> records, out ContentFailure? failure)
+    {
+        records = Array.Empty<ContentEntryRecord>();
+        if (!TryNormalizeBatch(entries, requireAbsent: true, out List<(ContentEntryId Id, IContentEntry Entry)> normalized, out failure)) return false;
+        if (normalized.Count == 0) { failure = null; return true; }
+        ContentEntryRecord[] added = normalized.Select(pair => new ContentEntryRecord(pair.Id, pair.Entry)).ToArray();
+        foreach (ContentEntryRecord record in added) _recordsById.Add(record.Id, record);
+        _records.AddRange(added);
+        records = Array.AsReadOnly(added);
+        failure = null;
+        OnChanged(new ContentChangedEventArgs(added, kind: ContentChangeKind.Added, requiresFullRefresh: true));
+        return true;
+    }
+
+    /// <inheritdoc />
+    public ContentPreflightResult AssessSetRange(IReadOnlyList<KeyValuePair<TId, IContentEntry>> entries)
+    {
+        return TryNormalizeBatch(entries, requireAbsent: false, out _, out ContentFailure? failure)
+            ? ContentPreflightResult.Success()
+            : ContentPreflightResult.Rejected(failure!);
+    }
+
+    /// <inheritdoc />
+    public bool TrySetRange(IReadOnlyList<KeyValuePair<TId, IContentEntry>> entries, out IReadOnlyList<ContentEntryRecord> records, out IReadOnlyList<ContentEntryRecord> replacedRecords, out ContentFailure? failure)
+    {
+        records = Array.Empty<ContentEntryRecord>();
+        replacedRecords = Array.Empty<ContentEntryRecord>();
+        if (!TryNormalizeBatch(entries, requireAbsent: false, out List<(ContentEntryId Id, IContentEntry Entry)> normalized, out failure)) return false;
+        if (normalized.Count == 0) { failure = null; return true; }
+        var candidate = _records.ToList();
+        var added = new List<ContentEntryRecord>(normalized.Count);
+        var replaced = new List<ContentEntryRecord>();
+        foreach ((ContentEntryId id, IContentEntry entry) in normalized)
+        {
+            var record = new ContentEntryRecord(id, entry);
+            int index = candidate.FindIndex(existing => existing.Id == id);
+            if (index >= 0) { replaced.Add(candidate[index]); candidate[index] = record; }
+            else candidate.Add(record);
+            added.Add(record);
+        }
+        _recordsById.Clear(); _recordsById.EnsureCapacity(candidate.Count);
+        foreach (ContentEntryRecord record in candidate) _recordsById.Add(record.Id, record);
+        _records.Clear(); _records.AddRange(candidate);
+        records = Array.AsReadOnly(added.ToArray());
+        replacedRecords = Array.AsReadOnly(replaced.ToArray());
+        failure = null;
+        OnChanged(new ContentChangedEventArgs(added, replaced, replaced.Count > 0 ? ContentChangeKind.Replaced : ContentChangeKind.Added, requiresFullRefresh: true));
+        return true;
+    }
+
+    /// <inheritdoc />
+    public ContentPreflightResult AssessRemoveWhere(Func<ContentEntryRecord, bool> predicate)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        _ = _records.ToArray().Where(predicate).ToArray();
+        return ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
+    public bool TryRemoveWhere(Func<ContentEntryRecord, bool> predicate, out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        ContentEntryRecord[] selected = _records.ToArray().Where(predicate).ToArray();
+        foreach (ContentEntryRecord record in selected) _recordsById.Remove(record.Id);
+        if (selected.Length > 0) _records.RemoveAll(record => selected.Contains(record));
+        removedRecords = Array.AsReadOnly(selected);
+        failure = null;
+        if (selected.Length > 0) OnChanged(new ContentChangedEventArgs(removedRecords: removedRecords, kind: ContentChangeKind.Removed, requiresFullRefresh: selected.Length > 1));
+        return true;
+    }
+
+    /// <inheritdoc />
     public override bool TryGet(ContentEntryId id, out ContentEntryRecord? record, out ContentFailure? failure)
     {
         EnsureValidId(id);
@@ -497,6 +578,27 @@ public sealed class ContentMapStructure<TId> :
     private bool TryNormalize(TId id, out ContentEntryId normalizedId, out ContentFailure? failure)
     {
         return IdStrategy.TryNormalize(id, out normalizedId, out failure);
+    }
+
+    private bool TryNormalizeBatch(
+        IReadOnlyList<KeyValuePair<TId, IContentEntry>> entries,
+        bool requireAbsent,
+        out List<(ContentEntryId Id, IContentEntry Entry)> normalized,
+        out ContentFailure? failure)
+    {
+        if (entries is null) throw new ArgumentNullException(nameof(entries));
+        normalized = new List<(ContentEntryId, IContentEntry)>(entries.Count);
+        var seen = new HashSet<ContentEntryId>();
+        foreach (KeyValuePair<TId, IContentEntry> pair in entries)
+        {
+            if (pair.Value is null) throw new ArgumentException("Entry batches cannot contain null values.", nameof(entries));
+            if (!TryNormalize(pair.Key, out ContentEntryId id, out failure)) return false;
+            if (!seen.Add(id)) { failure = ContentFailures.EntryIdDuplicate($"Entry ID '{id}' occurs more than once in the range.", id.ToString()); return false; }
+            if (requireAbsent && _recordsById.ContainsKey(id)) { failure = ContentFailures.EntryIdDuplicate($"Entry ID '{id}' already exists.", id.ToString()); return false; }
+            normalized.Add((id, pair.Value));
+        }
+        failure = null;
+        return true;
     }
 
     private static void EnsureValidId(ContentEntryId id)

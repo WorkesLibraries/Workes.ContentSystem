@@ -12,6 +12,8 @@ namespace Workes.ContentSystem.Core;
 public class ContentStackStructure<TId> :
     ContentStackStructureBase<TId>,
     IContentRetentionPolicyStructure,
+    IContentStackBatchStructure<TId>,
+    IContentPredicateRemovalStructure,
     IContentStructureSnapshotRoundTrippable,
     IContentChangeSource
 {
@@ -195,6 +197,64 @@ public class ContentStackStructure<TId> :
         }
 
         throw new ContentOperationException(failure!);
+    }
+
+    /// <inheritdoc />
+    public ContentPreflightResult AssessPushRange(IReadOnlyList<IContentEntry> entries)
+    {
+        ValidateBatchEntries(entries, nameof(entries));
+        if (entries.Count == 0) return ContentPreflightResult.Success();
+        if (OverflowPolicy.Kind == ContentOverflowPolicyKind.Reject && _records.Count + (long)entries.Count > OverflowPolicy.Capacity!.Value)
+            return ContentPreflightResult.Rejected(ContentFailures.StructureCapacityReached("The stack capacity cannot retain the entire push range."));
+        if (IdSource is not IContentGeneratedIdRangeSource<TId> rangeSource)
+            return ContentPreflightResult.Rejected(ContentFailures.StructureUnsupportedOperation("The generated ID source does not support atomic ID ranges."));
+        return rangeSource.CanCreateRange(entries.Count, out ContentFailure? failure)
+            ? ContentPreflightResult.Success()
+            : ContentPreflightResult.Rejected(failure!);
+    }
+
+    /// <inheritdoc />
+    public bool TryPushRange(IReadOnlyList<IContentEntry> entries, out IReadOnlyList<ContentEntryRecord> records, out ContentFailure? failure)
+    {
+        ValidateBatchEntries(entries, nameof(entries));
+        records = Array.Empty<ContentEntryRecord>();
+        if (entries.Count == 0) { failure = null; return true; }
+        ContentPreflightResult assessment = AssessPushRange(entries);
+        if (!assessment.CanCommit) { failure = assessment.Failure; return false; }
+        if (!((IContentGeneratedIdRangeSource<TId>)IdSource).TryCreateRange(entries.Count, out IReadOnlyList<TId> ids, out failure)) return false;
+        var added = new ContentEntryRecord[entries.Count];
+        var seen = new HashSet<ContentEntryId>(_records.Select(record => record.Id));
+        for (int i = 0; i < entries.Count; i++)
+        {
+            if (!IdSource.IdStrategy.TryNormalize(ids[i], out ContentEntryId normalized, out failure)) return false;
+            if (!seen.Add(normalized)) { failure = ContentFailures.EntryIdDuplicate($"Entry ID '{normalized}' is duplicated in the push range.", normalized.ToString()); return false; }
+            added[i] = new ContentEntryRecord(normalized, entries[i]);
+        }
+        _records.AddRange(added);
+        records = Array.AsReadOnly(added);
+        OnChanged(new ContentChangedEventArgs(added, kind: ContentChangeKind.Added, requiresFullRefresh: true));
+        failure = null;
+        return true;
+    }
+
+    /// <inheritdoc />
+    public ContentPreflightResult AssessRemoveWhere(Func<ContentEntryRecord, bool> predicate)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        _ = _records.ToArray().Where(predicate).ToArray();
+        return ContentPreflightResult.Success();
+    }
+
+    /// <inheritdoc />
+    public bool TryRemoveWhere(Func<ContentEntryRecord, bool> predicate, out IReadOnlyList<ContentEntryRecord> removedRecords, out ContentFailure? failure)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        ContentEntryRecord[] selected = _records.ToArray().Where(predicate).ToArray();
+        foreach (ContentEntryRecord record in selected) _records.Remove(record);
+        removedRecords = Array.AsReadOnly(selected);
+        failure = null;
+        if (selected.Length > 0) OnChanged(new ContentChangedEventArgs(removedRecords: removedRecords, kind: ContentChangeKind.Removed, requiresFullRefresh: selected.Length > 1));
+        return true;
     }
 
     /// <inheritdoc />
@@ -486,6 +546,12 @@ public class ContentStackStructure<TId> :
         failure = null;
         OnChanged(new ContentChangedEventArgs(new[] { record }, kind: ContentChangeKind.Added));
         return true;
+    }
+
+    private static void ValidateBatchEntries(IReadOnlyList<IContentEntry> entries, string parameterName)
+    {
+        if (entries is null) throw new ArgumentNullException(parameterName);
+        for (int i = 0; i < entries.Count; i++) if (entries[i] is null) throw new ArgumentException("Entry batches cannot contain null values.", parameterName);
     }
 
     private bool AssessDuplicateFree(ContentEntryId normalizedId, out ContentFailure? failure)
