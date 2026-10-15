@@ -4,6 +4,8 @@
 
 Workes.ContentSystem 1.0.0 establishes the supported public API. Compatible bug fixes belong in patch releases. New compatible capabilities belong in minor releases. A future breaking change requires a new major version.
 
+The 1.1.0 release candidate adds read-only manager filtering and query composition over materialized record snapshots. It preserves the 1.0.0 API and structure contracts.
+
 The 0.x releases were prereleases and do not carry the compatibility guarantees of 1.0.0. Review the changelog and verify prerelease integrations against the 1.0 guides when upgrading. The 1.0.0 release adds sorting capabilities and documentation; it does not intentionally remove or rename the 0.8.0 public API.
 
 ## Snapshot Compatibility

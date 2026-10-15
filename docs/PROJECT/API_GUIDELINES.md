@@ -119,6 +119,6 @@ Custom manager workflows should follow the same pattern: a custom structure retu
 
 Every first-class public concept should get a focused guide under `docs/`.
 
-For release 1.0.0, public API additions should be reflected in XML documentation, the appropriate focused guide, and `CHANGELOG.md`. Examples intended for copying should be checked against the current API. Preserve these expectations for post-1.0 work.
+Every public API addition should be reflected in XML documentation, the appropriate focused guide, and `CHANGELOG.md`. Examples intended for copying should be checked against the current API. Preserve these expectations after 1.0.
 
 Project-control docs explain architectural intent. User-facing docs explain normal usage. Trello owns task state once the board is mapped.

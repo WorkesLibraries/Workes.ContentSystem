@@ -7,8 +7,8 @@
     <LangVersion>10.0</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Workes.ContentSystem</PackageId>
-    <Version>1.0.0</Version>
-    <PackageReleaseNotes>Establishes the 1.0 content workflows, including stable read-only sorted views and opt-in persistent map and compound sorting, with portable snapshots and extension contracts.</PackageReleaseNotes>
+    <Version>1.1.0</Version>
+    <PackageReleaseNotes>Adds materialized, read-only filtering and composable record query views across all manager workflows.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Workes</Authors>
     <Company>Workes</Company>

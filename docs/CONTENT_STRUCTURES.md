@@ -313,7 +313,7 @@ Additional behavior should be exposed through focused opt-in contracts, mirrorin
 
 `ContentSequenceStructure` implements the retention policy, read-order, natural long-ID lookup/removal, clear, remove, and parameterized structure contracts. Its first parameter is `ContentSequenceStructure.OverflowPolicyParameterId`. `ContentMapStructure<TId>` implements map add/lookup, set, clear, typed map removal, normalized removal, and change-source contracts. `ContentSingleStructure<TId>`, `ContentStackStructure<TId>`, and `ContentCompoundStructure<TId>` add focused built-in families for single-entry state, stack workflows, and owned-tree workflows.
 
-Optional sorting is implemented through `IContentSortableStructure` for map-like record order and `IContentCompoundSortableStructure` for compound sibling groups. Search and query composition remain future work; export and attachments are optional future integrations described in [Export And Attachments](EXPORT_AND_ATTACHMENTS.md).
+Optional persistent sorting is implemented through `IContentSortableStructure` for map-like record order and `IContentCompoundSortableStructure` for compound sibling groups. Read-only filtering and query composition operate on manager record snapshots; they do not add search indexes or alter structure state. Export and attachments are optional future integrations described in [Export And Attachments](EXPORT_AND_ATTACHMENTS.md).
 
 Runtime mutation should be manager-coordinated for normal callers, with structures owning the actual retained-state mutation through focused opt-in contracts.
 

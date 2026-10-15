@@ -901,4 +901,22 @@ Sorting changes structure mutation semantics and can affect extension contracts,
 
 #### Consequences
 
-Each built-in structure must be evaluated against its own ordering semantics before opting in; no structure should sort if doing so would violate its workflow model. Snapshot capture and restore must preserve any supported sorted order and relevant structure configuration. The read-only sorted view remains materialized and distinct from persistent structure sorting. Filtering and query composition remain 1.1 work. Patch releases remain for compatible fixes; new compatible capabilities follow the planned minor-release sequence.
+Each built-in structure must be evaluated against its own ordering semantics before opting in; no structure should sort if doing so would violate its workflow model. Snapshot capture and restore must preserve any supported sorted order and relevant structure configuration. The read-only sorted view remains materialized and distinct from persistent structure sorting. Filtering and query composition are assigned to 1.1.0. Patch releases remain for compatible fixes; new compatible capabilities follow the planned minor-release sequence.
+
+### D-040: Make Manager Record Queries Eager Materialized Views
+
+Date: 2026-10-15
+
+#### Context
+
+The 1.0 API provides every manager with a stable, read-only sorted record view. The next planned stage adds filtering and query composition, and must preserve each structure's own read-order semantics without adding persistence, indexing, or search behavior.
+
+#### Decision
+
+Add `GetFilteredRecords` and `QueryRecords` to `ContentManagerBase`, so all built-in manager families and custom managers inherit the same query surface over their `Records` contract. A query captures the current record references and order immediately; it does not clone entry payloads. `Where`, `OrderBy`, and `ThenBy` each materialize a new query; `ToReadOnlyList` exposes a read-only result. Filtering retains the incoming order, `OrderBy` starts a stable primary ordering, and `ThenBy` adds stable tie-breakers after `OrderBy`.
+
+The common API operates on flat `ContentEntryRecord` values. Compound hierarchy metadata remains in compound-specific read APIs. Query sorting changes only the materialized view and does not replace opt-in persistent map or compound sorting.
+
+#### Reasoning
+
+Every built-in manager exposes `Records`, but their read orders differ. A shared query surface covers all relevant record workflows while leaving the structure in control of that initial order. Eager materialization gives callers a predictable snapshot, avoids implied database or live-query semantics, and keeps filtering/composition separate from structure mutation.

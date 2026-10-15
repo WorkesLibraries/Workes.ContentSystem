@@ -34,11 +34,33 @@ public abstract class ContentManagerBase
     public IReadOnlyList<ContentEntryRecord> Records => Structure.Records;
 
     /// <summary>Returns a stable, materialized, read-only record view sorted by the supplied comparer.</summary>
+    /// <param name="comparer">The record comparer.</param>
+    /// <returns>Records in comparer order, with comparer-equal records retaining their source order.</returns>
     public IReadOnlyList<ContentEntryRecord> GetSortedRecords(IComparer<ContentEntryRecord> comparer)
     {
         if (comparer is null) throw new ArgumentNullException(nameof(comparer));
-        return Array.AsReadOnly(Records.OrderBy(record => record, comparer).ToArray());
+        return QueryRecords().OrderBy(comparer).ToReadOnlyList();
     }
+
+    /// <summary>
+    /// Gets a stable, materialized, read-only view containing records that satisfy the predicate.
+    /// </summary>
+    /// <param name="predicate">The condition each retained record must satisfy.</param>
+    /// <returns>Matching records in the active structure's read order.</returns>
+    /// <remarks>The predicate is evaluated immediately. Predicate exceptions propagate. Any side effects performed by the predicate are caller-owned; the query operation itself does not mutate the structure.</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="predicate"/> is <see langword="null"/>.</exception>
+    public IReadOnlyList<ContentEntryRecord> GetFilteredRecords(Func<ContentEntryRecord, bool> predicate)
+    {
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        return QueryRecords().Where(predicate).ToReadOnlyList();
+    }
+
+    /// <summary>
+    /// Creates a composable query over a snapshot of the active structure's records and read order.
+    /// </summary>
+    /// <returns>A query over a snapshot whose operations are materialized and do not change structure state.</returns>
+    /// <remarks>The query captures record references and order when this method is called. Later structure changes do not alter its membership or order; entry objects are not cloned.</remarks>
+    public ContentRecordQuery QueryRecords() => new ContentRecordQuery(Records);
 
     /// <summary>
     /// Gets the number of retained records in the active structure.

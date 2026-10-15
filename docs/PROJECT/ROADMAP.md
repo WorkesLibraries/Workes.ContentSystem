@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Record the implementation roadmap that connects the current prerelease package to the intended 1.0.0 package.
+Record the implementation roadmap for the current stable package and its planned compatible minor releases.
 
 Trello remains the task-state source of truth. This document records the architectural sequence so project docs and future implementation stay aligned.
 
@@ -102,7 +102,7 @@ The planned feature sequence after 1.0.0 is:
 
 ### Stage 22 / 1.1.0: Add manager read-query helpers
 
-Add manager-side filtering and query composition helpers. The stable sorted view is part of the pre-1.0 sorting stage; 1.1 may compose filters with that view without mutating the active structure.
+Completed in 1.1.0: added shared manager filtering and composable filtered/sorted read views over `ContentEntryRecord` snapshots. Every built-in manager inherits the common query surface, which preserves its structure's read order by default. Query operations are eager, materialized, read-only, and separate from persistent structure sorting. The generic query does not infer compound hierarchy metadata or provide indexing/search semantics.
 
 ### Stage 23 / 1.2.0: Add bulk operations and mutation helper APIs
 

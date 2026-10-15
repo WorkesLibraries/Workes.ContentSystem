@@ -16,6 +16,7 @@ It is intended to be useful anywhere an application needs an ordered or structur
 - Optional change hooks for observing committed mutations.
 - Advisory preflight APIs for validating mutations and snapshot restores without changing state.
 - Stable read-only sorted views for every manager, with opt-in persistent sorting for maps and compound sibling groups.
+- Materialized filtered and composable record views across all manager families.
 - Entry, record, and built-in structure snapshots for portable serialization.
 - A shared failure and exception model matching the style used in other Workes packages.
 - Engine-neutral core with no file I/O, UI, or host-specific integration requirements.
@@ -25,13 +26,13 @@ It is intended to be useful anywhere an application needs an ordered or structur
 Install the package from [NuGet](https://www.nuget.org/packages/Workes.ContentSystem):
 
 ```bash
-dotnet add package Workes.ContentSystem --version 1.0.0
+dotnet add package Workes.ContentSystem --version 1.1.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="1.0.0" />
+<PackageReference Include="Workes.ContentSystem" Version="1.1.0" />
 ```
 
 The package targets .NET Standard 2.1.
@@ -59,6 +60,11 @@ foreach (ContentEntryRecord record in content.Records)
 
 IReadOnlyList<ContentEntryRecord> newestFirst = content.GetSortedRecords(
     Comparer<ContentEntryRecord>.Create((left, right) => right.Timestamp.CompareTo(left.Timestamp)));
+
+IReadOnlyList<ContentEntryRecord> warnings = content.QueryRecords()
+    .Where(record => record.Entry.PlainText.StartsWith("Warning:", StringComparison.Ordinal))
+    .OrderBy(Comparer<ContentEntryRecord>.Create((left, right) => right.Timestamp.CompareTo(left.Timestamp)))
+    .ToReadOnlyList();
 ```
 
 If your code expects a specific manager from the start, use the typed resolver:
@@ -141,6 +147,7 @@ Focused guides:
 - [Content Identity](docs/CONTENT_IDENTITY.md)
 - [Content Structures](docs/CONTENT_STRUCTURES.md)
 - [Content Managers](docs/CONTENT_MANAGERS.md)
+- [Content Queries](docs/CONTENT_QUERIES.md)
 - [Content Changes](docs/CONTENT_CHANGES.md)
 - [Content Snapshots](docs/CONTENT_SNAPSHOTS.md)
 - [Extension Authoring](docs/EXTENSION_AUTHORING.md)

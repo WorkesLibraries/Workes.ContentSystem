@@ -20,6 +20,7 @@ For ordinary package use, start with [Quick Start](QUICK_START.md). The guide is
 | Define a new storage workflow | `IContentStructure` and a custom manager | Retained state, lookup, order, identity, and workflow methods |
 | Add one optional behavior | A focused structure capability interface | Only the behavior represented by that contract |
 | Notify observers | `IContentChangeSource` | Synchronous notifications after committed changes |
+| Filter and order visible records | `ContentManagerBase.GetFilteredRecords` and `QueryRecords()` | A materialized read view over the structure's `Records` order |
 | Persist entry payloads | `IContentEntrySnapshotSerializable` and a factory | Entry snapshot capture and restore |
 | Persist whole structures | `IContentStructureSnapshotRoundTrippable` and a factory | Exact structure snapshot round trips |
 
@@ -278,6 +279,12 @@ Use `GetSortedRecords` for a temporary view; no structure capability is needed. 
 
 Read [Content Managers](CONTENT_MANAGERS.md), [Content Structures](CONTENT_STRUCTURES.md), and [Content Changes](CONTENT_CHANGES.md). Compare map and compound implementations in `src/Structures/BuiltIn/` and scenarios in `tests/Managers/ContentSortingTests.cs`.
 
+### Add Or Use Read Queries
+
+Custom managers inherit `GetFilteredRecords` and `QueryRecords` from `ContentManagerBase`; no new structure capability is required. The query snapshots the custom structure's `Records` membership and order, retaining the record references rather than cloning entry objects. Implement `Records` with the order your manager should expose. Queries preserve that order until an explicit `OrderBy` is applied and their operations do not mutate the structure.
+
+Read [Content Queries](CONTENT_QUERIES.md) for the eager `Where` / `OrderBy` / `ThenBy` behavior, and [Content Managers](CONTENT_MANAGERS.md) for the shared manager contract. If the workflow needs additional domain information such as compound depth or parent IDs, add a focused family-specific read API rather than teaching the generic record query to infer it.
+
 ### Add Snapshot Round Trips
 
 Implement `IContentEntrySnapshotSerializable` for an entry payload and register its factory before restore. Implement `IContentStructureSnapshotRoundTrippable` for whole-structure state; expose the matching factory through `SnapshotFactory`. Capture must include enough portable data to reconstruct IDs, order, topology, policies, and generated-ID state owned by your structure. Restore should validate a complete candidate before manager replacement.
@@ -318,6 +325,7 @@ The Quest Log example has a corresponding NUnit fixture at `tests/Examples/Quest
 | Add custom failures | [Failure Handling](FAILURES.md#extension-authored-failures) | Quest Log example and `tests/Core/ContentFailureTests.cs` |
 | Add events | [Content Changes](CONTENT_CHANGES.md) | Built-in structures implementing `IContentChangeSource` and `tests/Changes/` |
 | Add snapshots | [Content Snapshots](CONTENT_SNAPSHOTS.md) | `src/Structures/*SnapshotFactoryBase.cs` and `tests/Snapshots/` |
+| Filter or compose record views | [Content Queries](CONTENT_QUERIES.md) | Shared `ContentManagerBase` implementation and `tests/Managers/ContentRecordQueryTests.cs` |
 | Add persistent sorting | [Content Managers](CONTENT_MANAGERS.md) | Built-in map/compound structures and `tests/Managers/ContentSortingTests.cs` |
 
 Read the interface and focused guide before copying a built-in implementation. Implementations show how the package applies a contract in one workflow; they do not define a broader contract than the public interface and documentation. Tests are especially useful for edge cases and event expectations, but do not treat private implementation details as extension guarantees.

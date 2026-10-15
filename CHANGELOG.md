@@ -2,6 +2,17 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
+## 1.1.0 - Unreleased
+
+Added:
+
+- Added materialized filtering of retained records through `ContentManagerBase.GetFilteredRecords`.
+- Added composable read-only record queries with filtering, stable ordering, and secondary ordering.
+
+Changed:
+
+- Documented query snapshots and the distinction between query sorting and persistent structure sorting.
+
 ## 1.0.0 - 15-10-2026
 
 Added:

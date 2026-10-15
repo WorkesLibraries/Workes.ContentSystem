@@ -5,13 +5,13 @@ This package is a reusable content-entry backend. The first useful core supports
 ## Install
 
 ```bash
-dotnet add package Workes.ContentSystem --version 1.0.0
+dotnet add package Workes.ContentSystem --version 1.1.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="1.0.0" />
+<PackageReference Include="Workes.ContentSystem" Version="1.1.0" />
 ```
 
 ## Mental Model
@@ -168,6 +168,20 @@ IReadOnlyList<ContentEntryRecord> newestFirst = content.GetSortedRecords(
 
 Map managers can persistently reorder records with `Sort(comparer)`. Compound managers can sort all sibling groups, choose a comparer per group, or target roots/a parent's children with `SortSiblings(...)`. Persistent sorting is an explicit mutation and is not available on sequence, stack, or single-entry workflows. See [Content Managers](CONTENT_MANAGERS.md) for the full API and behavior.
 
+## Filtered And Composed Views
+
+Every manager can filter its current records or compose filtering and ordering without changing the structure:
+
+```csharp
+IReadOnlyList<ContentEntryRecord> visible = content.QueryRecords()
+    .Where(record => record.Timestamp >= cutoff)
+    .OrderBy(Comparer<ContentEntryRecord>.Create(
+        (left, right) => right.Timestamp.CompareTo(left.Timestamp)))
+    .ToReadOnlyList();
+```
+
+Queries are materialized from a snapshot when `QueryRecords()` is called. Filtering preserves the active structure's read order unless you add an explicit sort. See [Content Queries](CONTENT_QUERIES.md) for predicate filtering, secondary ordering, and the boundary between query sorting and persistent structure sorting.
+
 ## What To Read Next
 
 - [Concepts](CONCEPTS.md) explains the package at a high level.
@@ -175,6 +189,7 @@ Map managers can persistently reorder records with `Sort(comparer)`. Compound ma
 - [Content Identity](CONTENT_IDENTITY.md) explains stored IDs and map ID strategies.
 - [Content Structures](CONTENT_STRUCTURES.md) explains the storage abstraction.
 - [Content Managers](CONTENT_MANAGERS.md) explains structure-driven manager resolution.
+- [Content Queries](CONTENT_QUERIES.md) explains filtered and composed read views.
 - [Content Changes](CONTENT_CHANGES.md) explains optional committed-change hooks.
 - [Content Snapshots](CONTENT_SNAPSHOTS.md) explains entry, record, and built-in structure snapshot round trips.
 - [Extension Authoring](EXTENSION_AUTHORING.md) explains how custom structures participate in the implemented contracts.

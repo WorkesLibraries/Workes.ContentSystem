@@ -102,6 +102,8 @@ It exposes:
 
 - `Structure`;
 - `Records`;
+- `GetFilteredRecords(predicate)`, a materialized filter over the active read order;
+- `QueryRecords()`, a composable materialized query over a snapshot of the active records;
 - `GetSortedRecords(IComparer<ContentEntryRecord>)`, a stable, materialized, read-only sorted view;
 - `Count`, `IsEmpty`, and `Contains(ContentEntryId)`;
 - `TryGet(ContentEntryId, ...)`;
@@ -123,6 +125,25 @@ void Render(ContentManagerBase content)
 ```
 
 `GetSortedRecords` sorts a copy using the supplied comparer. It does not reorder the active structure, alter snapshots, or emit an event. Equal records retain their prior relative order. Persistent sorting is a separate opt-in workflow: map managers expose `AssessSort`, `TrySort`, and `Sort`; compound managers expose `AssessSortSiblings`, `TrySortSiblings`, and `SortSiblings` to reorder roots and child groups.
+
+For filtering and query composition, use the same read API on every built-in manager:
+
+```csharp
+IReadOnlyList<ContentEntryRecord> matching = content.GetFilteredRecords(
+    record => record.Entry.PlainText.Contains("warning", StringComparison.OrdinalIgnoreCase));
+
+IReadOnlyList<ContentEntryRecord> newestWarnings = content.QueryRecords()
+    .Where(record => record.Entry.PlainText.Contains("warning", StringComparison.OrdinalIgnoreCase))
+    .OrderBy(Comparer<ContentEntryRecord>.Create(
+        (left, right) => right.Timestamp.CompareTo(left.Timestamp)))
+    .ThenBy(Comparer<ContentEntryRecord>.Create(
+        (left, right) => StringComparer.Ordinal.Compare(left.Id.Value, right.Id.Value)))
+    .ToReadOnlyList();
+```
+
+`QueryRecords()` snapshots the active `Records` membership and order immediately, retaining record references rather than cloning entry objects. Each `Where`, `OrderBy`, and `ThenBy` operation is eager and returns a new materialized query. Filtering preserves the current order; sorting is stable, and `ThenBy` requires an earlier `OrderBy`. The final read-only result's membership and ordering are unaffected by later structure mutations. Query operations do not change structure state or emit events; exceptions from caller predicates/comparers propagate, and any side effects those callbacks perform are caller-owned. Null predicates and comparers throw `ArgumentNullException`.
+
+Query sorting affects only the returned view. It does not configure a standing order or mutate map and compound structures. Compound queries start from the depth-first flattened `Records` order; use `GetRecordViews()` and compound traversal APIs when a query needs explicit hierarchy metadata. See [Content Queries](CONTENT_QUERIES.md) for the full contract and examples.
 
 ```csharp
 IReadOnlyList<ContentEntryRecord> byTimestamp = content.GetSortedRecords(
