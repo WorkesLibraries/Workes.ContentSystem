@@ -971,4 +971,4 @@ ContentSystem supports structured and non-text application entries as well as te
 
 #### Consequences
 
-Generic queries and record workflows do not assume text. The built-in plain-text and Markdown exporters remain specific to `PlainContentEntry`; custom exporters handle other entry models. The API change is planned for 2.0.0, while existing `PlainContentEntry` snapshot data remains unchanged.
+Generic queries and record workflows do not assume text. The built-in plain-text and Markdown exporters remain specific to `PlainContentEntry`; custom exporters handle other entry models. The API change was released in 2.0.0, while existing `PlainContentEntry` snapshot data remains unchanged.

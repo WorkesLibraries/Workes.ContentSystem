@@ -114,9 +114,9 @@ Release checks completed: focused guides and extension recipes were reconciled; 
 
 Released in 1.3.0: optional manager-level text exporters and entry-owned attachment references. Built-in plain-text and Markdown exporters handle `PlainContentEntry`; custom exporters can handle application entries and formats. Attachment references carry opaque host-defined locators and descriptive metadata, while applications own the referenced bytes and their lifecycle.
 
-### Stage 30 / 2.0.0: Make Plain Text Entry-Specific
+### Stage 30 / 2.0.0: Make Plain Text Entry-Specific — released
 
-Prepare a 2.0.0 release that removes plain text from the shared entry and record contracts while retaining timestamps as shared metadata. Preserve `PlainContentEntry` text and its snapshot format, and document that generic filters and exporters must handle application-owned entry types explicitly.
+Released as 2.0.0: removed plain text from the shared entry and record contracts while retaining timestamps as shared metadata. `PlainContentEntry` keeps its text property and snapshot format; generic filters and exporters handle application-owned entry types explicitly.
 
 ## Deferred Work
 
