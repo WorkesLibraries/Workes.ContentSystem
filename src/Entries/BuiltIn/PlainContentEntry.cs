@@ -37,7 +37,9 @@ public sealed class PlainContentEntry : IContentEntry, IContentEntrySnapshotSeri
     /// <inheritdoc />
     public DateTimeOffset Timestamp { get; }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets the plain text stored by this entry.
+    /// </summary>
     public string PlainText { get; }
 
     /// <inheritdoc />

@@ -22,7 +22,7 @@ public sealed class ContentRecordQueryTests
             manager.Changed += (_, _) => events++;
 
             Func<ContentEntryRecord, bool> predicate = record =>
-                record.Entry.PlainText is "first" or "second";
+                ContentTestText.Of(record.Entry) is "first" or "second";
             IReadOnlyList<ContentEntryRecord> expected = before.Where(predicate).ToArray();
             IReadOnlyList<ContentEntryRecord> filtered = manager.GetFilteredRecords(predicate);
             IReadOnlyList<ContentEntryRecord> composed = manager.QueryRecords()
@@ -58,12 +58,12 @@ public sealed class ContentRecordQueryTests
         manager.Changed += (_, _) => events++;
 
         ContentRecordQuery query = manager.QueryRecords()
-            .Where(record => record.Entry.PlainText.StartsWith("a-", StringComparison.Ordinal)
-                || record.Entry.PlainText.StartsWith("b-", StringComparison.Ordinal))
+            .Where(record => ContentTestText.Of(record.Entry).StartsWith("a-", StringComparison.Ordinal)
+                || ContentTestText.Of(record.Entry).StartsWith("b-", StringComparison.Ordinal))
             .OrderBy(Comparer<ContentEntryRecord>.Create((left, right) =>
-                StringComparer.Ordinal.Compare(left.Entry.PlainText.Substring(0, 1), right.Entry.PlainText.Substring(0, 1))))
+                StringComparer.Ordinal.Compare(ContentTestText.Of(left.Entry).Substring(0, 1), ContentTestText.Of(right.Entry).Substring(0, 1))))
             .ThenBy(Comparer<ContentEntryRecord>.Create((left, right) =>
-                StringComparer.Ordinal.Compare(left.Entry.PlainText, right.Entry.PlainText)));
+                StringComparer.Ordinal.Compare(ContentTestText.Of(left.Entry), ContentTestText.Of(right.Entry))));
 
         manager.Add("later", Entry("a-0"));
         IReadOnlyList<ContentEntryRecord> result = query.ToReadOnlyList();

@@ -109,13 +109,13 @@ public sealed class ContentBulkMutationTests
         ContentChangedEventArgs? changed = null;
         manager.Changed += (_, args) => changed = args;
         IReadOnlyList<ContentEntryRecord> pushed = manager.PushRange(new[] { Entry("bottom"), Entry("top") });
-        Assert.That(pushed.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "bottom", "top" }));
+        Assert.That(pushed.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "bottom", "top" }));
         Assert.That(manager.Peek(), Is.SameAs(pushed[1]));
         Assert.That(changed!.AddedRecords, Is.EqualTo(pushed));
         Assert.That(changed.RequiresFullRefresh, Is.True);
         ContentStructureSnapshot stackSnapshot = manager.CaptureSnapshot();
         manager.RestoreSnapshot(stackSnapshot);
-        Assert.That(manager.Peek().Entry.PlainText, Is.EqualTo("top"));
+        Assert.That(ContentTestText.Of(manager.Peek().Entry), Is.EqualTo("top"));
 
         ContentEntryRecord[] before = manager.Records.ToArray();
         int events = 0;
@@ -123,9 +123,9 @@ public sealed class ContentBulkMutationTests
         Assert.Throws<InvalidOperationException>(() => manager.RemoveWhere(_ => throw new InvalidOperationException("predicate")));
         Assert.That(manager.Records, Is.EqualTo(before));
         Assert.That(events, Is.Zero);
-        IReadOnlyList<ContentEntryRecord> removed = manager.RemoveWhere(record => record.Entry.PlainText == "bottom");
-        Assert.That(removed.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "bottom" }));
-        Assert.That(manager.Records.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "top" }));
+        IReadOnlyList<ContentEntryRecord> removed = manager.RemoveWhere(record => ContentTestText.Of(record.Entry) == "bottom");
+        Assert.That(removed.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "bottom" }));
+        Assert.That(manager.Records.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "top" }));
         Assert.That(events, Is.EqualTo(1));
         int afterRemoval = events;
         Assert.That(manager.RemoveWhere(_ => false), Is.Empty);
@@ -133,7 +133,7 @@ public sealed class ContentBulkMutationTests
 
         var map = new ContentMapManager<string>(new ContentMapStructure<string>());
         map.Add("a", Entry("remove")); map.Add("b", Entry("keep"));
-        Assert.That(map.RemoveWhere(record => record.Entry.PlainText == "remove").Select(record => record.Id.Value), Is.EqualTo(new[] { "a" }));
+        Assert.That(map.RemoveWhere(record => ContentTestText.Of(record.Entry) == "remove").Select(record => record.Id.Value), Is.EqualTo(new[] { "a" }));
     }
 
     [Test]
@@ -145,18 +145,18 @@ public sealed class ContentBulkMutationTests
         IReadOnlyList<ContentCompoundNode> children = manager.AddChildren(rootId, new[] { Entry("child-a"), Entry("child-b") });
         Assert.That(manager.GetRoots().Select(node => node.Record), Is.EqualTo(roots.Select(node => node.Record)));
         Assert.That(manager.GetChildren(rootId).Select(node => node.Record), Is.EqualTo(children.Select(node => node.Record)));
-        Assert.That(manager.Records.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "root-a", "child-a", "child-b", "root-b" }));
+        Assert.That(manager.Records.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "root-a", "child-a", "child-b", "root-b" }));
 
         var newestFirst = new ContentCompoundManager(new ContentCompoundStructure(
             ContentCompoundChildRemovalPolicy.RemoveSubtree,
             ContentCompoundSiblingReadOrder.NewestFirst));
         ContentCompoundNode[] newestRoots = newestFirst.AddRoots(new[] { Entry("old root"), Entry("new root") }).ToArray();
-        Assert.That(newestFirst.GetRoots().Select(node => node.Record.Entry.PlainText), Is.EqualTo(new[] { "new root", "old root" }));
-        Assert.That(newestRoots.Select(node => node.Record.Entry.PlainText), Is.EqualTo(new[] { "old root", "new root" }));
+        Assert.That(newestFirst.GetRoots().Select(node => ContentTestText.Of(node.Record.Entry)), Is.EqualTo(new[] { "new root", "old root" }));
+        Assert.That(newestRoots.Select(node => ContentTestText.Of(node.Record.Entry)), Is.EqualTo(new[] { "old root", "new root" }));
 
         var rejectEvents = 0;
         manager.Changed += (_, _) => rejectEvents++;
-        Assert.That(manager.TryRemoveWhere(record => record.Entry.PlainText.StartsWith("root-a", StringComparison.Ordinal), out _, out ContentFailure? failure), Is.False);
+        Assert.That(manager.TryRemoveWhere(record => ContentTestText.Of(record.Entry).StartsWith("root-a", StringComparison.Ordinal), out _, out ContentFailure? failure), Is.False);
         Assert.That(failure!.Kind, Is.EqualTo(ContentFailureKind.Structure));
         Assert.That(rejectEvents, Is.Zero);
 
@@ -167,14 +167,14 @@ public sealed class ContentBulkMutationTests
 
         ContentStructureSnapshot snapshot = manager.CaptureSnapshot();
         manager.RestoreSnapshot(snapshot);
-        Assert.That(manager.Records.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "root-a", "child-a", "child-b", "root-b" }));
-        Assert.That(manager.GetChildren(rootId).Select(node => node.Record.Entry.PlainText), Is.EqualTo(new[] { "child-a", "child-b" }));
+        Assert.That(manager.Records.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "root-a", "child-a", "child-b", "root-b" }));
+        Assert.That(manager.GetChildren(rootId).Select(node => ContentTestText.Of(node.Record.Entry)), Is.EqualTo(new[] { "child-a", "child-b" }));
 
         var subtreeManager = new ContentCompoundManager(new ContentCompoundStructure(ContentCompoundChildRemovalPolicy.RemoveSubtree));
         ContentCompoundNode root = subtreeManager.AddRoot(Entry("remove root"));
         subtreeManager.AddChild(long.Parse(root.Record.Id.Value, System.Globalization.CultureInfo.InvariantCulture), Entry("keep?"));
-        IReadOnlyList<ContentEntryRecord> removed = subtreeManager.RemoveWhere(record => record.Entry.PlainText == "remove root");
-        Assert.That(removed.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "remove root", "keep?" }));
+        IReadOnlyList<ContentEntryRecord> removed = subtreeManager.RemoveWhere(record => ContentTestText.Of(record.Entry) == "remove root");
+        Assert.That(removed.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "remove root", "keep?" }));
         Assert.That(subtreeManager.Records, Is.Empty);
     }
 

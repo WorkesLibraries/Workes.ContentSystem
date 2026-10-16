@@ -8,8 +8,11 @@ Use `GetFilteredRecords` when one predicate is enough:
 
 ```csharp
 IReadOnlyList<ContentEntryRecord> warnings = content.GetFilteredRecords(
-    record => record.Entry.PlainText.StartsWith("Warning:", StringComparison.Ordinal));
+    record => record.Entry is PlainContentEntry entry
+        && entry.PlainText.StartsWith("Warning:", StringComparison.Ordinal));
 ```
+
+The predicate above is specific to `PlainContentEntry`. Generic query APIs do not assume entries expose text; use the concrete entry type or an application-owned interface for domain-specific queries.
 
 The result is materialized, read-only, and retains the active structure's order. The predicate is evaluated immediately. A null predicate throws `ArgumentNullException`; exceptions thrown by the predicate propagate.
 
@@ -20,7 +23,8 @@ Use `QueryRecords()` to compose several operations:
 ```csharp
 IReadOnlyList<ContentEntryRecord> visible = content.QueryRecords()
     .Where(record => record.Timestamp >= cutoff)
-    .Where(record => !record.Entry.PlainText.StartsWith("Internal:", StringComparison.Ordinal))
+    .Where(record => record.Entry is PlainContentEntry entry
+        && !entry.PlainText.StartsWith("Internal:", StringComparison.Ordinal))
     .OrderBy(Comparer<ContentEntryRecord>.Create(
         (left, right) => right.Timestamp.CompareTo(left.Timestamp)))
     .ThenBy(Comparer<ContentEntryRecord>.Create(

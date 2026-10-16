@@ -16,7 +16,7 @@ public sealed class ContentCompoundStructureTests
 
         Assert.That(node.Record.Id, Is.EqualTo(new ContentEntryId("1")));
         Assert.That(node.ParentId, Is.Null);
-        Assert.That(structure.GetRoots().Select(root => root.Record.PlainText), Is.EqualTo(new[] { "Root" }));
+        Assert.That(structure.GetRoots().Select(root => ContentTestText.Of(root.Record)), Is.EqualTo(new[] { "Root" }));
     }
 
     [Test]
@@ -42,7 +42,7 @@ public sealed class ContentCompoundStructureTests
 
         Assert.That(generated.ParentId, Is.EqualTo(root.Record.Id));
         Assert.That(manual.ParentId, Is.EqualTo(root.Record.Id));
-        Assert.That(structure.GetChildren(1).Select(child => child.Record.PlainText), Is.EqualTo(new[] { "Generated child", "Manual child" }));
+        Assert.That(structure.GetChildren(1).Select(child => ContentTestText.Of(child.Record)), Is.EqualTo(new[] { "Generated child", "Manual child" }));
     }
 
     [Test]
@@ -55,7 +55,7 @@ public sealed class ContentCompoundStructureTests
         structure.AddChild(1, Entry("A2"));
         structure.AddChild(3, Entry("A1a"));
 
-        Assert.That(structure.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "A", "A1", "A1a", "A2", "B" }));
+        Assert.That(structure.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "A", "A1", "A1a", "A2", "B" }));
     }
 
     [Test]
@@ -69,9 +69,9 @@ public sealed class ContentCompoundStructureTests
         structure.AddChild(1, Entry("A1"));
         structure.AddChild(1, Entry("A2"));
 
-        Assert.That(structure.GetRoots().Select(root => root.Record.PlainText), Is.EqualTo(new[] { "B", "A" }));
-        Assert.That(structure.GetChildren(1).Select(child => child.Record.PlainText), Is.EqualTo(new[] { "A2", "A1" }));
-        Assert.That(structure.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "B", "A", "A2", "A1" }));
+        Assert.That(structure.GetRoots().Select(root => ContentTestText.Of(root.Record)), Is.EqualTo(new[] { "B", "A" }));
+        Assert.That(structure.GetChildren(1).Select(child => ContentTestText.Of(child.Record)), Is.EqualTo(new[] { "A2", "A1" }));
+        Assert.That(structure.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "B", "A", "A2", "A1" }));
     }
 
     [Test]
@@ -85,7 +85,7 @@ public sealed class ContentCompoundStructureTests
         Assert.That(accepted, Is.False);
         Assert.That(node, Is.Null);
         Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.EntryIdDuplicate));
-        Assert.That(structure.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "First" }));
+        Assert.That(structure.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "First" }));
     }
 
     [Test]
@@ -127,7 +127,7 @@ public sealed class ContentCompoundStructureTests
         Assert.That(removedRecords, Is.Empty);
         Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.StructureRejected));
         Assert.That(eventCount, Is.EqualTo(0));
-        Assert.That(structure.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "Root", "Child" }));
+        Assert.That(structure.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "Root", "Child" }));
     }
 
     [Test]
@@ -142,7 +142,7 @@ public sealed class ContentCompoundStructureTests
 
         IReadOnlyList<ContentEntryRecord> removed = structure.Remove(1);
 
-        Assert.That(removed.Select(record => record.PlainText), Is.EqualTo(new[] { "Root", "Child", "Grandchild" }));
+        Assert.That(removed.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "Root", "Child", "Grandchild" }));
         Assert.That(structure.Records, Is.Empty);
         Assert.That(changedArgs?.Kind, Is.EqualTo(ContentChangeKind.Removed));
         Assert.That(changedArgs?.RequiresFullRefresh, Is.True);
@@ -158,7 +158,7 @@ public sealed class ContentCompoundStructureTests
         IReadOnlyList<ContentEntryRecord> removed = structure.Clear();
         ContentCompoundNode next = structure.AddRoot(Entry("Next"));
 
-        Assert.That(removed.Select(record => record.PlainText), Is.EqualTo(new[] { "First", "Manual" }));
+        Assert.That(removed.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "First", "Manual" }));
         Assert.That(next.Record.Id, Is.EqualTo(new ContentEntryId("11")));
     }
 
@@ -224,7 +224,7 @@ public sealed class ContentCompoundStructureTests
 
         Assert.That(generated.ParentId, Is.EqualTo(root.Record.Id));
         Assert.That(manual.ParentId, Is.EqualTo(root.Record.Id));
-        Assert.That(manager.GetChildren(root).Select(child => child.Record.PlainText), Is.EqualTo(new[] { "Generated child", "Manual child" }));
+        Assert.That(manager.GetChildren(root).Select(child => ContentTestText.Of(child.Record)), Is.EqualTo(new[] { "Generated child", "Manual child" }));
     }
 
     [Test]
@@ -274,7 +274,7 @@ public sealed class ContentCompoundStructureTests
 
         IReadOnlyList<ContentCompoundRecordView> views = manager.GetRecordViews();
 
-        Assert.That(views.Select(view => view.Record.PlainText), Is.EqualTo(new[] { "Root", "Child", "Grandchild", "Sibling" }));
+        Assert.That(views.Select(view => ContentTestText.Of(view.Record)), Is.EqualTo(new[] { "Root", "Child", "Grandchild", "Sibling" }));
         Assert.That(views.Select(view => view.Depth), Is.EqualTo(new[] { 0, 1, 2, 0 }));
         Assert.That(views[0].IsRoot, Is.True);
         Assert.That(views[0].HasChildren, Is.True);
@@ -318,9 +318,9 @@ public sealed class ContentCompoundStructureTests
         Assert.That(snapshot.Kind, Is.EqualTo(ContentCompoundStructure.SnapshotKind));
         Assert.That(restored.ChildRemovalPolicy, Is.EqualTo(ContentCompoundChildRemovalPolicy.RemoveSubtree));
         Assert.That(restored.SiblingReadOrder, Is.EqualTo(ContentCompoundSiblingReadOrder.NewestFirst));
-        Assert.That(restored.GetRoots().Select(root => root.Record.PlainText), Is.EqualTo(new[] { "B", "A" }));
-        Assert.That(restored.GetChildren(1).Select(child => child.Record.PlainText), Is.EqualTo(new[] { "A2", "A1" }));
-        Assert.That(restored.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "B", "A", "A2", "A1", "A1a" }));
+        Assert.That(restored.GetRoots().Select(root => ContentTestText.Of(root.Record)), Is.EqualTo(new[] { "B", "A" }));
+        Assert.That(restored.GetChildren(1).Select(child => ContentTestText.Of(child.Record)), Is.EqualTo(new[] { "A2", "A1" }));
+        Assert.That(restored.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "B", "A", "A2", "A1", "A1a" }));
 
         ContentCompoundNode next = restored.AddRoot(Entry("Next"));
 
@@ -367,7 +367,7 @@ public sealed class ContentCompoundStructureTests
         Assert.That(sender, Is.SameAs(manager));
         Assert.That(changedArgs?.Kind, Is.EqualTo(ContentChangeKind.SnapshotRestored));
         Assert.That(changedArgs?.RequiresFullRefresh, Is.True);
-        Assert.That(manager.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "Root", "Child" }));
+        Assert.That(manager.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "Root", "Child" }));
     }
 
     [Test]
@@ -387,7 +387,7 @@ public sealed class ContentCompoundStructureTests
         Assert.That(restored, Is.False);
         Assert.That(failure?.Kind, Is.EqualTo(ContentFailureKind.Snapshot));
         Assert.That(eventCount, Is.EqualTo(0));
-        Assert.That(manager.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "Existing" }));
+        Assert.That(manager.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "Existing" }));
     }
 
     [Test]

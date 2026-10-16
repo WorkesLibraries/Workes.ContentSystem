@@ -8,7 +8,18 @@ The 1.1.0 release adds read-only manager filtering and query composition over ma
 
 The 1.2.0 release adds optional atomic batch and predicate-removal structure contracts. Existing custom structures and generated-ID sources remain compatible unless they choose to implement the new opt-in contracts.
 
-The 1.3.0 release candidate adds optional record exporters and entry attachment references. Existing manager, structure, entry, and snapshot contracts remain compatible; applications supply exporters and entries opt into attachment references explicitly.
+The 1.3.0 release adds optional record exporters and entry attachment references. Existing manager, structure, entry, and snapshot contracts remain compatible; applications supply exporters and entries opt into attachment references explicitly.
+
+## 2.0.0 Breaking Change
+
+Version 2.0.0 removes `PlainText` from the shared `IContentEntry` and `ContentEntryRecord` APIs. `IContentEntry.Timestamp` remains required. `PlainContentEntry.PlainText` remains available on that concrete type, and its snapshot kind and data format are unchanged.
+
+Migration guidance:
+
+- Custom entries no longer need to expose a text property to implement `IContentEntry`. Keep or add a concrete/application-owned text member only when it is meaningful for that entry.
+- Replace `record.PlainText` with a cast/access to the concrete entry type or application-owned entry interface that defines the text you need.
+- Generic filters and exporters must handle the entry types they support explicitly. The built-in plain-text and Markdown exporters continue to accept only `PlainContentEntry`; custom exporters own other entry types.
+- Structure and entry snapshot formats do not change as part of this API removal.
 
 The 0.x releases were prereleases and do not carry the compatibility guarantees of 1.0.0. Review the changelog and verify prerelease integrations against the 1.0 guides when upgrading. The 1.0.0 release adds sorting capabilities and documentation; it does not intentionally remove or rename the 0.8.0 public API.
 

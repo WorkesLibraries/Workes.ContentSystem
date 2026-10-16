@@ -168,10 +168,10 @@ public sealed class ContentManagerTests
         newestFirst.Add(Entry("One"));
         newestFirst.Add(Entry("Two"));
 
-        Assert.That(oldestFirst.GetFirst().PlainText, Is.EqualTo("One"));
-        Assert.That(oldestFirst.GetLast().PlainText, Is.EqualTo("Two"));
-        Assert.That(newestFirst.GetFirst().PlainText, Is.EqualTo("Two"));
-        Assert.That(newestFirst.GetLast().PlainText, Is.EqualTo("One"));
+        Assert.That(ContentTestText.Of(oldestFirst.GetFirst()), Is.EqualTo("One"));
+        Assert.That(ContentTestText.Of(oldestFirst.GetLast()), Is.EqualTo("Two"));
+        Assert.That(ContentTestText.Of(newestFirst.GetFirst()), Is.EqualTo("Two"));
+        Assert.That(ContentTestText.Of(newestFirst.GetLast()), Is.EqualTo("One"));
     }
 
     [Test]
@@ -272,7 +272,7 @@ public sealed class ContentManagerTests
 
         Assert.That(assessment.CanCommit, Is.True);
         Assert.That(manager.Structure, Is.TypeOf<ContentSequenceStructure>());
-        Assert.That(manager.Records.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "First", "Second" }));
+        Assert.That(manager.Records.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "First", "Second" }));
         Assert.That(manager.Records[0], Is.SameAs(first));
         Assert.That(eventCount, Is.EqualTo(0));
     }
@@ -357,14 +357,14 @@ public sealed class ContentManagerTests
         Assert.That(restored, Is.True);
         Assert.That(failure, Is.Null);
         Assert.That(target.Structure, Is.TypeOf<ContentSequenceStructure>());
-        Assert.That(target.Records.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "One", "Two", "Three" }));
+        Assert.That(target.Records.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "One", "Two", "Three" }));
         Assert.That(next.Id.Value, Is.EqualTo("3"));
         Assert.That(sender, Is.SameAs(target));
         ContentChangedEventArgs changedArgs = changes[0];
         Assert.That(changedArgs!.Kind, Is.EqualTo(ContentChangeKind.SnapshotRestored));
         Assert.That(changedArgs.RequiresFullRefresh, Is.True);
         Assert.That(changedArgs.RemovedRecords, Is.EqualTo(new[] { oldRecord }));
-        Assert.That(changedArgs.AddedRecords.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "One", "Two" }));
+        Assert.That(changedArgs.AddedRecords.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "One", "Two" }));
     }
 
     [Test]
@@ -463,8 +463,8 @@ public sealed class ContentManagerTests
         target.RestoreSnapshot(snapshot);
         target.Add("entry-2", Entry("Two"));
 
-        Assert.That(target.Get("entry-1").Entry.PlainText, Is.EqualTo("One"));
-        Assert.That(target.Get("entry-2").Entry.PlainText, Is.EqualTo("Two"));
+        Assert.That(ContentTestText.Of(target.Get("entry-1").Entry), Is.EqualTo("One"));
+        Assert.That(ContentTestText.Of(target.Get("entry-2").Entry), Is.EqualTo("Two"));
     }
 
     [Test]

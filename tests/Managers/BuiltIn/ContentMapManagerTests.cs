@@ -159,7 +159,7 @@ public sealed class ContentMapManagerTests
             });
 
         Assert.That(record.Id, Is.EqualTo(new ContentEntryId("entry")));
-        Assert.That(record.PlainText, Is.EqualTo("Created"));
+        Assert.That(ContentTestText.Of(record), Is.EqualTo("Created"));
         Assert.That(factoryCalls, Is.EqualTo(1));
         Assert.That(changedArgs?.Kind, Is.EqualTo(ContentChangeKind.Added));
         Assert.That(changedArgs?.AddedRecords, Is.EqualTo(new[] { record }));

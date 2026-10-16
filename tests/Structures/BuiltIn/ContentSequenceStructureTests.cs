@@ -277,7 +277,7 @@ public sealed class ContentSequenceStructureTests
         structure.Add(Entry("Third"));
 
         Assert.That(structure.Count, Is.EqualTo(3));
-        Assert.That(structure.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "First", "Second", "Third" }));
+        Assert.That(structure.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "First", "Second", "Third" }));
         Assert.That(structure.OverflowPolicy.Kind, Is.EqualTo(ContentOverflowPolicyKind.None));
         Assert.That(structure.OverflowPolicy.Capacity, Is.Null);
     }
@@ -346,7 +346,7 @@ public sealed class ContentSequenceStructureTests
         Assert.That(record, Is.Null);
         Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.StructureCapacityReached));
         Assert.That(eventCount, Is.EqualTo(0));
-        Assert.That(structure.Records.Select(item => item.PlainText), Is.EqualTo(new[] { "First" }));
+        Assert.That(structure.Records.Select(item => ContentTestText.Of(item)), Is.EqualTo(new[] { "First" }));
     }
 
     [Test]
@@ -399,7 +399,7 @@ public sealed class ContentSequenceStructureTests
         Assert.That(accepted, Is.False);
         Assert.That(removed, Is.Empty);
         Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.StructureCapacityReached));
-        Assert.That(manager.Records.Select(item => item.PlainText), Is.EqualTo(new[] { "First", "Second" }));
+        Assert.That(manager.Records.Select(item => ContentTestText.Of(item)), Is.EqualTo(new[] { "First", "Second" }));
     }
 
     [Test]
@@ -412,8 +412,8 @@ public sealed class ContentSequenceStructureTests
 
         Assert.That(first.Id, Is.EqualTo(new ContentEntryId("1")));
         Assert.That(second.Id, Is.EqualTo(new ContentEntryId("2")));
-        Assert.That(first.PlainText, Is.EqualTo("First"));
-        Assert.That(second.PlainText, Is.EqualTo("Second"));
+        Assert.That(ContentTestText.Of(first), Is.EqualTo("First"));
+        Assert.That(ContentTestText.Of(second), Is.EqualTo("Second"));
     }
 
     [Test]
@@ -682,7 +682,7 @@ public sealed class ContentSequenceStructureTests
         structure.Add(Entry("Second"));
         structure.Add(Entry("Third"));
 
-        Assert.That(structure.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "First", "Second", "Third" }));
+        Assert.That(structure.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "First", "Second", "Third" }));
     }
 
     [Test]
@@ -694,7 +694,7 @@ public sealed class ContentSequenceStructureTests
         structure.Add(Entry("Second"));
         structure.Add(Entry("Third"));
 
-        Assert.That(structure.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "Third", "Second", "First" }));
+        Assert.That(structure.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "Third", "Second", "First" }));
     }
 
     [Test]
@@ -784,7 +784,7 @@ public sealed class ContentSequenceStructureTests
         target.RestoreSnapshot(snapshot);
         ContentEntryRecord next = target.Add(Entry("Next"));
 
-        Assert.That(target.Get("custom-10").Entry.PlainText, Is.EqualTo("Manual"));
+        Assert.That(ContentTestText.Of(target.Get("custom-10").Entry), Is.EqualTo("Manual"));
         Assert.That(next.Id.Value, Is.EqualTo("custom-11"));
     }
 

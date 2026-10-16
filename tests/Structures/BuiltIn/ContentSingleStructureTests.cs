@@ -77,7 +77,7 @@ public sealed class ContentSingleStructureTests
         Assert.That(replaced, Is.Null);
         Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.StructureCapacityReached));
         Assert.That(eventCount, Is.EqualTo(0));
-        Assert.That(structure.GetCurrent().PlainText, Is.EqualTo("First"));
+        Assert.That(ContentTestText.Of(structure.GetCurrent()), Is.EqualTo("First"));
     }
 
     [Test]

@@ -51,7 +51,7 @@ public sealed class ContentEntryTests
         var entry = new PlainContentEntry(timestamp, "Server started.");
 
         Assert.That(entry.Timestamp, Is.EqualTo(timestamp));
-        Assert.That(entry.PlainText, Is.EqualTo("Server started."));
+        Assert.That(ContentTestText.Of(entry), Is.EqualTo("Server started."));
     }
 
     [Test]
@@ -72,7 +72,7 @@ public sealed class ContentEntryTests
         Assert.That(record.Id, Is.EqualTo(id));
         Assert.That(record.Entry, Is.SameAs(entry));
         Assert.That(record.Timestamp, Is.EqualTo(timestamp));
-        Assert.That(record.PlainText, Is.EqualTo("Server started."));
+        Assert.That(ContentTestText.Of(record), Is.EqualTo("Server started."));
     }
 
     [Test]
@@ -89,10 +89,35 @@ public sealed class ContentEntryTests
             "Custom content");
 
         Assert.That(entry.Timestamp, Is.EqualTo(new DateTimeOffset(2026, 9, 14, 13, 0, 0, TimeSpan.Zero)));
-        Assert.That(entry.PlainText, Is.EqualTo("Custom content"));
+        Assert.That(ContentTestText.Of(entry), Is.EqualTo("Custom content"));
     }
 
-    private sealed class CustomEntry : IContentEntry
+    [Test]
+    public void TimestampOnlyEntry_WorksWithBuiltInManagersAndEntrySnapshotRoundTrip()
+    {
+        DateTimeOffset timestamp = new DateTimeOffset(2026, 10, 16, 9, 30, 0, TimeSpan.Zero);
+        IContentEntry entry = new TimestampOnlyEntry(timestamp);
+
+        var sequenceStructure = new ContentSequenceStructure(ContentOverflowPolicy.None);
+        ContentSequenceManager sequence = ContentManagers.ForStructure<ContentSequenceManager>(sequenceStructure);
+        ContentEntryRecord sequenceRecord = sequence.Add(entry);
+
+        ContentMapManager<string> map = ContentManagers.ForStructure<ContentMapManager<string>>(
+            new ContentMapStructure<string>());
+        ContentEntryRecord mapRecord = map.Add("timestamp-only", entry);
+
+        ContentEntrySnapshot snapshot = ContentEntrySnapshots.Capture(entry);
+        IContentEntry restored = ContentEntrySnapshots.Restore(snapshot, TimestampOnlyEntry.Factory);
+
+        Assert.That(sequenceRecord.Entry, Is.SameAs(entry));
+        Assert.That(sequenceRecord.Timestamp, Is.EqualTo(timestamp));
+        Assert.That(mapRecord.Entry, Is.SameAs(entry));
+        Assert.That(mapRecord.Timestamp, Is.EqualTo(timestamp));
+        Assert.That(restored, Is.TypeOf<TimestampOnlyEntry>());
+        Assert.That(restored.Timestamp, Is.EqualTo(timestamp));
+    }
+
+    private sealed class CustomEntry : ITestPlainTextEntry
     {
         public CustomEntry(DateTimeOffset timestamp, string plainText)
         {
@@ -103,5 +128,88 @@ public sealed class ContentEntryTests
         public DateTimeOffset Timestamp { get; }
 
         public string PlainText { get; }
+    }
+
+    private sealed class TimestampOnlyEntry : IContentEntry, IContentEntrySnapshotSerializable
+    {
+        public const string SnapshotKind = "test.entry.timestamp-only";
+        public static IContentEntrySnapshotFactory Factory { get; } = new TimestampOnlyEntryFactory();
+
+        public TimestampOnlyEntry(DateTimeOffset timestamp) => Timestamp = timestamp;
+
+        public DateTimeOffset Timestamp { get; }
+
+        public bool TryCaptureSnapshot(out ContentEntrySnapshot? snapshot, out ContentFailure? failure)
+        {
+            snapshot = new ContentEntrySnapshot
+            {
+                Kind = SnapshotKind,
+                DataVersion = 1,
+                Data = ContentSnapshotValue.Object(new[]
+                {
+                    new ContentSnapshotNamedValue
+                    {
+                        Name = "timestamp",
+                        Value = ContentSnapshotCodecs.Encode(Timestamp)
+                    }
+                })
+            };
+            failure = null;
+            return true;
+        }
+
+        public ContentEntrySnapshot CaptureSnapshot()
+        {
+            if (TryCaptureSnapshot(out ContentEntrySnapshot? snapshot, out ContentFailure? failure) && snapshot is not null)
+            {
+                return snapshot;
+            }
+
+            throw new ContentOperationException(failure ?? SnapshotFailure("Timestamp-only entry snapshot capture failed."));
+        }
+
+        private static ContentFailure SnapshotFailure(string message) => ContentFailure.Create(
+            ContentFailureKind.Snapshot,
+            ContentFailureCodes.SnapshotRejected,
+            message);
+
+        private sealed class TimestampOnlyEntryFactory : IContentEntrySnapshotFactory
+        {
+            public string Kind => SnapshotKind;
+
+            public bool TryRestore(ContentEntrySnapshot snapshot, out IContentEntry? entry, out ContentFailure? failure)
+            {
+                if (snapshot is null) throw new ArgumentNullException(nameof(snapshot));
+                entry = null;
+                failure = null;
+                if (snapshot.Kind != SnapshotKind || snapshot.DataVersion != 1 || snapshot.Data is null)
+                {
+                    failure = SnapshotFailure("The timestamp-only entry snapshot is invalid.");
+                    return false;
+                }
+
+                ContentSnapshotNamedValue? timestampValue = snapshot.Data.Properties
+                    .FirstOrDefault(value => value.Name == "timestamp");
+                if (timestampValue is null
+                    || !ContentSnapshotCodecs.TryDecode(timestampValue.Value, out DateTimeOffset timestamp, out failure))
+                {
+                    failure ??= SnapshotFailure("The timestamp-only entry snapshot has no valid timestamp.");
+                    return false;
+                }
+
+                entry = new TimestampOnlyEntry(timestamp);
+                return true;
+            }
+
+            public IContentEntry Restore(ContentEntrySnapshot snapshot)
+            {
+                if (TryRestore(snapshot, out IContentEntry? entry, out ContentFailure? failure) && entry is not null)
+                {
+                    return entry;
+                }
+
+                throw new ContentOperationException(failure ?? SnapshotFailure("Timestamp-only entry snapshot restore failed."));
+            }
+        }
     }
 }

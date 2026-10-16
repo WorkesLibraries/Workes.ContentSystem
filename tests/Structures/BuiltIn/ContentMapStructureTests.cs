@@ -113,7 +113,7 @@ public sealed class ContentMapStructureTests
 
         Assert.That(replacement.Id, Is.EqualTo(original.Id));
         Assert.That(structure.Get("entry"), Is.SameAs(replacement));
-        Assert.That(structure.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "Second" }));
+        Assert.That(structure.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "Second" }));
         Assert.That(changedArgs, Is.Not.Null);
         Assert.That(changedArgs!.Kind, Is.EqualTo(ContentChangeKind.Replaced));
         Assert.That(changedArgs.AddedRecords, Is.EqualTo(new[] { replacement }));
@@ -129,7 +129,7 @@ public sealed class ContentMapStructureTests
         structure.Add("second", Entry("Second"));
         structure.Add("third", Entry("Third"));
 
-        Assert.That(structure.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "First", "Second", "Third" }));
+        Assert.That(structure.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "First", "Second", "Third" }));
     }
 
     [Test]
@@ -191,7 +191,7 @@ public sealed class ContentMapStructureTests
         ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
         var restored = (ContentMapStructure<Guid>)ContentMapStructure<Guid>.CreateSnapshotFactory().Restore(snapshot);
 
-        Assert.That(restored.Get(id).PlainText, Is.EqualTo("Guid"));
+        Assert.That(ContentTestText.Of(restored.Get(id)), Is.EqualTo("Guid"));
     }
 
     [Test]
@@ -204,7 +204,7 @@ public sealed class ContentMapStructureTests
         ContentStructureSnapshot snapshot = structure.CaptureSnapshot();
         var restored = (ContentMapStructure<ContentEntryId>)ContentMapStructure<ContentEntryId>.CreateSnapshotFactory().Restore(snapshot);
 
-        Assert.That(restored.Get(id).PlainText, Is.EqualTo("Stored"));
+        Assert.That(ContentTestText.Of(restored.Get(id)), Is.EqualTo("Stored"));
     }
 
     [Test]

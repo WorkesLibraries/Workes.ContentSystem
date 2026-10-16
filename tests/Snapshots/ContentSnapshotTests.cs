@@ -249,7 +249,7 @@ public sealed class ContentSnapshotTests
 
         Assert.That(restored, Is.TypeOf<PlainContentEntry>());
         Assert.That(restored.Timestamp, Is.EqualTo(timestamp));
-        Assert.That(restored.PlainText, Is.EqualTo("Server started."));
+        Assert.That(ContentTestText.Of(restored), Is.EqualTo("Server started."));
     }
 
     [Test]
@@ -291,7 +291,7 @@ public sealed class ContentSnapshotTests
         bool restored = ContentEntrySnapshots.TryRestore(snapshot, factory, out IContentEntry? entry, out ContentFailure? failure);
 
         Assert.That(restored, Is.True);
-        Assert.That(entry?.PlainText, Is.EqualTo("Restored"));
+        Assert.That(ContentTestText.Of(entry!), Is.EqualTo("Restored"));
         Assert.That(factory.RestoreCalls, Is.EqualTo(1));
         Assert.That(failure, Is.Null);
     }
@@ -435,7 +435,7 @@ public sealed class ContentSnapshotTests
 
         var restored = (ContentMapStructure<CustomSnapshotId>)structure.SnapshotFactory.Restore(snapshot);
 
-        Assert.That(restored.Get(new CustomSnapshotId("good")).Entry.PlainText, Is.EqualTo("Good"));
+        Assert.That(ContentTestText.Of(restored.Get(new CustomSnapshotId("good")).Entry), Is.EqualTo("Good"));
     }
 
     [Test]
@@ -455,12 +455,12 @@ public sealed class ContentSnapshotTests
         Assert.That(restored.OverflowPolicy, Is.EqualTo(ContentOverflowPolicy.DropOldest(3)));
         Assert.That(restored.ReadOrder, Is.EqualTo(ContentSequenceReadOrder.NewestFirst));
         Assert.That(restored.Records.Select(record => record.Id.Value), Is.EqualTo(new[] { "4", "3", "2" }));
-        Assert.That(restored.Records.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "Four", "Three", "Two" }));
+        Assert.That(restored.Records.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "Four", "Three", "Two" }));
         Assert.That(next.Id.Value, Is.EqualTo("4"));
         Assert.That(restored.TryGet(second.Id, out ContentEntryRecord? restoredSecond, out _), Is.True);
-        Assert.That(restoredSecond!.Entry.PlainText, Is.EqualTo(second.Entry.PlainText));
+        Assert.That(ContentTestText.Of(restoredSecond!.Entry), Is.EqualTo(ContentTestText.Of(second.Entry)));
         Assert.That(restored.TryGet(third.Id, out ContentEntryRecord? restoredThird, out _), Is.True);
-        Assert.That(restoredThird!.Entry.PlainText, Is.EqualTo(third.Entry.PlainText));
+        Assert.That(ContentTestText.Of(restoredThird!.Entry), Is.EqualTo(ContentTestText.Of(third.Entry)));
     }
 
     [Test]
@@ -479,7 +479,7 @@ public sealed class ContentSnapshotTests
 
         Assert.That(snapshot.Kind, Is.EqualTo(ContentMapStructure<string>.SnapshotKind));
         Assert.That(restored.Records.Select(record => record.Id.Value), Is.EqualTo(new[] { "entry-1", "entry-2", "entry-3" }));
-        Assert.That(restored.Get("entry-1").Entry.PlainText, Is.EqualTo("One"));
+        Assert.That(ContentTestText.Of(restored.Get("entry-1").Entry), Is.EqualTo("One"));
         Assert.Throws<ContentOperationException>(() => restored.Add("entry-1", Entry("Duplicate")));
     }
 
@@ -498,7 +498,7 @@ public sealed class ContentSnapshotTests
         restored.Add(30, Entry("Thirty"));
 
         Assert.That(restored.Records.Select(record => record.Id.Value), Is.EqualTo(new[] { "10", "20", "30" }));
-        Assert.That(restored.Get(20).Entry.PlainText, Is.EqualTo("Twenty"));
+        Assert.That(ContentTestText.Of(restored.Get(20).Entry), Is.EqualTo("Twenty"));
     }
 
     [Test]
@@ -532,7 +532,7 @@ public sealed class ContentSnapshotTests
             ContentMapStructure<string>.CreateSnapshotFactory());
 
         Assert.That(restored.Get("custom").Entry, Is.TypeOf<SerializableCustomEntry>());
-        Assert.That(restored.Get("custom").Entry.PlainText, Is.EqualTo("Custom"));
+        Assert.That(ContentTestText.Of(restored.Get("custom").Entry), Is.EqualTo("Custom"));
     }
 
     [Test]
@@ -710,7 +710,7 @@ public sealed class ContentSnapshotTests
         Assert.That(captured, Is.True);
         Assert.That(restored, Is.True);
         Assert.That(restoredRecords.Select(record => record.Id.Value), Is.EqualTo(new[] { "1", "2" }));
-        Assert.That(restoredRecords.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "One", "Two" }));
+        Assert.That(restoredRecords.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "One", "Two" }));
         Assert.That(failure, Is.Null);
     }
 
@@ -809,7 +809,7 @@ public sealed class ContentSnapshotTests
 
         Assert.That(restored.Label, Is.EqualTo("quest-log"));
         Assert.That(restored.Records.Select(record => record.Id.Value), Is.EqualTo(new[] { "1", "2", "3" }));
-        Assert.That(restored.Records.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "Accepted quest", "Completed quest", "Claimed reward" }));
+        Assert.That(restored.Records.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "Accepted quest", "Completed quest", "Claimed reward" }));
         Assert.That(next.Id.Value, Is.EqualTo("3"));
     }
 
@@ -826,7 +826,7 @@ public sealed class ContentSnapshotTests
         Assert.That(restored, Is.True);
         Assert.That(failure, Is.Null);
         Assert.That(manager.Structure, Is.TypeOf<ExampleAssignedStructure>());
-        Assert.That(manager.Get(1).Entry.PlainText, Is.EqualTo("Family record"));
+        Assert.That(ContentTestText.Of(manager.Get(1).Entry), Is.EqualTo("Family record"));
     }
 
     [Test]
@@ -860,7 +860,7 @@ public sealed class ContentSnapshotTests
 
         target.RestoreSnapshot(snapshot);
 
-        Assert.That(target.Get(new CustomSnapshotId("quest")).Entry.PlainText, Is.EqualTo("Quest"));
+        Assert.That(ContentTestText.Of(target.Get(new CustomSnapshotId("quest")).Entry), Is.EqualTo("Quest"));
     }
 
     [Test]
@@ -933,7 +933,7 @@ public sealed class ContentSnapshotTests
         return new PlainContentEntry(DateTimeOffset.UtcNow, text);
     }
 
-    private sealed class CustomEntry : IContentEntry
+    private sealed class CustomEntry : ITestPlainTextEntry
     {
         public DateTimeOffset Timestamp => DateTimeOffset.UtcNow;
 
@@ -1017,7 +1017,7 @@ public sealed class ContentSnapshotTests
         }
     }
 
-    private sealed class SerializableCustomEntry : IContentEntry, IContentEntrySnapshotSerializable
+    private sealed class SerializableCustomEntry : ITestPlainTextEntry, IContentEntrySnapshotSerializable
     {
         public const string SnapshotKind = "test.entry.custom";
 
@@ -1098,7 +1098,7 @@ public sealed class ContentSnapshotTests
         }
     }
 
-    private sealed class UnregisteredSerializableCustomEntry : IContentEntry, IContentEntrySnapshotSerializable
+    private sealed class UnregisteredSerializableCustomEntry : ITestPlainTextEntry, IContentEntrySnapshotSerializable
     {
         public const string SnapshotKind = "test.entry.unregistered";
 

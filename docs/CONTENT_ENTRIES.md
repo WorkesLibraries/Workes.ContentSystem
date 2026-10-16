@@ -33,14 +33,11 @@ See [Content Identity](CONTENT_IDENTITY.md) for ID ownership, map ID strategies,
 
 ## Entry Content
 
-`IContentEntry` is the core entry abstraction. It exposes:
+`IContentEntry` is the core entry abstraction. It requires only `Timestamp`, the time associated with the entry. Text is not a shared entry requirement: it belongs to each entry type's own domain model.
 
-- `Timestamp`;
-- `PlainText`.
+An application that needs text can add a property to its own entry type. An entry can instead contain structured or non-text data without inventing a textual representation. Consumers that need to filter or export that data should use its concrete entry type or an application-owned abstraction.
 
-Entries expose simple plain text for easy rendering, searching, export, or debugging.
-
-Entries may also expose richer data. For example:
+Custom entries may expose richer data. For example:
 
 - a chat entry can contain a channel, sender display name, and message text;
 - a log entry can contain severity and source;
@@ -48,11 +45,11 @@ Entries may also expose richer data. For example:
 - an item-link entry can contain an item ID and display text;
 - a forum entry can contain parent/thread information.
 
-The core provides enough common shape to be useful without making every custom entry inherit unnecessary fields.
+The core provides timestamp metadata without making every custom entry inherit fields that do not fit its content.
 
 ## Plain Content Entries
 
-`PlainContentEntry` is the first built-in entry type and the only built-in entry type included in 1.0.
+`PlainContentEntry` is the built-in entry for simple timestamped text.
 
 It stores:
 
@@ -73,7 +70,26 @@ If a host wants clickable player names, expandable exceptions, embedded buttons,
 
 This keeps ContentSystem focused on storing meaning rather than owning visual rendering.
 
-Custom entries implement `IContentEntry` directly. They do not need to inherit from a package base class.
+Custom entries implement `IContentEntry` directly. They do not need to inherit from a package base class. A timestamp-only entry is valid; define whatever additional data, including text if useful, on that concrete type.
+
+```csharp
+using System;
+using Workes.ContentSystem.Core;
+
+public sealed class AchievementUnlockedEntry : IContentEntry
+{
+    public AchievementUnlockedEntry(DateTimeOffset timestamp, string playerId, string achievementId)
+    {
+        Timestamp = timestamp;
+        PlayerId = playerId;
+        AchievementId = achievementId;
+    }
+
+    public DateTimeOffset Timestamp { get; }
+    public string PlayerId { get; }
+    public string AchievementId { get; }
+}
+```
 
 Custom entries that need snapshot support can opt into `IContentEntrySnapshotSerializable` and provide an `IContentEntrySnapshotFactory` for restore. See [Content Snapshots](CONTENT_SNAPSHOTS.md) for entry, record, and built-in structure snapshot workflows.
 

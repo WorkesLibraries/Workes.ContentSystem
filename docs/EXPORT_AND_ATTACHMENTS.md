@@ -24,6 +24,7 @@ Console.WriteLine(export.Text);
 Implement `IContentRecordExporter` for another entry type or format. Use its stable format ID to label the returned output. Return `false` and a structured failure for expected rejection; the manager wraps that cause in the package's standard export failure. Exceptions are allowed to propagate for programmer errors or unexpected faults. The record objects and order are snapshotted, but entry payloads are not cloned.
 
 ```csharp
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Workes.ContentSystem.Core;
@@ -37,13 +38,28 @@ public sealed class QuestLogExporter : IContentRecordExporter
         out string? text,
         out ContentFailure? failure)
     {
-        text = string.Join("\n", records.Select(record => record.PlainText));
+        text = string.Join("\n", records.Select(record => ((QuestEntry)record.Entry).Message));
         failure = null;
         return true;
     }
 }
 
-ContentExportResult questExport = content.Export(new QuestLogExporter());
+public sealed class QuestEntry : IContentEntry
+{
+    public QuestEntry(DateTimeOffset timestamp, string message)
+    {
+        Timestamp = timestamp;
+        Message = message;
+    }
+
+    public DateTimeOffset Timestamp { get; }
+    public string Message { get; }
+}
+
+ContentSequenceManager questLog = ContentManagers.ForStructure<ContentSequenceManager>(
+    new ContentSequenceStructure(ContentOverflowPolicy.None));
+questLog.Add(new QuestEntry(DateTimeOffset.UtcNow, "Quest accepted."));
+ContentExportResult questExport = questLog.Export(new QuestLogExporter());
 ```
 
 Export returns text only. Writing files, streaming, encoding, compression, and delivery remain the host application's responsibility. Exporting snapshots as JSON or another persistence representation is also a host concern; use [Content Snapshots](CONTENT_SNAPSHOTS.md) as the portable state model.
@@ -61,12 +77,12 @@ public sealed class ImageEntry : IContentEntry, IContentEntryAttachmentSource
 {
     public ImageEntry(string text, ContentAttachmentReference image)
     {
-        PlainText = text;
+        Description = text;
         Attachments = Array.AsReadOnly(new[] { image });
     }
 
     public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
-    public string PlainText { get; }
+    public string Description { get; }
     public IReadOnlyList<ContentAttachmentReference> Attachments { get; }
 }
 

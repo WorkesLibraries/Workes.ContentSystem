@@ -11,9 +11,4 @@ public interface IContentEntry
     /// Gets the time associated with the entry.
     /// </summary>
     DateTimeOffset Timestamp { get; }
-
-    /// <summary>
-    /// Gets plain text for rendering, searching, export, or diagnostics.
-    /// </summary>
-    string PlainText { get; }
 }

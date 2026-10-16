@@ -34,7 +34,7 @@ public sealed class ContentSortingTests
             int events = 0;
             manager.Changed += (_, _) => events++;
             IReadOnlyList<ContentEntryRecord> view = manager.GetSortedRecords(Comparer());
-            Assert.That(view.Select(record => record.Entry.PlainText), Is.Ordered);
+            Assert.That(view.Select(record => ContentTestText.Of(record.Entry)), Is.Ordered);
             Assert.That(manager.Records, Is.EqualTo(before));
             Assert.That(manager.CaptureSnapshot().Records.Select(record => record.EntryId), Is.EqualTo(snapshotBefore.Records.Select(record => record.EntryId)));
             Assert.That(events, Is.Zero);
@@ -81,7 +81,7 @@ public sealed class ContentSortingTests
         ContentStructureSnapshot snapshot = manager.CaptureSnapshot();
         var restored = new ContentMapManager<string>();
         restored.RestoreSnapshot(snapshot);
-        Assert.That(restored.Records.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "a", "b" }));
+        Assert.That(restored.Records.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "a", "b" }));
     }
 
     [Test]
@@ -102,7 +102,7 @@ public sealed class ContentSortingTests
         Assert.That(manager.GetRoots().Select(node => node.Record), Is.EqualTo(new[] { rootA.Record, rootZ.Record }));
         Assert.That(manager.GetChildren(rootZ).Select(node => node.Record), Is.EqualTo(new[] { childA.Record, childZ.Record }));
         Assert.That(manager.GetParent(grandchild).Record, Is.SameAs(childZ.Record));
-        Assert.That(manager.Records.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "a", "z", "a-child", "z-child", "grandchild" }));
+        Assert.That(manager.Records.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "a", "z", "a-child", "z-child", "grandchild" }));
         Assert.That(args?.Kind, Is.EqualTo(ContentChangeKind.Sorted));
         Assert.That(args?.RequiresFullRefresh, Is.True);
         Assert.That(manager.SortSiblings(Comparer()), Is.False);
@@ -111,8 +111,8 @@ public sealed class ContentSortingTests
         ContentStructureSnapshot snapshot = manager.CaptureSnapshot();
         var restored = new ContentCompoundManager(new ContentCompoundStructure());
         restored.RestoreSnapshot(snapshot);
-        Assert.That(restored.Records.Select(record => record.Entry.PlainText), Is.EqualTo(manager.Records.Select(record => record.Entry.PlainText)));
-        Assert.That(restored.GetChildren(1).Select(node => node.Record.Entry.PlainText), Is.EqualTo(new[] { "a-child", "z-child" }));
+        Assert.That(restored.Records.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(manager.Records.Select(record => ContentTestText.Of(record.Entry))));
+        Assert.That(restored.GetChildren(1).Select(node => ContentTestText.Of(node.Record.Entry)), Is.EqualTo(new[] { "a-child", "z-child" }));
     }
 
     [Test]
@@ -144,13 +144,13 @@ public sealed class ContentSortingTests
         manager.AddChild(1, Entry("z-child"));
 
         Assert.That(manager.SortSiblings(Comparer()), Is.True);
-        Assert.That(manager.Records.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "a", "a-child", "z-child", "z" }));
+        Assert.That(manager.Records.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "a", "a-child", "z-child", "z" }));
 
         var restored = new ContentCompoundManager(new ContentCompoundStructure(
             ContentCompoundChildRemovalPolicy.Reject,
             ContentCompoundSiblingReadOrder.OldestFirst));
         restored.RestoreSnapshot(manager.CaptureSnapshot());
-        Assert.That(restored.Records.Select(record => record.Entry.PlainText), Is.EqualTo(new[] { "a", "a-child", "z-child", "z" }));
+        Assert.That(restored.Records.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(new[] { "a", "a-child", "z-child", "z" }));
     }
 
     [Test]
@@ -178,14 +178,14 @@ public sealed class ContentSortingTests
         Assert.That(requestedGroups, Is.Empty, "assessment must not invoke caller code");
         Assert.That(manager.SortSiblings(selector), Is.True);
         Assert.That(requestedGroups, Is.EqualTo(new ContentEntryId?[] { null, rootA.Record.Id, rootZ.Record.Id }));
-        Assert.That(manager.GetRoots().Select(node => node.Record.Entry.PlainText), Is.EqualTo(new[] { "z", "a" }));
-        Assert.That(manager.GetChildren(rootA).Select(node => node.Record.Entry.PlainText), Is.EqualTo(new[] { "a", "b" }));
-        Assert.That(manager.GetChildren(rootZ).Select(node => node.Record.Entry.PlainText), Is.EqualTo(new[] { "2", "1" }));
+        Assert.That(manager.GetRoots().Select(node => ContentTestText.Of(node.Record.Entry)), Is.EqualTo(new[] { "z", "a" }));
+        Assert.That(manager.GetChildren(rootA).Select(node => ContentTestText.Of(node.Record.Entry)), Is.EqualTo(new[] { "a", "b" }));
+        Assert.That(manager.GetChildren(rootZ).Select(node => ContentTestText.Of(node.Record.Entry)), Is.EqualTo(new[] { "2", "1" }));
         Assert.That(events, Is.EqualTo(1));
 
         var restored = new ContentCompoundManager(new ContentCompoundStructure());
         restored.RestoreSnapshot(manager.CaptureSnapshot());
-        Assert.That(restored.Records.Select(record => record.Entry.PlainText), Is.EqualTo(manager.Records.Select(record => record.Entry.PlainText)));
+        Assert.That(restored.Records.Select(record => ContentTestText.Of(record.Entry)), Is.EqualTo(manager.Records.Select(record => ContentTestText.Of(record.Entry))));
     }
 
     [Test]
@@ -203,10 +203,10 @@ public sealed class ContentSortingTests
 
         Assert.That(manager.AssessSortSiblings(parentId: null, PlainTextComparer(false)).CanCommit, Is.True);
         Assert.That(manager.SortSiblings(parentId: null, PlainTextComparer(false)), Is.True);
-        Assert.That(manager.GetRoots().Select(node => node.Record.Entry.PlainText), Is.EqualTo(new[] { "a", "z" }));
+        Assert.That(manager.GetRoots().Select(node => ContentTestText.Of(node.Record.Entry)), Is.EqualTo(new[] { "a", "z" }));
         Assert.That(manager.SortSiblings(rootZ.Record.Id, PlainTextComparer(false)), Is.True);
-        Assert.That(manager.GetChildren(rootZ).Select(node => node.Record.Entry.PlainText), Is.EqualTo(new[] { "child-a", "child-z" }));
-        Assert.That(manager.GetChildren(rootA).Select(node => node.Record.Entry.PlainText), Is.EqualTo(new[] { "other-z", "other-a" }));
+        Assert.That(manager.GetChildren(rootZ).Select(node => ContentTestText.Of(node.Record.Entry)), Is.EqualTo(new[] { "child-a", "child-z" }));
+        Assert.That(manager.GetChildren(rootA).Select(node => ContentTestText.Of(node.Record.Entry)), Is.EqualTo(new[] { "other-z", "other-a" }));
         Assert.That(manager.SortSiblings(rootZ.Record.Id, PlainTextComparer(false)), Is.False);
         Assert.That(events, Is.EqualTo(2));
 
@@ -264,11 +264,11 @@ public sealed class ContentSortingTests
     }
 
     private static Comparer<ContentEntryRecord> Comparer() => Comparer<ContentEntryRecord>.Create(
-        (left, right) => StringComparer.Ordinal.Compare(left.Entry.PlainText, right.Entry.PlainText));
+        (left, right) => StringComparer.Ordinal.Compare(ContentTestText.Of(left.Entry), ContentTestText.Of(right.Entry)));
     private static Comparer<ContentEntryRecord> PlainTextComparer(bool descending) => Comparer<ContentEntryRecord>.Create(
         (left, right) => descending
-            ? StringComparer.Ordinal.Compare(right.Entry.PlainText, left.Entry.PlainText)
-            : StringComparer.Ordinal.Compare(left.Entry.PlainText, right.Entry.PlainText));
+            ? StringComparer.Ordinal.Compare(ContentTestText.Of(right.Entry), ContentTestText.Of(left.Entry))
+            : StringComparer.Ordinal.Compare(ContentTestText.Of(left.Entry), ContentTestText.Of(right.Entry)));
     private static PlainContentEntry Entry(string text) => new(DateTimeOffset.UnixEpoch, text);
 
     private sealed class ThrowingComparer : IComparer<ContentEntryRecord>
@@ -282,7 +282,7 @@ public sealed class ContentSortingTests
         public int Compare(ContentEntryRecord? x, ContentEntryRecord? y)
         {
             if (_comparisons++ > 0) throw new InvalidOperationException("Comparison failed after preparing the first sibling group.");
-            return StringComparer.Ordinal.Compare(x!.Entry.PlainText, y!.Entry.PlainText);
+            return StringComparer.Ordinal.Compare(ContentTestText.Of(x!.Entry), ContentTestText.Of(y!.Entry));
         }
     }
 

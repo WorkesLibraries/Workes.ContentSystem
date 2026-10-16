@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Record the implementation roadmap for the current stable package and its planned compatible minor releases.
+Record the implementation roadmap for the current stable package and planned release stages, including breaking changes.
 
 Trello remains the task-state source of truth. This document records the architectural sequence so project docs and future implementation stay aligned.
 
@@ -112,11 +112,15 @@ Release checks completed: focused guides and extension recipes were reconciled; 
 
 ### Stage 29 / 1.3.0: Add export helpers and attachment abstractions
 
-Implementation is complete for the 1.3.0 candidate: optional manager-level text exporters and entry-owned attachment references are documented and tested. Built-in plain-text and Markdown exporters handle `PlainContentEntry`; custom exporters can handle application entries and formats. Attachment references carry opaque host-defined locators and descriptive metadata, while applications own the referenced bytes and their lifecycle. The library Release build and all 350 tests pass, and the packed 1.3.0 candidate was inspected. The solution-level build still fails without a diagnostic in this environment. Publication and tagging remain separate actions.
+Released in 1.3.0: optional manager-level text exporters and entry-owned attachment references. Built-in plain-text and Markdown exporters handle `PlainContentEntry`; custom exporters can handle application entries and formats. Attachment references carry opaque host-defined locators and descriptive metadata, while applications own the referenced bytes and their lifecycle.
+
+### Stage 30 / 2.0.0: Make Plain Text Entry-Specific
+
+Prepare a 2.0.0 release that removes plain text from the shared entry and record contracts while retaining timestamps as shared metadata. Preserve `PlainContentEntry` text and its snapshot format, and document that generic filters and exporters must handle application-owned entry types explicitly.
 
 ## Deferred Work
 
-The following ideas remain deferred beyond the currently planned 1.3.0 release sequence unless separately prioritized:
+The following ideas remain deferred unless separately prioritized:
 
 - broader chat and feed examples;
 - platform adapter packages;

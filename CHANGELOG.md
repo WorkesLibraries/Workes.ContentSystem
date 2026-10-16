@@ -2,7 +2,15 @@
 
 This file records notable user-facing changes to `Workes.ContentSystem`.
 
-## 1.3.0 - Unreleased
+## 2.0.0 - 15-10-2026
+
+Changed:
+
+- **Breaking:** Removed `PlainText` from `IContentEntry` and `ContentEntryRecord`; timestamp remains the only required shared entry metadata.
+- Kept `PlainContentEntry.PlainText` and the built-in plain-text and Markdown exporters specific to `PlainContentEntry`.
+- Added migration guidance for custom entries and consumers that previously read text from generic records.
+
+## 1.3.0 - 15-10-2026
 
 Added:
 
@@ -13,7 +21,7 @@ Changed:
 
 - Clarified the boundary between export, portable snapshots, and host-owned attachment storage.
 
-## 1.2.0 - 15-10-2026 (Released)
+## 1.2.0 - 15-10-2026
 
 Added:
 
@@ -26,7 +34,7 @@ Changed:
 - Batch operations emit one coherent full-refresh change event after commit; rejected batches and no-op predicate removals are event-silent.
 - Documented batch atomicity, ordering, generated-ID reservation, compound removal policy, and extension opt-in contracts.
 
-## 1.1.0 - 15-10-2026 (Released)
+## 1.1.0 - 15-10-2026
 
 Added:
 

@@ -29,13 +29,13 @@ It is intended to be useful anywhere an application needs an ordered or structur
 Install the package from [NuGet](https://www.nuget.org/packages/Workes.ContentSystem):
 
 ```bash
-dotnet add package Workes.ContentSystem --version 1.3.0
+dotnet add package Workes.ContentSystem --version 2.0.0
 ```
 
 Or add a package reference:
 
 ```xml
-<PackageReference Include="Workes.ContentSystem" Version="1.3.0" />
+<PackageReference Include="Workes.ContentSystem" Version="2.0.0" />
 ```
 
 The package targets .NET Standard 2.1.
@@ -58,14 +58,15 @@ if (content is ContentSequenceManager sequence)
 
 foreach (ContentEntryRecord record in content.Records)
 {
-    Console.WriteLine($"{record.Id}: {record.PlainText}");
+    Console.WriteLine($"{record.Id}: {((PlainContentEntry)record.Entry).PlainText}");
 }
 
 IReadOnlyList<ContentEntryRecord> newestFirst = content.GetSortedRecords(
     Comparer<ContentEntryRecord>.Create((left, right) => right.Timestamp.CompareTo(left.Timestamp)));
 
 IReadOnlyList<ContentEntryRecord> warnings = content.QueryRecords()
-    .Where(record => record.Entry.PlainText.StartsWith("Warning:", StringComparison.Ordinal))
+    .Where(record => record.Entry is PlainContentEntry entry
+        && entry.PlainText.StartsWith("Warning:", StringComparison.Ordinal))
     .OrderBy(Comparer<ContentEntryRecord>.Create((left, right) => right.Timestamp.CompareTo(left.Timestamp)))
     .ToReadOnlyList();
 ```
@@ -122,7 +123,7 @@ ContentCompoundNode reply = tree.AddChild(
 
 foreach (ContentCompoundRecordView view in tree.GetRecordViews())
 {
-    Console.WriteLine($"{new string(' ', view.Depth * 2)}{view.Record.PlainText}");
+    Console.WriteLine($"{new string(' ', view.Depth * 2)}{((PlainContentEntry)view.Record.Entry).PlainText}");
 }
 ```
 

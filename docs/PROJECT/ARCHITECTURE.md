@@ -8,7 +8,7 @@ This is a project-control document for maintaining architectural consistency. It
 
 ## Current Architecture
 
-Workes.ContentSystem 1.2 provides built-in entry, failure, structure, manager, change-hook, preflight, sorting, query, snapshot, and atomic batch workflows. This document records the architecture behind that public surface and the boundaries reserved for optional integrations and future releases.
+Workes.ContentSystem 2.0 provides built-in entry, failure, structure, manager, change-hook, preflight, sorting, query, snapshot, atomic batch, export, and attachment-reference workflows. This document records the architecture behind that public surface and the boundaries reserved for optional integrations and future releases.
 
 The package should be engine-neutral and centered on manager workflows that own one active content structure and expose simple APIs for normal users.
 
@@ -24,7 +24,7 @@ This is a physical organization rule, not a namespace rule. Public namespaces re
 
 ## Main Concepts
 
-- `IContentEntry` is the core content payload abstraction.
+- `IContentEntry` is the core content payload abstraction and requires only a timestamp; entry-specific payload fields belong to concrete entry types.
 - `IContentEntrySnapshotSerializable` is the optional entry payload snapshot capture contract.
 - `IContentEntrySnapshotFactory` restores entries from explicit entry snapshot factories.
 - `ContentEntryRecord` pairs a stored entry with the active structure's ID.

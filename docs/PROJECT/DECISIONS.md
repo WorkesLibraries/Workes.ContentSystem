@@ -956,3 +956,19 @@ Entries may opt into `IContentEntryAttachmentSource` and expose immutable `Conte
 #### Consequences
 
 Export does not mutate structures or add manager/structure implementation requirements. Attachment references remain application-defined and do not imply that every entry has attachments or that a locator is portable across hosts. Portable snapshots remain the persistence foundation; export is a presentation transformation and attachment bytes stay with the host application.
+
+### D-043: Keep Text Out Of The Shared Entry Contract
+
+Date: 2026-10-16
+
+#### Context
+
+ContentSystem supports structured and non-text application entries as well as text. Requiring every entry to provide a plain-text projection makes text an accidental universal contract, even when a consumer only needs typed data.
+
+#### Decision
+
+`IContentEntry` requires `Timestamp` only. Remove the forwarding `ContentEntryRecord.PlainText` property. Keep text on `PlainContentEntry` and on application-defined entry types where it is meaningful. Do not add a replacement universal or optional text contract; consumers use their concrete entry types and exporters declare which types they support.
+
+#### Consequences
+
+Generic queries and record workflows do not assume text. The built-in plain-text and Markdown exporters remain specific to `PlainContentEntry`; custom exporters handle other entry models. The API change is planned for 2.0.0, while existing `PlainContentEntry` snapshot data remains unchanged.

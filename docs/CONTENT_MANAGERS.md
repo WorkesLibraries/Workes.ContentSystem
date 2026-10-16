@@ -130,16 +130,20 @@ For filtering and query composition, use the same read API on every built-in man
 
 ```csharp
 IReadOnlyList<ContentEntryRecord> matching = content.GetFilteredRecords(
-    record => record.Entry.PlainText.Contains("warning", StringComparison.OrdinalIgnoreCase));
+    record => record.Entry is PlainContentEntry entry
+        && entry.PlainText.Contains("warning", StringComparison.OrdinalIgnoreCase));
 
 IReadOnlyList<ContentEntryRecord> newestWarnings = content.QueryRecords()
-    .Where(record => record.Entry.PlainText.Contains("warning", StringComparison.OrdinalIgnoreCase))
+    .Where(record => record.Entry is PlainContentEntry entry
+        && entry.PlainText.Contains("warning", StringComparison.OrdinalIgnoreCase))
     .OrderBy(Comparer<ContentEntryRecord>.Create(
         (left, right) => right.Timestamp.CompareTo(left.Timestamp)))
     .ThenBy(Comparer<ContentEntryRecord>.Create(
         (left, right) => StringComparer.Ordinal.Compare(left.Id.Value, right.Id.Value)))
     .ToReadOnlyList();
 ```
+
+These predicates are specific to `PlainContentEntry`; generic manager queries do not assume entries expose text. Use your application's entry type or interface when filtering its domain-specific fields.
 
 `QueryRecords()` snapshots the active `Records` membership and order immediately, retaining record references rather than cloning entry objects. Each `Where`, `OrderBy`, and `ThenBy` operation is eager and returns a new materialized query. Filtering preserves the current order; sorting is stable, and `ThenBy` requires an earlier `OrderBy`. The final read-only result's membership and ordering are unaffected by later structure mutations. Query operations do not change structure state or emit events; exceptions from caller predicates/comparers propagate, and any side effects those callbacks perform are caller-owned. Null predicates and comparers throw `ArgumentNullException`.
 
@@ -269,7 +273,8 @@ IReadOnlyList<ContentEntryRecord> set = map.SetRange(new[]
 });
 
 IReadOnlyList<ContentEntryRecord> removed = sequence.RemoveWhere(
-    record => record.Entry.PlainText.StartsWith("temporary:", StringComparison.Ordinal));
+    record => record.Entry is PlainContentEntry entry
+        && entry.PlainText.StartsWith("temporary:", StringComparison.Ordinal));
 
 var stack = ContentManagers.ForStructure<ContentStackManager>(
     new ContentStackStructure(ContentOverflowPolicy.None));

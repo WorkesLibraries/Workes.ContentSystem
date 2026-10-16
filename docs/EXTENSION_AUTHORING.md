@@ -14,7 +14,7 @@ For ordinary package use, start with [Quick Start](QUICK_START.md). The guide is
 
 | You need to... | Start with... | The extension owns... |
 |---|---|---|
-| Store domain-specific content | `IContentEntry` | Entry data and its plain-text representation |
+| Store domain-specific content | `IContentEntry` | Entry data and its timestamp; each type defines any additional data it needs |
 | Keep caller-provided typed IDs | `IContentEntryIdStrategy<TId>` and a map structure | ID validation and normalization |
 | Generate structure-owned IDs | `IContentGeneratedIdSource<TId>` | ID generation, observation, and source state |
 | Define a new storage workflow | `IContentStructure` and a custom manager | Retained state, lookup, order, identity, and workflow methods |

@@ -32,9 +32,4 @@ public sealed class ContentEntryRecord
     /// Gets the time associated with the stored entry.
     /// </summary>
     public DateTimeOffset Timestamp => Entry.Timestamp;
-
-    /// <summary>
-    /// Gets plain text for rendering, searching, export, or diagnostics.
-    /// </summary>
-    public string PlainText => Entry.PlainText;
 }

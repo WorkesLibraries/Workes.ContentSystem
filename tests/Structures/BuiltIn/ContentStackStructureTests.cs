@@ -29,7 +29,7 @@ public sealed class ContentStackStructureTests
         structure.Push(Entry("Bottom"));
         structure.Push(Entry("Top"));
 
-        Assert.That(structure.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "Top", "Bottom" }));
+        Assert.That(structure.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "Top", "Bottom" }));
     }
 
     [Test]
@@ -40,7 +40,7 @@ public sealed class ContentStackStructureTests
         structure.Push(Entry("Bottom"));
         structure.Push(Entry("Top"));
 
-        Assert.That(structure.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "Bottom", "Top" }));
+        Assert.That(structure.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "Bottom", "Top" }));
     }
 
     [Test]
@@ -57,7 +57,7 @@ public sealed class ContentStackStructureTests
         Assert.That(record, Is.Null);
         Assert.That(failure?.Code, Is.EqualTo(ContentFailureCodes.StructureCapacityReached));
         Assert.That(eventCount, Is.EqualTo(0));
-        Assert.That(structure.Records.Select(item => item.PlainText), Is.EqualTo(new[] { "First" }));
+        Assert.That(structure.Records.Select(item => ContentTestText.Of(item)), Is.EqualTo(new[] { "First" }));
     }
 
     [Test]
@@ -106,7 +106,7 @@ public sealed class ContentStackStructureTests
 
         Assert.That(restored.OverflowPolicy, Is.EqualTo(ContentOverflowPolicy.Reject(3)));
         Assert.That(restored.ReadOrder, Is.EqualTo(ContentStackReadOrder.BottomFirst));
-        Assert.That(restored.Records.Select(record => record.PlainText), Is.EqualTo(new[] { "First", "Second", "Third" }));
+        Assert.That(restored.Records.Select(record => ContentTestText.Of(record)), Is.EqualTo(new[] { "First", "Second", "Third" }));
         Assert.That(next.Id, Is.EqualTo(new ContentEntryId("3")));
     }
 

@@ -8,7 +8,7 @@ The package should not assume that all content is chat, logs, console output, or
 
 A content entry is one item in a content structure.
 
-Entries are intentionally extensible. A simple application might only use plain text entries. A larger game or tool might add entries for chat messages, command output, stack traces, item links, moderation events, audit events, or grouped feed items.
+Entries are intentionally extensible. A simple application might only use plain text entries. A larger game or tool might add entries for chat messages, command output, stack traces, item links, moderation events, audit events, or grouped feed items. `IContentEntry` requires a timestamp, but text is specific to entry types that need it.
 
 When an entry is stored, the retained record has a `ContentEntryId`. The structure decides what that ID means. A sequence structure might use an increasing integer-like value. A distributed or externally synchronized structure might use a durable string or UUID-like value.
 

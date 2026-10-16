@@ -147,7 +147,7 @@ public sealed class ContentExportTests
         Assert.That(reference.DisplayName, Is.EqualTo("Hero portrait"));
     }
 
-    private sealed class TestEntry : IContentEntry
+    private sealed class TestEntry : ITestPlainTextEntry
     {
         public TestEntry(string text) => PlainText = text;
         public DateTimeOffset Timestamp => DateTimeOffset.UnixEpoch;
@@ -165,7 +165,7 @@ public sealed class ContentExportTests
         public bool TryExport(IReadOnlyList<ContentEntryRecord> records, out string? text, out ContentFailure? failure)
         {
             ReceivedReadOnlyRecords = records is not IList<ContentEntryRecord> list || list.IsReadOnly;
-            text = string.Join(";", records.Select(record => $"{record.Id}:{record.PlainText}"));
+            text = string.Join(";", records.Select(record => $"{record.Id}:{ContentTestText.Of(record)}"));
             failure = null;
             return true;
         }
@@ -195,7 +195,6 @@ public sealed class ContentExportTests
         }
 
         public DateTimeOffset Timestamp => DateTimeOffset.UnixEpoch;
-        public string PlainText => "attachment";
         public IReadOnlyList<ContentAttachmentReference> Attachments { get; }
 
         public bool TryCaptureSnapshot(out ContentEntrySnapshot? snapshot, out ContentFailure? failure)

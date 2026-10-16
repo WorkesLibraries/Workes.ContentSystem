@@ -62,7 +62,9 @@ ID strategies should validate and normalize typed caller-provided IDs and valida
 
 Use content entries as the primary extension path.
 
-Do not force all entries into a chat-message or log-message shape. Custom entries should be ordinary, supported usage. `PlainContentEntry` is the only built-in entry type included in 1.0.
+Do not force all entries into a chat-message or log-message shape. Custom entries should be ordinary, supported usage. `PlainContentEntry` is the built-in general-purpose text entry.
+
+`IContentEntry` requires a timestamp only. Do not add common content fields such as plain text unless they are genuinely universal to every entry; text belongs on `PlainContentEntry` or application-owned entry types.
 
 Stored entry records should have IDs. Entry payloads should not require callers to invent IDs before a structure stores them.
 
